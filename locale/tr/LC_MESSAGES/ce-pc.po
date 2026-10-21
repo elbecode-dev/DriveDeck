@@ -13,14 +13,8 @@ msgstr "Hakkında"
 msgid "About This PC"
 msgstr "Bu bilgisayar hakkında"
 
-msgid "Add"
-msgstr "Ekle"
-
 msgid "Add a network location"
 msgstr "Ağ konumu ekle"
-
-msgid "Add a network location…"
-msgstr "Ağ konumu ekle…"
 
 msgid "Author: {author}"
 msgstr "Yazar: {author}"
@@ -52,11 +46,11 @@ msgstr "Yeniden adlandırılamıyor"
 msgid "Capacity: {size}"
 msgstr "Kapasite: {size}"
 
+msgid "Check for a new version once a week"
+msgstr "Haftada bir yeni sürüm denetle"
+
 msgid "Choose a share…"
 msgstr "Bir paylaşım seçin…"
-
-msgid "Collapse the ribbon"
-msgstr "Şeridi daralt"
 
 msgid "Command bar icons: Fluent UI System Icons, © Microsoft Corporation, MIT license."
 msgstr "Komut çubuğu simgeleri: Fluent UI System Icons, © Microsoft Corporation, MIT lisansı."
@@ -88,6 +82,9 @@ msgstr "Aygıt:"
 msgid "Devices and drives ({n})"
 msgstr "Aygıtlar ve sürücüler ({n})"
 
+msgid "Disk failing – back up your files"
+msgstr "Disk arızalı – dosyalarınızı yedekleyin"
+
 msgid "Display name (optional):"
 msgstr "Görünen ad (isteğe bağlı):"
 
@@ -111,6 +108,12 @@ msgstr "Boş: {size}"
 
 msgid "GB"
 msgstr "GB"
+
+msgid "GPL-3.0 only"
+msgstr "yalnızca GPL-3.0"
+
+msgid "GPL-3.0 or later"
+msgstr "GPL-3.0 veya sonrası"
 
 msgid "Game controller"
 msgstr "Oyun kumandası"
@@ -168,9 +171,6 @@ msgstr "Ağ konumu"
 
 msgid "Network locations ({n})"
 msgstr "Ağ konumları ({n})"
-
-msgid "Network location…"
-msgstr "Ağ konumu…"
 
 msgid "No disc"
 msgstr "Disk yok"
@@ -271,6 +271,9 @@ msgstr "SMART kullanılamıyor"
 msgid "Safely remove"
 msgstr "Güvenle kaldır"
 
+msgid "Scanner"
+msgstr "Tarayıcı"
+
 msgid "Searching…"
 msgstr "Aranıyor…"
 
@@ -286,11 +289,11 @@ msgstr "Paylaşım adı (gerekli):"
 msgid "Shares found:"
 msgstr "Bulunan paylaşımlar:"
 
-msgid "Show more"
-msgstr "Daha fazla göster"
+msgid "Show"
+msgstr "Göster"
 
-msgid "Show the full ribbon"
-msgstr "Tam şeridi göster"
+msgid "Signs of wear – see Properties"
+msgstr "Yıpranma belirtileri – Özellikler'e bakın"
 
 msgid "Status:"
 msgstr "Durum:"
@@ -382,11 +385,17 @@ msgstr "Kullanılan: {size}"
 msgid "Username (required):"
 msgstr "Kullanıcı adı (gerekli):"
 
+msgid "Version {version} of This PC is available. To update, download it and run ./install.sh again."
+msgstr "Bu bilgisayar {version} sürümü kullanılabilir. Güncellemek için indirip ./install.sh dosyasını yeniden çalıştırın."
+
 msgid "Version {version} · Plasma version"
 msgstr "Sürüm {version} · Plasma sürümü"
 
 msgid "Videos"
 msgstr "Videolar"
+
+msgid "View"
+msgstr "Görüntüle"
 
 msgid "Volume name"
 msgstr "Birim adı"
@@ -417,9 +426,3 @@ msgstr "{host} üzerinde {share}"
 
 msgid "“{name}” is not responding. Check that it is turned on and connected to the network."
 msgstr "“{name}” yanıt vermiyor. Açık ve ağa bağlı olduğunu denetleyin."
-
-msgid "GPL-3.0 or later"
-msgstr "GPL-3.0 veya sonrası"
-
-msgid "GPL-3.0 only"
-msgstr "yalnızca GPL-3.0"

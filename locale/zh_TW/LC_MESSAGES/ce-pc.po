@@ -13,14 +13,8 @@ msgstr "關於"
 msgid "About This PC"
 msgstr "關於本機"
 
-msgid "Add"
-msgstr "新增"
-
 msgid "Add a network location"
 msgstr "新增網路位置"
-
-msgid "Add a network location…"
-msgstr "新增網路位置…"
 
 msgid "Author: {author}"
 msgstr "作者: {author}"
@@ -52,11 +46,11 @@ msgstr "無法重新命名"
 msgid "Capacity: {size}"
 msgstr "容量: {size}"
 
+msgid "Check for a new version once a week"
+msgstr "每週檢查一次新版本"
+
 msgid "Choose a share…"
 msgstr "選擇共用…"
-
-msgid "Collapse the ribbon"
-msgstr "摺疊功能區"
 
 msgid "Command bar icons: Fluent UI System Icons, © Microsoft Corporation, MIT license."
 msgstr "命令列圖示: Fluent UI System Icons,© Microsoft Corporation,MIT 授權。"
@@ -88,6 +82,9 @@ msgstr "裝置:"
 msgid "Devices and drives ({n})"
 msgstr "裝置和磁碟機 ({n})"
 
+msgid "Disk failing – back up your files"
+msgstr "磁碟故障 – 請備份檔案"
+
 msgid "Display name (optional):"
 msgstr "顯示名稱(選填):"
 
@@ -111,6 +108,12 @@ msgstr "可用: {size}"
 
 msgid "GB"
 msgstr "GB"
+
+msgid "GPL-3.0 only"
+msgstr "僅 GPL-3.0"
+
+msgid "GPL-3.0 or later"
+msgstr "GPL-3.0 或更新版本"
 
 msgid "Game controller"
 msgstr "遊戲控制器"
@@ -168,9 +171,6 @@ msgstr "網路位置"
 
 msgid "Network locations ({n})"
 msgstr "網路位置 ({n})"
-
-msgid "Network location…"
-msgstr "網路位置…"
 
 msgid "No disc"
 msgstr "無光碟"
@@ -271,6 +271,9 @@ msgstr "SMART 無法使用"
 msgid "Safely remove"
 msgstr "安全移除"
 
+msgid "Scanner"
+msgstr "掃描器"
+
 msgid "Searching…"
 msgstr "搜尋中…"
 
@@ -286,11 +289,11 @@ msgstr "共用名稱(必填):"
 msgid "Shares found:"
 msgstr "找到的共用:"
 
-msgid "Show more"
-msgstr "顯示更多"
+msgid "Show"
+msgstr "顯示"
 
-msgid "Show the full ribbon"
-msgstr "顯示完整功能區"
+msgid "Signs of wear – see Properties"
+msgstr "有磨損跡象 – 請查看內容"
 
 msgid "Status:"
 msgstr "狀態:"
@@ -382,11 +385,17 @@ msgstr "已使用: {size}"
 msgid "Username (required):"
 msgstr "使用者名稱(必填):"
 
+msgid "Version {version} of This PC is available. To update, download it and run ./install.sh again."
+msgstr "本機 {version} 版本已推出。若要更新，請下載後重新執行 ./install.sh。"
+
 msgid "Version {version} · Plasma version"
 msgstr "版本 {version} · Plasma 版"
 
 msgid "Videos"
 msgstr "影片"
+
+msgid "View"
+msgstr "檢視"
 
 msgid "Volume name"
 msgstr "磁碟區名稱"
@@ -417,9 +426,3 @@ msgstr "{host} 上的 {share}"
 
 msgid "“{name}” is not responding. Check that it is turned on and connected to the network."
 msgstr "「{name}」沒有回應。請確認它已開機並連線到網路。"
-
-msgid "GPL-3.0 or later"
-msgstr "GPL-3.0 或更新版本"
-
-msgid "GPL-3.0 only"
-msgstr "僅 GPL-3.0"

@@ -319,8 +319,58 @@ def lecteurs_optiques_sans_montage():
             "icon": disk_icon(["drive-optical", "media-optical-dvd", "media-optical"]),
             "isKey": False, "isUsb": False, "isOptical": True,
             "freeText": tr("Available") if present else tr("No disc"),
+            "health": "", "healthText": "",
         })
     return res
+
+
+# santeDisque (Ce PC 1.1) : état SMART surveillé par udisks2, lisible sans droits administrateur.
+# Résultat : "" (bon ou inconnu), "warn" (signes d'usure), "fail" (disque défaillant).
+# Pour essayer l'affichage : CEPC_SANTE_TEST=warn ou fail force l'état du disque système.
+_SANTE = {}   # nom du périphérique (sda2, nvme0n1p2…) -> (instant de la lecture, état)
+_UDISKS = "org.freedesktop.UDisks2"
+
+
+def _udisks_prop(objet, interface, nom):
+    try:
+        r = subprocess.run(["busctl", "--system", "--json=short", "get-property", _UDISKS, objet, interface, nom],
+                           capture_output=True, text=True, timeout=3)
+        return json.loads(r.stdout).get("data") if r.returncode == 0 else None
+    except Exception:
+        return None
+
+
+def disk_health(device, mountpoint=""):
+    test = os.environ.get("CEPC_SANTE_TEST", "")
+    if mountpoint == "/" and test in ("warn", "fail"):
+        return test
+    nom = os.path.basename(os.path.realpath(device))
+    if not re.match(r"^[A-Za-z0-9_]+$", nom):
+        return ""
+    lu = _SANTE.get(nom)
+    if lu and time.time() - lu[0] < 300:   # relu toutes les 5 minutes au plus (udisks2 ne l'actualise pas plus souvent)
+        return lu[1]
+    _SANTE[nom] = (time.time(), "")
+    drive = _udisks_prop("/org/freedesktop/UDisks2/block_devices/" + nom, _UDISKS + ".Block", "Drive")
+    if not drive or drive == "/":
+        return ""
+    etat = ""
+    ata = _UDISKS + ".Drive.Ata"
+    if _udisks_prop(drive, ata, "SmartSupported") and _udisks_prop(drive, ata, "SmartEnabled"):
+        if _udisks_prop(drive, ata, "SmartFailing"):
+            etat = "fail"
+        elif (_udisks_prop(drive, ata, "SmartNumBadSectors") or 0) > 0 \
+                or (_udisks_prop(drive, ata, "SmartNumAttributesFailing") or 0) > 0:
+            etat = "warn"
+    else:
+        alertes = _udisks_prop(drive, _UDISKS + ".NVMe.Controller", "SmartCriticalWarning")
+        if isinstance(alertes, list) and alertes:
+            etat = "warn" if set(alertes) <= {"temperature"} else "fail"
+    _SANTE[nom] = (time.time(), etat)
+    return etat
+
+
+HEALTH_TEXT = {"warn": "Signs of wear – see Properties", "fail": "Disk failing – back up your files"}
 
 
 def list_real_disks():
@@ -350,7 +400,9 @@ def list_real_disks():
             "isUsb": (removable or usb) and not optical,
             "isOptical": optical,
             "freeText": tr("{free} free of {total}").format(free=taille(usage.free), total=taille(usage.total)),
+            "health": "" if optical else disk_health(device, mountpoint),
         })
+        result[-1]["healthText"] = tr(HEALTH_TEXT[result[-1]["health"]]) if result[-1]["health"] else ""
 
     def sort_key(d):
         if d["mountpoint"] == "/":
@@ -557,6 +609,27 @@ def net_espace(loc):
     return valeur
 
 
+def badge_health():
+    """Pastilles de santé du disque (santeDisque) : orange = signes d'usure, rouge = défaillant. {état: adresse}."""
+    res = {}
+    for etat, couleur in (("warn", "#f7630c"), ("fail", "#c42b1c")):
+        svg = ('<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">\n'
+               '  <circle cx="10" cy="10" r="10" fill="%s"/>\n'
+               '  <path d="M10 4.6 L10 11.4" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round"/>\n'
+               '  <circle cx="10" cy="15" r="1.5" fill="#ffffff"/>\n'
+               '</svg>\n' % couleur)
+        chemin = os.path.join(os.path.expanduser("~/.cache/fenestra"), "ce-pc-sante-%s.svg" % etat)
+        try:
+            os.makedirs(os.path.dirname(chemin), exist_ok=True)
+            if not os.path.isfile(chemin) or open(chemin, encoding="utf-8").read() != svg:
+                with open(chemin, "w", encoding="utf-8") as f:
+                    f.write(svg)
+            res[etat] = "file://" + chemin
+        except OSError:
+            res[etat] = ""
+    return res
+
+
 def badge_offline():
     """Crée (si besoin) l'image SVG de la pastille « non connecté » et renvoie son adresse file://."""
     svg = ('<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">\n'
@@ -575,17 +648,23 @@ def badge_offline():
         return ""
 
 
-BAR_CONFIG = os.path.join(CONFIG_DIR, "ce-pc-barre.json")
+SECT_CONFIG = os.path.join(CONFIG_DIR, "ce-pc-rubriques.json")   # rubriquesMemo (Ce PC 1.1)
+SECTIONS = ("folders", "disks", "net", "printers")
 
 
-def load_bar_mode():
-    """Mode de la barre de commandes retenu : « simple » (par défaut) ou « complet »."""
+def load_sections():
+    """Rubriques : repliée ou non, affichée ou non. Par défaut, tout est affiché et déplié."""
+    res = {k: {"collapsed": False, "shown": True} for k in SECTIONS}
     try:
-        with open(BAR_CONFIG, encoding="utf-8") as f:
-            mode = json.load(f).get("mode")
-        return mode if mode in ("simple", "complet") else "simple"
-    except Exception:
-        return "simple"
+        with open(SECT_CONFIG, encoding="utf-8") as f:
+            data = json.load(f)
+        for k in SECTIONS:
+            d = data.get(k, {})
+            res[k]["collapsed"] = bool(d.get("collapsed", False))
+            res[k]["shown"] = bool(d.get("shown", True))
+    except (OSError, ValueError, TypeError, AttributeError):
+        pass
+    return res
 
 
 def host_reachable(host, port=445, timeout=0.8):
@@ -1008,6 +1087,165 @@ def list_peripheriques():
     return liste
 
 
+# scannersInfo (Ce PC 1.1) : scanners trouvés par SANE (scanimage -L). La recherche réseau dure ~10 s :
+# elle tourne en arrière-plan (au démarrage puis toutes les 10 minutes) et le dernier résultat est gardé
+# en cache. Sécurité : un scanner RÉSEAU n'est affiché que s'il correspond à une imprimante installée
+# sur ce PC (même nom de modèle) ; les scanners des autres sur le même Wi-Fi restent cachés.
+SCAN_CACHE = os.path.expanduser("~/.cache/fenestra/ce-pc-scanners-cache.json")
+_SCAN_TYPE = re.compile(r"\s+(?:(?:flatbed|platen|sheetfed|sheet-fed|adf|film|handheld)\s+)?scanner$"
+                        r"|\s+multi-function peripheral$|\s+all-in-one$", re.I)
+
+
+def _norme(s):
+    return re.sub(r"[^a-z0-9]+", "", (s or "").lower())
+
+
+def detecter_scanners():
+    """[{device, model, network}] d'après scanimage -L ; None si la recherche a échoué (on garde l'ancien résultat)."""
+    if not shutil.which("scanimage"):
+        return []
+    try:
+        out = subprocess.run(["scanimage", "-L"], capture_output=True, text=True, timeout=45).stdout
+    except Exception:
+        return None
+    res, vus = [], set()
+    for ligne in out.splitlines():
+        m = re.search(r"device [`'](.+?)' is an? (.+)$", ligne.strip())   # la page HTML de certaines imprimantes peut précéder
+        if not m:
+            continue
+        device, desc = m.group(1), m.group(2).strip()
+        desc = re.sub(r"\s+ip=\S+$", "", re.sub(r"^(?:eSCL|WSD)\s+", "", desc))   # forme du pilote airscan
+        backend = device.split(":", 1)[0].lower()
+        if backend in ("v4l", "test", "pixma_test") or desc.lower().endswith("virtual device"):
+            continue   # webcams et périphériques de test vus par SANE : pas des scanners
+        model = _SCAN_TYPE.sub("", desc).strip() or desc
+        if _norme(model) in vus:   # même scanner vu par deux pilotes (escl et airscan)
+            continue
+        vus.add(_norme(model))
+        res.append({"device": device, "model": model,
+                    "network": backend in ("escl", "airscan", "net") or "://" in device})
+    return res
+
+
+def charger_cache_scanners():
+    try:
+        with open(SCAN_CACHE, encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, list) and all(isinstance(x, dict) and "device" in x and "model" in x for x in data):
+            return data
+    except (OSError, ValueError):
+        pass
+    return []
+
+
+def enregistrer_cache_scanners(liste):
+    try:
+        os.makedirs(os.path.dirname(SCAN_CACHE), exist_ok=True)
+        tmp = SCAN_CACHE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(liste, f)
+        os.replace(tmp, SCAN_CACHE)
+    except (OSError, TypeError, ValueError):
+        pass
+
+
+def cartes_scanners(scanners, trouves, imprimantes):
+    """Cartes des scanners à afficher. scanners : dernière liste connue ; trouves : appareils vus à la
+    dernière recherche (les autres sont « hors ligne ») ; imprimantes : cartes des imprimantes installées."""
+    noms = {}   # nom comparable -> l'imprimante est-elle hors ligne ?
+    for d in imprimantes:
+        if d.get("indicator") or d.get("scanner"):
+            continue
+        for s in (d.get("name"), d.get("label")):
+            if _norme(s):
+                noms[_norme(s)] = bool(d.get("offline"))
+    try:   # nom d'annonce réseau des files dnssd://… (« EPSON XP-540 Series »)
+        out = subprocess.run(["lpstat", "-v"], capture_output=True, text=True, timeout=5,
+                             env=dict(os.environ, LC_ALL="C", LANG="C", LANGUAGE="C")).stdout
+        for m in re.finditer(r"^device for (\S+): dnssd://([^/]+?)\._(?:ipps?|printer)\._tcp", out, re.M):
+            from urllib.parse import unquote
+            hors = next((v for n, v in noms.items() if n == _norme(m.group(1))), False)
+            noms[_norme(unquote(m.group(2)))] = hors
+    except Exception:
+        pass
+    res = []
+    for s in scanners:
+        cle = _norme(s["model"])
+        lies = [hors for n, hors in noms.items() if len(n) >= 6 and (cle in n or n in cle)]
+        if s.get("network") and not lies:
+            continue
+        # scannerVeille : un scanner réseau suit l'état de son imprimante (relu toutes les 3 s), pas la recherche
+        # de scanners (lente, toutes les 10 min) : imprimante éteinte = scanner « hors ligne » tout de suite,
+        # imprimante en veille mais « Prête » = scanner affiché normalement
+        if s.get("network") and lies:
+            present = not all(lies)
+        else:
+            present = s["device"] in trouves
+        texte = tr("Scanner") + " · " + (tr("Network") if s.get("network") else "USB")
+        if not present:
+            texte += " · " + tr("Offline")
+        res.append({"key": "scanner:" + s["device"], "label": s["model"], "name": s["model"],
+                    "icon": disk_icon(["scanner", "document-scan", "printer"]), "statusText": texte,
+                    "device": "", "inks": [], "indicator": True, "scanner": True, "offline": not present})
+    return res
+
+
+# miseAJour (Ce PC 1.1) : au plus une fois par semaine, Ce PC demande à GitHub le numéro de la dernière
+# version publiée. Rien n'est installé : un bandeau propose seulement d'ouvrir la page de la version.
+# Aucune donnée personnelle n'est envoyée (GitHub voit l'adresse IP, comme pour toute visite).
+# Désactivable dans « À propos ». Essai du bandeau : CEPC_MAJ_TEST=9.9 python3 ce_pc_plasma.py
+MAJ_CONFIG = os.path.join(CONFIG_DIR, "ce-pc-mise-a-jour.json")
+MAJ_API = "https://api.github.com/repos/naykkalak/fenestra-ce-pc/releases/latest"
+MAJ_PAGE = "https://github.com/naykkalak/fenestra-ce-pc/releases/latest"
+MAJ_INTERVALLE = 7 * 24 * 3600
+
+
+def _version_tuple(v):
+    return tuple(int(x) for x in re.findall(r"\d+", v or "")[:4])
+
+
+def charger_maj():
+    etat = {"last": 0, "latest": "", "url": "", "enabled": True}
+    try:
+        with open(MAJ_CONFIG, encoding="utf-8") as f:
+            data = json.load(f)
+        etat["last"] = float(data.get("last", 0))
+        etat["latest"] = str(data.get("latest", ""))
+        etat["url"] = str(data.get("url", ""))
+        etat["enabled"] = bool(data.get("enabled", True))
+    except (OSError, ValueError, TypeError, AttributeError):
+        pass
+    return etat
+
+
+def enregistrer_maj(etat):
+    try:
+        os.makedirs(CONFIG_DIR, exist_ok=True)
+        tmp = MAJ_CONFIG + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(etat, f)
+        os.replace(tmp, MAJ_CONFIG)
+    except OSError:
+        pass
+
+
+def lire_derniere_version():
+    """(version, adresse de la page) de la dernière version publiée sur GitHub, ou None (hors ligne, erreur)."""
+    import urllib.request
+    try:
+        req = urllib.request.Request(MAJ_API, headers={"User-Agent": "Fenestra-This-PC/" + APP_VERSION,
+                                                       "Accept": "application/vnd.github+json"})
+        with urllib.request.urlopen(req, timeout=8) as r:
+            data = json.loads(r.read(200000).decode("utf-8"))
+        tag = str(data.get("tag_name", "")).lstrip("vV")
+        url = str(data.get("html_url", ""))
+        if not _version_tuple(tag) or not url.startswith("https://github.com/naykkalak/fenestra-ce-pc/"):
+            return None
+        return tag, url
+    except Exception:
+        return None
+
+
 class Backend(QObject):
     disksChanged = pyqtSignal()
     networksChanged = pyqtSignal()
@@ -1017,6 +1255,7 @@ class Backend(QObject):
     smartReady = pyqtSignal(str, str)
     netUpdated = pyqtSignal(list)
     printersUpdated = pyqtSignal(list)
+    updateAvailable = pyqtSignal(str, str)   # miseAJour : (version, adresse de la page)
     printersChanged = pyqtSignal()
 
     def __init__(self):
@@ -1031,6 +1270,12 @@ class Backend(QObject):
         self.printersUpdated.connect(self._setPrinters)
         self._netWake = threading.Event()
         threading.Thread(target=lambda: sync_places(load_net_locations()), daemon=True).start()
+        self._scanners = charger_cache_scanners()   # scannersInfo : dernière liste connue
+        self._scanTrouves = {s["device"] for s in self._scanners}
+        self._scanWake = threading.Event()
+        threading.Thread(target=self._scanLoop, daemon=True).start()
+        self._maj = charger_maj()
+        threading.Thread(target=self._verifierMaj, daemon=True).start()
         threading.Thread(target=self._netLoop, daemon=True).start()
         self.refreshDisks()
 
@@ -1058,13 +1303,73 @@ class Backend(QObject):
                 liste = build_network_list()
                 enregistrer_cache_reseau(liste)
                 self.netUpdated.emit(liste)
-                imprimantes = list_printers() + list_peripheriques()
+                imprimantes = list_printers()
+                imprimantes = imprimantes + cartes_scanners(self._scanners, self._scanTrouves, imprimantes) \
+                    + list_peripheriques()
                 enregistrer_cache_imprimantes(imprimantes)
                 self.printersUpdated.emit(imprimantes)
             except Exception as e:
                 print("[ce_pc_plasma] réseau :", e)
             self._netWake.wait(3)
             self._netWake.clear()
+
+    def _verifierMaj(self):
+        # miseAJour : prévient d'une version plus récente (déjà connue, ou lue sur GitHub au plus une fois par semaine)
+        time.sleep(1.5)   # laisse la fenêtre s'afficher d'abord
+        if not self._maj["enabled"]:   # case décochée dans « À propos » : ni vérification ni bandeau (essai compris)
+            return
+        test = os.environ.get("CEPC_MAJ_TEST", "")
+        if test:
+            self.updateAvailable.emit(test, MAJ_PAGE)
+            return
+        if time.time() - self._maj["last"] >= MAJ_INTERVALLE:
+            lu = lire_derniere_version()
+            if lu:
+                self._maj.update({"last": time.time(), "latest": lu[0], "url": lu[1]})
+                enregistrer_maj(self._maj)
+        if _version_tuple(self._maj["latest"]) > _version_tuple(APP_VERSION):
+            self.updateAvailable.emit(self._maj["latest"], self._maj["url"] or MAJ_PAGE)
+
+    @pyqtProperty(bool, constant=True)
+    def updateCheck(self):
+        return self._maj["enabled"]
+
+    @pyqtSlot(bool)
+    def setUpdateCheck(self, actif):
+        self._maj["enabled"] = bool(actif)
+        enregistrer_maj(self._maj)
+
+    def _scanLoop(self):
+        # scannersInfo : recherche lente (~10 s), au démarrage puis toutes les 10 minutes ou sur « Actualiser ».
+        # scannerVeille : une imprimante en veille ne répond pas toujours ; tant qu'une imprimante est
+        # installée et qu'aucun scanner n'a répondu, on réessaie chaque minute (10 fois au plus).
+        essais_rapides = 0
+        while True:
+            delai = 600
+            try:
+                trouves = detecter_scanners()
+                imprimante = any(not d.get("indicator") and not d.get("scanner") for d in self._printers)
+                if trouves == [] and imprimante and essais_rapides < 10:
+                    essais_rapides += 1
+                    delai = 60
+                elif trouves:
+                    essais_rapides = 0
+                if trouves is not None:
+                    # rangés par modèle : un scanner réseau qui change d'adresse (DHCP) ne fait pas de doublon
+                    connus = {_norme(s["model"]): s for s in self._scanners}
+                    for s in trouves:
+                        connus[_norme(s["model"])] = s
+                    vus = {s["device"] for s in trouves}
+                    # un scanner disparu reste affiché « hors ligne », comme une imprimante éteinte
+                    self._scanners = [s for s in connus.values() if s["device"] in vus or s.get("network")]
+                    self._scanTrouves = vus
+                    enregistrer_cache_scanners(self._scanners)
+                    self._netWake.set()
+            except Exception as e:
+                print("[ce_pc_plasma] scanners :", e)
+            if self._scanWake.wait(delai):
+                essais_rapides = 0   # « Actualiser » : on repart pour une série d'essais rapides
+            self._scanWake.clear()
 
     def _setNetworks(self, new_net):
         if new_net != self._networks:
@@ -1092,17 +1397,18 @@ class Backend(QObject):
         return name
 
     @pyqtSlot(str)
-    def saveBarMode(self, mode):
-        if mode not in ("simple", "complet"):
-            return
+    def saveSections(self, texte):
         try:
+            data = json.loads(texte)
+            etat = {k: {"collapsed": bool(data[k]["collapsed"]), "shown": bool(data[k]["shown"])}
+                    for k in SECTIONS}
             os.makedirs(CONFIG_DIR, exist_ok=True)
-            tmp = BAR_CONFIG + ".tmp"
+            tmp = SECT_CONFIG + ".tmp"
             with open(tmp, "w", encoding="utf-8") as f:
-                json.dump({"mode": mode}, f)
-            os.replace(tmp, BAR_CONFIG)
-        except OSError as e:
-            print("[ce_pc_plasma] mode de la barre :", e)
+                json.dump(etat, f)
+            os.replace(tmp, SECT_CONFIG)
+        except (OSError, ValueError, TypeError, KeyError) as e:
+            print("[ce_pc_plasma] rubriques :", e)
 
     @pyqtSlot(int, int, bool)
     def saveWindow(self, w, h, maximized):
@@ -1122,8 +1428,8 @@ class Backend(QObject):
 
     @pyqtSlot(str)
     def launchApp(self, name):
-        # Seuls ces deux programmes peuvent être lancés depuis la barre
-        if name not in ("systemsettings", "kinfocenter"):
+        # Seuls ces programmes peuvent être lancés (barre, et Skanpage depuis la carte d'un scanner)
+        if name not in ("systemsettings", "kinfocenter", "skanpage"):
             return
         try:
             subprocess.Popen([name])
@@ -1135,6 +1441,7 @@ class Backend(QObject):
     def refreshAll(self):
         self.refreshDisks()
         self._netWake.set()
+        self._scanWake.set()
 
     @pyqtSlot(str, str, str)
     def listShares(self, host, user, password):
@@ -1476,12 +1783,12 @@ QQC2.ApplicationWindow {
     id: win
     visible: true
     title: trad("This PC")
-    // minRuban : le ruban complet a besoin d'environ 710 px de large
-    minimumWidth: win.ribbon ? 740 : 640
-    width: Math.max(barModeInit === "complet" ? 740 : 640, winInit.w > 0 ? winInit.w : 850)   // tailleInitiale
+    // minRuban : la fenêtre ne descend pas sous la largeur du ruban (elle dépend de la langue)
+    minimumWidth: Math.max(740, ribbonRow.implicitWidth + 20)
+    width: Math.max(minimumWidth, winInit.w > 0 ? winInit.w : 850)   // tailleInitiale
     // minHauteur : avec le ruban, il faut voir la première rangée de disques en entier
-    minimumHeight: win.ribbon ? 520 : 540   // minHauteurSimple
-    height: Math.max(barModeInit === "complet" ? 520 : 540, winInit.h > 0 ? winInit.h : 584)
+    minimumHeight: 520
+    height: Math.max(520, winInit.h > 0 ? winInit.h : 584)
     // fenetreMemo : la taille est enregistrée à la fermeture (visibility 4 = fenêtre agrandie)
     onClosing: backend.saveWindow(win.width, win.height, win.visibility === 4)
     Component.onCompleted: {
@@ -1490,10 +1797,34 @@ QQC2.ApplicationWindow {
     }
     color: Kirigami.Theme.backgroundColor
 
-    property bool foldersCollapsed: false
-    property bool disksCollapsed: false
-    property bool netCollapsed: false
-    property bool printersCollapsed: false
+    // rubriquesMemo (Ce PC 1.1) : repli de chaque rubrique et rubriques affichées, retenus d'une ouverture à l'autre
+    property bool foldersCollapsed: sectInit.folders.collapsed
+    property bool disksCollapsed: sectInit.disks.collapsed
+    property bool netCollapsed: sectInit.net.collapsed
+    property bool printersCollapsed: sectInit.printers.collapsed
+    property bool foldersShown: sectInit.folders.shown
+    property bool disksShown: sectInit.disks.shown
+    property bool netShown: sectInit.net.shown
+    property bool printersShown: sectInit.printers.shown
+    function saveSections() {
+        backend.saveSections(JSON.stringify({
+            folders: { collapsed: foldersCollapsed, shown: foldersShown },
+            disks: { collapsed: disksCollapsed, shown: disksShown },
+            net: { collapsed: netCollapsed, shown: netShown },
+            printers: { collapsed: printersCollapsed, shown: printersShown } }))
+    }
+    onFoldersCollapsedChanged: saveSections()
+    onDisksCollapsedChanged: saveSections()
+    onNetCollapsedChanged: saveSections()
+    onPrintersCollapsedChanged: saveSections()
+    onFoldersShownChanged: saveSections()
+    onDisksShownChanged: saveSections()
+    onNetShownChanged: saveSections()
+    onPrintersShownChanged: saveSections()
+    // Nom d'une rubrique sans son compteur « ({n}) » (cases à cocher du groupe « Afficher »)
+    function sectName(s) {
+        return s.replace("({n})", "").replace("（{n}）", "").trim()
+    }
     // seuilAlerte : au-delà de cette occupation (fraction du disque), les jauges passent au rouge
     readonly property real alertFrac: 0.8
     // couleursJauge : bleu des jauges normales et rouge des jauges en alerte (fixes)
@@ -1509,9 +1840,6 @@ QQC2.ApplicationWindow {
     readonly property real cardWidth: 340
     readonly property int cardCols: Math.max(1, Math.floor((scroll.availableWidth - 32) / (cardWidth + 8)))
 
-
-    // Mode de la barre de commandes : false = simple (Windows 11), true = complet (ruban)
-    property bool ribbon: barModeInit === "complet"
 
     // fenestraLangues : texte traduit (table envoyée par le programme), texte anglais si absent
     function trad(s) {
@@ -2047,6 +2375,14 @@ QQC2.ApplicationWindow {
                 text: win.trad("Command bar icons: Fluent UI System Icons, © Microsoft Corporation, MIT license.")
             }
 
+            // miseAJour (1.1)
+            QQC2.CheckBox {
+                Layout.fillWidth: true
+                text: win.trad("Check for a new version once a week")
+                checked: backend.updateCheck
+                onToggled: backend.setUpdateCheck(checked)
+            }
+
             Kirigami.Separator { Layout.fillWidth: true }
 
             QQC2.Label {
@@ -2063,14 +2399,14 @@ QQC2.ApplicationWindow {
         anchors.fill: parent
         spacing: 0
 
-        // barDeuxModes : barre de commandes, mode simple (Windows 11) ou complet (ruban)
+        // barreRuban : barre de commandes en ruban (Ce PC 1.1 : le mode simple a été retiré)
         Item {
             id: barRoot
             // couleursBarre : couleurs « En-tête » du thème (comme la bande des menus de Dolphin)
             Kirigami.Theme.colorSet: Kirigami.Theme.Header
             Kirigami.Theme.inherit: false
             Layout.fillWidth: true
-            Layout.preferredHeight: win.ribbon ? 118 : 44
+            Layout.preferredHeight: 118
             readonly property var sel: win.selEntry
             readonly property bool canOpen: sel !== null && sel.available !== false
             readonly property bool canProps: sel !== null
@@ -2094,356 +2430,19 @@ QQC2.ApplicationWindow {
                 else if (a === "about")
                     aboutDialog.open()
             }
-            function setRibbon(v) {
-                if (win.ribbon === v)
-                    return
-                win.ribbon = v
-                backend.saveBarMode(v ? "complet" : "simple")
-                if (win.visibility !== 2)   // rubanAgrandie : fenêtre agrandie : on ne change pas sa taille
-                    return
-                if (v)
-                    win.height = win.height + 74
-                else
-                    win.height = Math.max(win.minimumHeight, win.height - 74)
-            }
-
             Rectangle {
                 anchors.fill: parent
                 color: Kirigami.Theme.backgroundColor
             }
 
-            QQC2.Menu {
-                id: addMenu
-                QQC2.MenuItem {
-                    text: win.trad("Network location…")
-                    icon.name: "folder-network"
-                    onTriggered: barRoot.runCmd("add")
-                }
-            }
-            QQC2.Menu {
-                id: moreMenu
-                QQC2.MenuItem {
-                    text: win.trad("Add a network location…")
-                    icon.name: "folder-network"
-                    onTriggered: barRoot.runCmd("add")
-                }
-                QQC2.MenuItem {
-                    text: win.trad("System Settings")
-                    icon.name: "preferences-system"
-                    onTriggered: barRoot.runCmd("settings")
-                }
-                QQC2.MenuItem {
-                    text: win.trad("System information")
-                    icon.name: "computer"
-                    onTriggered: barRoot.runCmd("info")
-                }
-                QQC2.MenuSeparator { }
-                QQC2.MenuItem {
-                    text: win.trad("About This PC")
-                    icon.source: barIconsRuban["about"]
-                    onTriggered: aboutDialog.open()
-                }
-            }
-
-            // ===== MODE SIMPLE =====
-            RowLayout {
-                visible: !win.ribbon
-                anchors.fill: parent
-                anchors.leftMargin: 8
-                anchors.rightMargin: 8
-                spacing: 2
-
-                // Bouton « + Ajouter ▾ »
-                Item {
-                    id: addBtn
-                    Layout.preferredWidth: addRow.implicitWidth + 24
-                    Layout.preferredHeight: 34
-                    Layout.alignment: Qt.AlignVCenter
-
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: 5
-                        visible: addMouse.containsMouse || addMouse.pressed || addMenu.visible
-                        color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
-                                       Kirigami.Theme.highlightColor.b, addMouse.pressed ? 0.28 : 0.14)
-                        border.width: 1
-                        border.color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
-                                              Kirigami.Theme.highlightColor.b, 0.5)
-                    }
-                    Row {
-                        id: addRow
-                        anchors.centerIn: parent
-                        spacing: 8
-                        // iconesActions : « + » en icône du thème (repli : « + » en texte)
-                        Item {
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: 16
-                            height: 16
-                            readonly property string src: barIconsSimple["list-add"] || ""
-                            readonly property bool isFile: src.indexOf("file://") === 0
-                            Image {
-                                anchors.fill: parent
-                                visible: parent.isFile
-                                source: parent.isFile ? parent.src : ""
-                                sourceSize.width: 32
-                                sourceSize.height: 32
-                                fillMode: Image.PreserveAspectFit
-                                smooth: true
-                                mipmap: true
-                            }
-                            QQC2.Label {
-                                anchors.centerIn: parent
-                                visible: !parent.isFile
-                                text: "+"
-                                font.pixelSize: 20
-                                font.bold: true
-                                color: Kirigami.Theme.highlightColor
-                            }
-                        }
-                        QQC2.Label {
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: win.trad("Add")
-                            color: Kirigami.Theme.textColor
-                        }
-                        Canvas {
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: 12
-                            height: 12
-                            property color col: Kirigami.Theme.textColor
-                            onColChanged: requestPaint()
-                            onPaint: {
-                                var ctx = getContext("2d")
-                                ctx.reset()
-                                ctx.strokeStyle = col
-                                ctx.lineWidth = 1.6
-                                ctx.lineCap = "round"
-                                ctx.lineJoin = "round"
-                                ctx.beginPath()
-                                ctx.moveTo(2, 4)
-                                ctx.lineTo(6, 8)
-                                ctx.lineTo(10, 4)
-                                ctx.stroke()
-                            }
-                        }
-                    }
-                    MouseArea {
-                        id: addMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        onClicked: addMenu.popup(addBtn, 0, addBtn.height)
-                    }
-                }
-
-                Rectangle {
-                    Layout.preferredWidth: 1
-                    Layout.preferredHeight: 22
-                    Layout.leftMargin: 6
-                    Layout.rightMargin: 6
-                    Layout.alignment: Qt.AlignVCenter
-                    color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
-                                   Kirigami.Theme.textColor.b, 0.25)
-                }
-
-                // Ouvrir / Propriétés / Actualiser : icônes seules, bulle au survol
-                Repeater {
-                    model: [
-                        { t: win.trad("Open"), i: "folder-open", a: "open" },
-                        { t: win.trad("Properties"), i: "document-properties", a: "props" },
-                        { t: win.trad("Refresh"), i: "view-refresh", a: "refresh" }
-                    ]
-                    delegate: Item {
-                        id: sBtn
-                        readonly property bool usable: modelData.a === "open" ? barRoot.canOpen
-                                                     : (modelData.a === "props" ? barRoot.canProps : true)
-                        Layout.preferredWidth: 36
-                        Layout.preferredHeight: 34
-                        Layout.alignment: Qt.AlignVCenter
-                        QQC2.ToolTip.visible: sMouse.containsMouse
-                        QQC2.ToolTip.text: modelData.t
-                        QQC2.ToolTip.delay: 500
-
-                        Rectangle {
-                            anchors.fill: parent
-                            radius: 5
-                            visible: sBtn.usable && (sMouse.containsMouse || sMouse.pressed)
-                            color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
-                                           Kirigami.Theme.highlightColor.b, sMouse.pressed ? 0.28 : 0.14)
-                            border.width: 1
-                            border.color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
-                                                  Kirigami.Theme.highlightColor.b, 0.5)
-                        }
-                        Item {
-                            anchors.centerIn: parent
-                            width: 22
-                            height: 22
-                            opacity: sBtn.usable ? 1.0 : 0.45
-                            readonly property string src: barIconsSimple[modelData.i] || modelData.i
-                            readonly property bool isFile: src.indexOf("file://") === 0
-                            Image {
-                                anchors.fill: parent
-                                visible: parent.isFile
-                                source: parent.isFile ? parent.src : ""
-                                sourceSize.width: 44
-                                sourceSize.height: 44
-                                fillMode: Image.PreserveAspectFit
-                                smooth: true
-                                mipmap: true
-                            }
-                            Kirigami.Icon {
-                                anchors.fill: parent
-                                visible: !parent.isFile
-                                source: parent.isFile ? "" : parent.src
-                            }
-                        }
-                        MouseArea {
-                            id: sMouse
-                            anchors.fill: parent
-                            enabled: sBtn.usable
-                            hoverEnabled: true
-                            onClicked: barRoot.runCmd(modelData.a)
-                        }
-                    }
-                }
-
-                // Bouton « … »
-                Item {
-                    id: moreBtn
-                    Layout.preferredWidth: 36
-                    Layout.preferredHeight: 34
-                    Layout.alignment: Qt.AlignVCenter
-                    QQC2.ToolTip.visible: moreMouse.containsMouse
-                    QQC2.ToolTip.text: win.trad("Show more")
-                    QQC2.ToolTip.delay: 500
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: 5
-                        visible: moreMouse.containsMouse || moreMouse.pressed || moreMenu.visible
-                        color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
-                                       Kirigami.Theme.highlightColor.b, moreMouse.pressed ? 0.28 : 0.14)
-                        border.width: 1
-                        border.color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
-                                              Kirigami.Theme.highlightColor.b, 0.5)
-                    }
-                    QQC2.Label {
-                        anchors.centerIn: parent
-                        anchors.verticalCenterOffset: -3
-                        text: "…"
-                        font.pixelSize: 20
-                        font.bold: true
-                        color: Kirigami.Theme.textColor
-                    }
-                    MouseArea {
-                        id: moreMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        onClicked: moreMenu.popup(moreBtn, 0, moreBtn.height)
-                    }
-                }
-
-                Item { Layout.fillWidth: true }
-
-                // Flèche : ouvrir le mode complet
-                Item {
-                    id: expandBtn
-                    Layout.preferredWidth: 32
-                    Layout.preferredHeight: 32
-                    Layout.alignment: Qt.AlignVCenter
-                    QQC2.ToolTip.visible: expandMouse.containsMouse
-                    QQC2.ToolTip.text: win.trad("Show the full ribbon")
-                    QQC2.ToolTip.delay: 500
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: 5
-                        visible: expandMouse.containsMouse || expandMouse.pressed
-                        color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
-                                       Kirigami.Theme.highlightColor.b, expandMouse.pressed ? 0.28 : 0.14)
-                    }
-                    Canvas {
-                        anchors.centerIn: parent
-                        width: 12
-                        height: 12
-                        property color col: Kirigami.Theme.textColor
-                        onColChanged: requestPaint()
-                        onPaint: {
-                            var ctx = getContext("2d")
-                            ctx.reset()
-                            ctx.strokeStyle = col
-                            ctx.lineWidth = 1.6
-                            ctx.lineCap = "round"
-                            ctx.lineJoin = "round"
-                            ctx.beginPath()
-                            ctx.moveTo(2, 4)
-                            ctx.lineTo(6, 8)
-                            ctx.lineTo(10, 4)
-                            ctx.stroke()
-                        }
-                    }
-                    MouseArea {
-                        id: expandMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        onClicked: barRoot.setRibbon(true)
-                    }
-                }
-            }
-
-            // Flèche : revenir au mode simple (rubanWindows : en haut à droite de la barre)
-            Item {
-                id: collapseBtn
-                anchors.right: parent.right
-                anchors.rightMargin: 8
-                anchors.top: parent.top
-                anchors.topMargin: 6
-                z: 5
-                visible: win.ribbon
-                width: 32
-                height: 26
-                QQC2.ToolTip.visible: collapseMouse.containsMouse
-                QQC2.ToolTip.text: win.trad("Collapse the ribbon")
-                QQC2.ToolTip.delay: 500
-                Rectangle {
-                    anchors.fill: parent
-                    radius: 5
-                    visible: collapseMouse.containsMouse || collapseMouse.pressed
-                    color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
-                                   Kirigami.Theme.highlightColor.b, collapseMouse.pressed ? 0.28 : 0.14)
-                }
-                Canvas {
-                    anchors.centerIn: parent
-                    width: 12
-                    height: 12
-                    property color col: Kirigami.Theme.textColor
-                    onColChanged: requestPaint()
-                    onPaint: {
-                        var ctx = getContext("2d")
-                        ctx.reset()
-                        ctx.strokeStyle = col
-                        ctx.lineWidth = 1.6
-                        ctx.lineCap = "round"
-                        ctx.lineJoin = "round"
-                        ctx.beginPath()
-                        ctx.moveTo(2, 8)
-                        ctx.lineTo(6, 4)
-                        ctx.lineTo(10, 8)
-                        ctx.stroke()
-                    }
-                }
-                MouseArea {
-                    id: collapseMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    onClicked: barRoot.setRibbon(false)
-                }
-            }
-
-            // ===== MODE COMPLET (ruban) =====
+            // ===== RUBAN ===== (Ce PC 1.1 : seul mode de la barre)
             ColumnLayout {
-                visible: win.ribbon
                 anchors.fill: parent
                 spacing: 0
 
                 // Groupes du ruban
                 RowLayout {
+                    id: ribbonRow
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     Layout.topMargin: 6
@@ -2546,6 +2545,7 @@ QQC2.ApplicationWindow {
                                         }
                                     }
                                 }
+                                Item { Layout.fillHeight: true }   // titresAlignes (1.1) : titre du groupe en bas du ruban
                                 QQC2.Label {
                                     Layout.alignment: Qt.AlignHCenter
                                     text: modelData.g
@@ -2568,11 +2568,95 @@ QQC2.ApplicationWindow {
                         }
                     }
 
+                    // groupeAfficher (Ce PC 1.1) : une case par rubrique, décochée = rubrique masquée
+                    ColumnLayout {
+                        Layout.fillHeight: true
+                        spacing: 2
+
+                        // casesAfficher : 1re colonne Dossiers / Périphériques / Réseau, Imprimantes à droite
+                        // de Dossiers ; la 1re ligne est au niveau des icônes des boutons (y = 8)
+                        Item {
+                            Layout.preferredHeight: 84
+                            Layout.preferredWidth: casesGrid.implicitWidth + 8
+                            Grid {
+                                id: casesGrid
+                                x: 4
+                                y: 8
+                                flow: Grid.TopToBottom
+                                rows: 3
+                                columnSpacing: 14
+                                rowSpacing: 2
+                                Repeater {
+                                    model: [
+                                        { t: win.trad("Folders ({n})"), k: "folders" },
+                                        { t: win.trad("Devices and drives ({n})"), k: "disks" },
+                                        { t: win.trad("Network locations ({n})"), k: "net" },
+                                        { t: win.trad("Printers and devices ({n})"), k: "printers" }
+                                    ]
+                                    delegate: QQC2.CheckBox {
+                                        topPadding: 0
+                                        bottomPadding: 0
+                                        font: Kirigami.Theme.smallFont
+                                        text: win.sectName(modelData.t)
+                                        checked: win[modelData.k + "Shown"]
+                                        onToggled: win[modelData.k + "Shown"] = checked
+                                    }
+                                }
+                            }
+                        }
+                        Item { Layout.fillHeight: true }   // titresAlignes (1.1)
+                        QQC2.Label {
+                            Layout.alignment: Qt.AlignHCenter
+                            text: win.trad("Show")
+                            font: Kirigami.Theme.smallFont
+                            opacity: 0.65
+                            color: Kirigami.Theme.textColor
+                        }
+                    }
+                    Rectangle {
+                        Layout.preferredWidth: 1
+                        Layout.fillHeight: true
+                        Layout.topMargin: 6
+                        Layout.bottomMargin: 6
+                        Layout.leftMargin: 8
+                        Layout.rightMargin: 8
+                        color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
+                                       Kirigami.Theme.textColor.b, 0.2)
+                    }
+
                     Item { Layout.fillWidth: true }
                 }
             }
         }
         Kirigami.Separator { Layout.fillWidth: true }
+
+        // miseAJour (1.1) : bandeau « nouvelle version disponible » (rien ne s'installe tout seul)
+        Kirigami.InlineMessage {
+            id: majBandeau
+            property string version: ""
+            property string adresse: ""
+            Layout.fillWidth: true
+            Layout.margins: 8
+            type: Kirigami.MessageType.Information
+            showCloseButton: true
+            visible: false
+            text: win.trad("Version {version} of This PC is available. To update, download it and run ./install.sh again.").replace("{version}", version)
+            actions: [
+                Kirigami.Action {
+                    text: win.trad("View")
+                    icon.name: "internet-web-browser"
+                    onTriggered: Qt.openUrlExternally(majBandeau.adresse)
+                }
+            ]
+            Connections {
+                target: backend
+                function onUpdateAvailable(version, adresse) {
+                    majBandeau.version = version
+                    majBandeau.adresse = adresse
+                    majBandeau.visible = true
+                }
+            }
+        }
 
         // Zone de contenu (couleurs "contenu" de Plasma)
         Rectangle {
@@ -2594,6 +2678,7 @@ QQC2.ApplicationWindow {
 
                     // En-tête de rubrique "Dossiers"
                     Item {
+                        visible: win.foldersShown
                         Layout.fillWidth: true
                         Layout.leftMargin: 23
                         Layout.rightMargin: 15
@@ -2631,7 +2716,7 @@ QQC2.ApplicationWindow {
                     // Grille des dossiers
                     GridLayout {
                         id: folderGrid
-                        visible: !win.foldersCollapsed
+                        visible: win.foldersShown && !win.foldersCollapsed
                         Layout.fillWidth: true
                         Layout.leftMargin: 15
                         Layout.rightMargin: 15
@@ -2709,6 +2794,7 @@ QQC2.ApplicationWindow {
 
                     // En-tête de rubrique "Périphériques et lecteurs"
                     Item {
+                        visible: win.disksShown
                         Layout.fillWidth: true
                         Layout.leftMargin: 23
                         Layout.rightMargin: 15
@@ -2745,7 +2831,7 @@ QQC2.ApplicationWindow {
 
                     // Cartes des disques
                     GridLayout {
-                        visible: !win.disksCollapsed
+                        visible: win.disksShown && !win.disksCollapsed
                         Layout.fillWidth: true
                         Layout.leftMargin: 15
                         Layout.rightMargin: 15
@@ -2779,6 +2865,21 @@ QQC2.ApplicationWindow {
                                             source: modelData.icon
                                             width: modelData.isKey ? 40 : 48
                                             height: width
+                                        }
+                                        // santeDisque (1.1) : pastille orange (usure) ou rouge (défaillant)
+                                        Image {
+                                            readonly property string src: modelData.health ? (badgeHealth[modelData.health] || "") : ""
+                                            visible: src !== ""
+                                            source: src
+                                            width: 20; height: 20
+                                            sourceSize.width: 80
+                                            sourceSize.height: 80
+                                            smooth: true
+                                            mipmap: true
+                                            anchors.right: parent.right
+                                            anchors.bottom: parent.bottom
+                                            anchors.rightMargin: -2
+                                            anchors.bottomMargin: -2
                                         }
                                     }
 
@@ -2815,6 +2916,15 @@ QQC2.ApplicationWindow {
                                             text: modelData.freeText
                                             font: Kirigami.Theme.smallFont
                                             opacity: 0.75
+                                            Layout.fillWidth: true
+                                        }
+                                        QQC2.Label {   // santeDisque (1.1)
+                                            visible: text !== ""
+                                            text: modelData.healthText || ""
+                                            font.pointSize: Kirigami.Theme.smallFont.pointSize
+                                            font.weight: Font.DemiBold
+                                            color: modelData.health === "fail" ? "#c42b1c" : "#d35400"
+                                            elide: Text.ElideRight
                                             Layout.fillWidth: true
                                         }
                                     }
@@ -2885,6 +2995,7 @@ QQC2.ApplicationWindow {
 
                     // En-tête de rubrique "Emplacements réseau"
                     Item {
+                        visible: win.netShown
                         Layout.fillWidth: true
                         Layout.leftMargin: 23
                         Layout.rightMargin: 15
@@ -2921,7 +3032,7 @@ QQC2.ApplicationWindow {
 
                     // Cartes des emplacements réseau : partages montés et emplacements ajoutés par l'utilisateur
                     GridLayout {
-                        visible: !win.netCollapsed
+                        visible: win.netShown && !win.netCollapsed
                         Layout.fillWidth: true
                         Layout.leftMargin: 15
                         Layout.rightMargin: 15
@@ -3086,7 +3197,7 @@ QQC2.ApplicationWindow {
 
                     // Imprimantes et périphériques : information seulement, sous les emplacements réseau
                     Item {
-                        visible: backend.printers.length > 0
+                        visible: win.printersShown && backend.printers.length > 0
                         Layout.fillWidth: true
                         Layout.leftMargin: 23
                         Layout.rightMargin: 15
@@ -3122,7 +3233,7 @@ QQC2.ApplicationWindow {
                     }
 
                     GridLayout {
-                        visible: backend.printers.length > 0 && !win.printersCollapsed
+                        visible: win.printersShown && backend.printers.length > 0 && !win.printersCollapsed
                         Layout.fillWidth: true
                         Layout.leftMargin: 15
                         Layout.rightMargin: 15
@@ -3200,7 +3311,11 @@ QQC2.ApplicationWindow {
                                     acceptedButtons: Qt.LeftButton | Qt.RightButton
                                     onPressed: win.selectedKey = modelData.key
                                     onDoubleClicked: function(mouse) {
-                                        if (mouse.button === Qt.LeftButton && !modelData.indicator)
+                                        if (mouse.button !== Qt.LeftButton)
+                                            return
+                                        if (modelData.scanner === true)   // scannersInfo (1.1) : numériser avec Skanpage
+                                            backend.launchApp("skanpage")
+                                        else if (!modelData.indicator)
                                             win.showPrinter(modelData)
                                     }
                                     onClicked: function(mouse) {
@@ -3247,7 +3362,7 @@ QQC2.ApplicationWindow {
                 anchors.leftMargin: 15
                 anchors.verticalCenter: parent.verticalCenter
                 opacity: 0.75
-                text: win.trad("{n} item(s)").replace("{n}", (win.foldersCollapsed ? 0 : foldersModel.length) + (win.disksCollapsed ? 0 : backend.disks.length) + (win.netCollapsed ? 0 : backend.networks.length) + (win.printersCollapsed ? 0 : backend.printers.length))
+                text: win.trad("{n} item(s)").replace("{n}", (win.foldersCollapsed || !win.foldersShown ? 0 : foldersModel.length) + (win.disksCollapsed || !win.disksShown ? 0 : backend.disks.length) + (win.netCollapsed || !win.netShown ? 0 : backend.networks.length) + (win.printersCollapsed || !win.printersShown ? 0 : backend.printers.length))
             }
         }
     }
@@ -3273,23 +3388,7 @@ def bar_icons():
     return res
 
 
-def bar_icons_actions():
-    """Icônes du mode simple de la barre : windows-modern/actions/ d'abord, sinon l'icône habituelle de la barre."""
-    res = bar_icons()
-    for name in ("folder-open", "document-properties", "view-refresh", "list-add"):
-        if name not in res:
-            res[name] = ""
-        for base in (os.path.expanduser("~/.local/share/fenestra/ce-pc-icones"),
-                     os.path.expanduser("~/.local/share/icons/windows-modern/actions"),
-                     "/usr/share/icons/windows-modern/actions"):
-            p = os.path.join(base, name + ".svg")
-            if os.path.isfile(p):
-                res[name] = "file://" + p
-                break
-    return res
-
-
-APP_VERSION = '1.0'
+APP_VERSION = '1.1'
 APP_AUTEUR = 'naykkalak'
 APP_LICENCE = 'GPL-3.0-or-later'
 
@@ -3377,10 +3476,10 @@ def main():
     engine.rootContext().setContextProperty("trDecimal", DECIMAL)
     engine.rootContext().setContextProperty("barIconsRuban", bar_icons_ruban())
     engine.rootContext().setContextProperty("aboutInfo", about_info())
-    engine.rootContext().setContextProperty("barIconsSimple", bar_icons_actions())
-    engine.rootContext().setContextProperty("barModeInit", load_bar_mode())
+    engine.rootContext().setContextProperty("sectInit", load_sections())
     engine.rootContext().setContextProperty("winInit", load_window_state())
     engine.rootContext().setContextProperty("badgeOffline", badge_offline())
+    engine.rootContext().setContextProperty("badgeHealth", badge_health())
     engine.loadData(QML.encode("utf-8"))
     if not engine.rootObjects():
         print("Échec du chargement QML")

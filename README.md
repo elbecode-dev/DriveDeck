@@ -12,7 +12,8 @@ It shows, in one window, your personal folders, your drives, your network locati
 - **Devices and drives**
   - Internal disks, USB sticks, memory cards and external disks, each with a usage gauge. The gauge turns red when less than 20 % of free space is left.
   - Your CD/DVD drive is always shown, even when empty, and it can be ejected.
-  - Properties shows the disk health (SMART). USB volumes can be renamed.
+  - Disk health is watched for you: an orange badge and "Signs of wear" appear under the gauge when a disk reports bad sectors or a failing SMART attribute, a red badge and "Disk failing – back up your files" when it predicts its own failure. Nothing is shown for a healthy disk. No password is asked: the state comes from udisks2.
+  - Properties shows the full disk health report (SMART). USB volumes can be renamed.
 - **Network locations**
   - Add an SMB share (NAS, another computer) with a button. You don't need a terminal or administrator rights.
   - The share shows its free space. Its password is kept in KWallet.
@@ -21,9 +22,12 @@ It shows, in one window, your personal folders, your drives, your network locati
   - Each printer shows its state (Ready, Printing, Offline), whether it is the default printer, and its ink levels.
   - The state reflects whether a network printer really answers, not only what CUPS believes.
   - A known printer that is switched off stays listed as Offline, and you can remove it from the list.
+  - Scanners have their own card ("Scanner · Network" or "Scanner · USB"). A double-click opens Skanpage, the KDE scanning app, when it is installed.
+  - For your safety, a network scanner is only shown when it belongs to a printer installed on this PC: the scanners of other people on the same Wi-Fi (hotel, office…) stay hidden.
   - Keyboards, mice, touchpads, graphics tablets and game controllers are listed with their connection (USB, Bluetooth, built-in).
-- **Command bar**: a simple Windows 11-style bar, or a full ribbon. Switch between them with the arrow on the right.
-- **Window**: the window remembers its size, and the lists show instantly on opening.
+- **Ribbon**: Location, Network and System commands, and a **Show** group with one tick box per section. Untick a section to hide it.
+- **Your choice is kept**: each section remembers whether it is folded or hidden, and the window remembers its size. The lists show instantly on opening.
+- **New versions**: at most once a week, This PC checks on GitHub whether a newer version is published and shows a banner with a "View" button. Nothing is installed automatically. You can turn this off in "About".
 - **Languages**: 13 languages, following your system language, with English as the fallback.
 
 ## Requirements
@@ -39,6 +43,9 @@ It shows, in one window, your personal folders, your drives, your network locati
   - `ipptool` (CUPS IPP tools): ink levels.
   - `avahi-browse` (Avahi tools): real printer status.
   - `kwallet-query`: remembered passwords.
+  - `busctl` and udisks2: disk health warnings.
+  - `scanimage` (SANE): scanners.
+  - `skanpage`: scanning from the scanner card.
 
 On Kubuntu 26.04 everything is already installed. The install script checks what is present before installing anything.
 
@@ -58,6 +65,8 @@ It installs for the current user only (no root needed):
 - its icons and languages in `~/.local/share/fenestra/`;
 - a "This PC" entry in the application menu;
 - a desktop shortcut. Use `bash install.sh --no-desktop-icon` if you don't want it.
+
+**Updating.** Download the new version and run `bash install.sh` again. Your settings are kept (network locations, window size, sections, printers).
 
 To remove it:
 
@@ -82,6 +91,9 @@ English and French are written by the author. The other languages were translate
   - A printer detected automatically on the network is a temporary queue. It disappears when the printer is switched off, and CUPS then forgets that it was the default printer.
   - Installing the printer in *Printer Settings* gives a permanent queue that keeps this setting.
 - **Real printer status needs `avahi-browse`.** Without it, the state shown is the one reported by CUPS.
+- **Disk health** is only available for internal SATA and NVMe disks. USB sticks and card readers do not report it.
+- **Scanners:** searching the network takes about 10 seconds, so it runs in the background (at start-up, then every 10 minutes or on "Refresh"). A scanner whose printer is not installed on this PC is not shown.
+- **Battery levels** of wireless mice and keyboards are not shown yet.
 - **Input devices:** only keyboards, mice, touchpads, graphics tablets and game controllers are listed. Screens, cameras and audio devices are not.
 - **Tested on:** Solus (Plasma 6) and Kubuntu 26.04 LTS. Feedback from other distributions and other printer brands is welcome.
 
@@ -100,6 +112,10 @@ English and French are written by the author. The other languages were translate
 - This PC © 2026 naykkalak, Fenestra series.
 - Command bar icons: Fluent UI System Icons © Microsoft Corporation, MIT licence (see `icons/`).
 - Icon theme used for the screenshots: windows-modern, from [Windows Modern for KDE Plasma 6](https://github.com/Jeysef/KDE-Windows-Modern) by Jeysef, based on Win11OS-kde by yeyushengfan258. It is not included in this repository.
+
+## Privacy
+
+This PC sends nothing about you. The only request it makes on its own is the weekly version check: it asks GitHub for the number of the latest release. As with any visit to a website, GitHub sees your IP address. Untick "Check for a new version once a week" in "About" to stop it.
 
 ## Trademarks
 

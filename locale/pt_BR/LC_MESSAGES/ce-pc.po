@@ -13,14 +13,8 @@ msgstr "Sobre"
 msgid "About This PC"
 msgstr "Sobre Este Computador"
 
-msgid "Add"
-msgstr "Adicionar"
-
 msgid "Add a network location"
 msgstr "Adicionar um local de rede"
-
-msgid "Add a network location…"
-msgstr "Adicionar um local de rede…"
 
 msgid "Author: {author}"
 msgstr "Autor: {author}"
@@ -52,11 +46,11 @@ msgstr "Não é possível renomear"
 msgid "Capacity: {size}"
 msgstr "Capacidade: {size}"
 
+msgid "Check for a new version once a week"
+msgstr "Procurar uma nova versão uma vez por semana"
+
 msgid "Choose a share…"
 msgstr "Escolher um compartilhamento…"
-
-msgid "Collapse the ribbon"
-msgstr "Recolher a faixa de opções"
 
 msgid "Command bar icons: Fluent UI System Icons, © Microsoft Corporation, MIT license."
 msgstr "Ícones da barra de comandos: Fluent UI System Icons, © Microsoft Corporation, licença MIT."
@@ -88,6 +82,9 @@ msgstr "Dispositivo:"
 msgid "Devices and drives ({n})"
 msgstr "Dispositivos e unidades ({n})"
 
+msgid "Disk failing – back up your files"
+msgstr "Disco com falha – faça backup dos seus arquivos"
+
 msgid "Display name (optional):"
 msgstr "Nome de exibição (opcional):"
 
@@ -111,6 +108,12 @@ msgstr "Livre: {size}"
 
 msgid "GB"
 msgstr "GB"
+
+msgid "GPL-3.0 only"
+msgstr "somente GPL-3.0"
+
+msgid "GPL-3.0 or later"
+msgstr "GPL-3.0 ou posterior"
 
 msgid "Game controller"
 msgstr "Controle de jogo"
@@ -168,9 +171,6 @@ msgstr "Local de rede"
 
 msgid "Network locations ({n})"
 msgstr "Locais de rede ({n})"
-
-msgid "Network location…"
-msgstr "Local de rede…"
 
 msgid "No disc"
 msgstr "Nenhum disco"
@@ -271,6 +271,9 @@ msgstr "SMART indisponível"
 msgid "Safely remove"
 msgstr "Remover com segurança"
 
+msgid "Scanner"
+msgstr "Scanner"
+
 msgid "Searching…"
 msgstr "Pesquisando…"
 
@@ -286,11 +289,11 @@ msgstr "Nome do compartilhamento (obrigatório):"
 msgid "Shares found:"
 msgstr "Compartilhamentos encontrados:"
 
-msgid "Show more"
-msgstr "Mostrar mais"
+msgid "Show"
+msgstr "Mostrar"
 
-msgid "Show the full ribbon"
-msgstr "Mostrar a faixa de opções completa"
+msgid "Signs of wear – see Properties"
+msgstr "Sinais de desgaste – veja Propriedades"
 
 msgid "Status:"
 msgstr "Status:"
@@ -382,11 +385,17 @@ msgstr "Usado: {size}"
 msgid "Username (required):"
 msgstr "Nome de usuário (obrigatório):"
 
+msgid "Version {version} of This PC is available. To update, download it and run ./install.sh again."
+msgstr "A versão {version} do Este Computador está disponível. Para atualizar, baixe-a e execute ./install.sh novamente."
+
 msgid "Version {version} · Plasma version"
 msgstr "Versão {version} · versão para Plasma"
 
 msgid "Videos"
 msgstr "Vídeos"
+
+msgid "View"
+msgstr "Ver"
 
 msgid "Volume name"
 msgstr "Nome do volume"
@@ -417,9 +426,3 @@ msgstr "{share} em {host}"
 
 msgid "“{name}” is not responding. Check that it is turned on and connected to the network."
 msgstr "“{name}” não está respondendo. Verifique se está ligado e conectado à rede."
-
-msgid "GPL-3.0 or later"
-msgstr "GPL-3.0 ou posterior"
-
-msgid "GPL-3.0 only"
-msgstr "somente GPL-3.0"

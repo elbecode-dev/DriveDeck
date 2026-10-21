@@ -2,7 +2,7 @@
 # Fenestra – This PC : removal for the current user.
 # SPDX-License-Identifier: GPL-3.0-or-later
 #   ./uninstall.sh          remove the program, its icons, languages, menu entry and desktop shortcut
-#   ./uninstall.sh --purge  also remove its settings and caches (window size, bar mode, network list, printers)
+#   ./uninstall.sh --purge  also remove its settings and caches (window size, sections, network list, printers, scanners, update check)
 set -euo pipefail
 
 DATA="$HOME/.local/share/fenestra"

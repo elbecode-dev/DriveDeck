@@ -28,7 +28,8 @@ done
 for pair in "udisksctl:CD/DVD mounting" "eject:ejecting media" "smartctl:disk health (smartmontools)" \
             "smbclient:network shares (Samba client)" "lpstat:printers (CUPS client)" \
             "ipptool:ink levels (CUPS IPP tools)" "avahi-browse:real printer status (Avahi tools)" \
-            "kwallet-query:remembered network passwords" "dolphin:opening folders" "xdg-open:opening files"; do
+            "kwallet-query:remembered network passwords" "dolphin:opening folders" "xdg-open:opening files" \
+            "busctl:disk health warnings" "scanimage:scanners (SANE)" "skanpage:scanning from the scanner card"; do
     cmd="${pair%%:*}"; what="${pair#*:}"
     command -v "$cmd" >/dev/null || echo "  optional $cmd not found — $what will not be available"
 done
@@ -76,3 +77,4 @@ fi
 command -v update-desktop-database >/dev/null && update-desktop-database "$APPS" 2>/dev/null || true
 
 echo "Done. Open \"This PC\" from the application menu or the desktop shortcut."
+echo "To update later: download the new version and run this script again (your settings are kept)."

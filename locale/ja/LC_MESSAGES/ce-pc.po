@@ -13,14 +13,8 @@ msgstr "バージョン情報"
 msgid "About This PC"
 msgstr "PC について"
 
-msgid "Add"
-msgstr "追加"
-
 msgid "Add a network location"
 msgstr "ネットワークの場所を追加"
-
-msgid "Add a network location…"
-msgstr "ネットワークの場所を追加…"
 
 msgid "Author: {author}"
 msgstr "作者: {author}"
@@ -52,11 +46,11 @@ msgstr "名前を変更できません"
 msgid "Capacity: {size}"
 msgstr "容量: {size}"
 
+msgid "Check for a new version once a week"
+msgstr "週に 1 回新しいバージョンを確認する"
+
 msgid "Choose a share…"
 msgstr "共有を選択…"
-
-msgid "Collapse the ribbon"
-msgstr "リボンを折りたたむ"
 
 msgid "Command bar icons: Fluent UI System Icons, © Microsoft Corporation, MIT license."
 msgstr "コマンド バーのアイコン: Fluent UI System Icons、© Microsoft Corporation、MIT ライセンス。"
@@ -88,6 +82,9 @@ msgstr "デバイス:"
 msgid "Devices and drives ({n})"
 msgstr "デバイスとドライブ ({n})"
 
+msgid "Disk failing – back up your files"
+msgstr "ディスクの故障 – ファイルをバックアップしてください"
+
 msgid "Display name (optional):"
 msgstr "表示名 (省略可):"
 
@@ -111,6 +108,12 @@ msgstr "空き: {size}"
 
 msgid "GB"
 msgstr "GB"
+
+msgid "GPL-3.0 only"
+msgstr "GPL-3.0 のみ"
+
+msgid "GPL-3.0 or later"
+msgstr "GPL-3.0 以降"
 
 msgid "Game controller"
 msgstr "ゲームコントローラー"
@@ -168,9 +171,6 @@ msgstr "ネットワークの場所"
 
 msgid "Network locations ({n})"
 msgstr "ネットワークの場所 ({n})"
-
-msgid "Network location…"
-msgstr "ネットワークの場所…"
 
 msgid "No disc"
 msgstr "ディスクなし"
@@ -271,6 +271,9 @@ msgstr "SMART を利用できません"
 msgid "Safely remove"
 msgstr "安全に取り外す"
 
+msgid "Scanner"
+msgstr "スキャナー"
+
 msgid "Searching…"
 msgstr "検索中…"
 
@@ -286,11 +289,11 @@ msgstr "共有名 (必須):"
 msgid "Shares found:"
 msgstr "見つかった共有:"
 
-msgid "Show more"
-msgstr "その他を表示"
+msgid "Show"
+msgstr "表示"
 
-msgid "Show the full ribbon"
-msgstr "リボンをすべて表示"
+msgid "Signs of wear – see Properties"
+msgstr "劣化の兆候 – プロパティを確認"
 
 msgid "Status:"
 msgstr "状態:"
@@ -382,11 +385,17 @@ msgstr "使用中: {size}"
 msgid "Username (required):"
 msgstr "ユーザー名 (必須):"
 
+msgid "Version {version} of This PC is available. To update, download it and run ./install.sh again."
+msgstr "PC のバージョン {version} が利用可能です。更新するには、ダウンロードして ./install.sh をもう一度実行してください。"
+
 msgid "Version {version} · Plasma version"
 msgstr "バージョン {version} · Plasma 版"
 
 msgid "Videos"
 msgstr "ビデオ"
+
+msgid "View"
+msgstr "表示"
 
 msgid "Volume name"
 msgstr "ボリューム名"
@@ -417,9 +426,3 @@ msgstr "{host} の {share}"
 
 msgid "“{name}” is not responding. Check that it is turned on and connected to the network."
 msgstr "「{name}」が応答しません。電源が入っていて、ネットワークに接続されていることを確認してください。"
-
-msgid "GPL-3.0 or later"
-msgstr "GPL-3.0 以降"
-
-msgid "GPL-3.0 only"
-msgstr "GPL-3.0 のみ"

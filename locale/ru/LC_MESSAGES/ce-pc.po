@@ -13,14 +13,8 @@ msgstr "О программе"
 msgid "About This PC"
 msgstr "О программе «Этот компьютер»"
 
-msgid "Add"
-msgstr "Добавить"
-
 msgid "Add a network location"
 msgstr "Добавить сетевое расположение"
-
-msgid "Add a network location…"
-msgstr "Добавить сетевое расположение…"
 
 msgid "Author: {author}"
 msgstr "Автор: {author}"
@@ -52,11 +46,11 @@ msgstr "Не удаётся переименовать"
 msgid "Capacity: {size}"
 msgstr "Ёмкость: {size}"
 
+msgid "Check for a new version once a week"
+msgstr "Проверять наличие новой версии раз в неделю"
+
 msgid "Choose a share…"
 msgstr "Выберите общий ресурс…"
-
-msgid "Collapse the ribbon"
-msgstr "Свернуть ленту"
 
 msgid "Command bar icons: Fluent UI System Icons, © Microsoft Corporation, MIT license."
 msgstr "Значки панели команд: Fluent UI System Icons, © Microsoft Corporation, лицензия MIT."
@@ -88,6 +82,9 @@ msgstr "Устройство:"
 msgid "Devices and drives ({n})"
 msgstr "Устройства и диски ({n})"
 
+msgid "Disk failing – back up your files"
+msgstr "Диск неисправен – сохраните свои файлы"
+
 msgid "Display name (optional):"
 msgstr "Отображаемое имя (необязательно):"
 
@@ -111,6 +108,12 @@ msgstr "Свободно: {size}"
 
 msgid "GB"
 msgstr "ГБ"
+
+msgid "GPL-3.0 only"
+msgstr "только GPL-3.0"
+
+msgid "GPL-3.0 or later"
+msgstr "GPL-3.0 или более поздняя"
 
 msgid "Game controller"
 msgstr "Игровой контроллер"
@@ -168,9 +171,6 @@ msgstr "Сетевое расположение"
 
 msgid "Network locations ({n})"
 msgstr "Сетевые расположения ({n})"
-
-msgid "Network location…"
-msgstr "Сетевое расположение…"
 
 msgid "No disc"
 msgstr "Нет диска"
@@ -271,6 +271,9 @@ msgstr "SMART недоступен"
 msgid "Safely remove"
 msgstr "Безопасно извлечь"
 
+msgid "Scanner"
+msgstr "Сканер"
+
 msgid "Searching…"
 msgstr "Поиск…"
 
@@ -286,11 +289,11 @@ msgstr "Имя общего ресурса (обязательно):"
 msgid "Shares found:"
 msgstr "Найденные общие ресурсы:"
 
-msgid "Show more"
-msgstr "Показать больше"
+msgid "Show"
+msgstr "Показать"
 
-msgid "Show the full ribbon"
-msgstr "Показать полную ленту"
+msgid "Signs of wear – see Properties"
+msgstr "Признаки износа – см. Свойства"
 
 msgid "Status:"
 msgstr "Состояние:"
@@ -382,11 +385,17 @@ msgstr "Занято: {size}"
 msgid "Username (required):"
 msgstr "Имя пользователя (обязательно):"
 
+msgid "Version {version} of This PC is available. To update, download it and run ./install.sh again."
+msgstr "Доступна версия {version} программы «Этот компьютер». Чтобы обновить, скачайте её и снова запустите ./install.sh."
+
 msgid "Version {version} · Plasma version"
 msgstr "Версия {version} · версия для Plasma"
 
 msgid "Videos"
 msgstr "Видео"
+
+msgid "View"
+msgstr "Открыть"
 
 msgid "Volume name"
 msgstr "Имя тома"
@@ -417,9 +426,3 @@ msgstr "{share} на {host}"
 
 msgid "“{name}” is not responding. Check that it is turned on and connected to the network."
 msgstr "«{name}» не отвечает. Убедитесь, что устройство включено и подключено к сети."
-
-msgid "GPL-3.0 or later"
-msgstr "GPL-3.0 или более поздняя"
-
-msgid "GPL-3.0 only"
-msgstr "только GPL-3.0"

@@ -13,14 +13,8 @@ msgstr "Info"
 msgid "About This PC"
 msgstr "Over Deze pc"
 
-msgid "Add"
-msgstr "Toevoegen"
-
 msgid "Add a network location"
 msgstr "Een netwerklocatie toevoegen"
-
-msgid "Add a network location…"
-msgstr "Een netwerklocatie toevoegen…"
 
 msgid "Author: {author}"
 msgstr "Auteur: {author}"
@@ -52,11 +46,11 @@ msgstr "Naam wijzigen niet mogelijk"
 msgid "Capacity: {size}"
 msgstr "Capaciteit: {size}"
 
+msgid "Check for a new version once a week"
+msgstr "Eén keer per week op een nieuwe versie controleren"
+
 msgid "Choose a share…"
 msgstr "Kies een share…"
-
-msgid "Collapse the ribbon"
-msgstr "Lint samenvouwen"
 
 msgid "Command bar icons: Fluent UI System Icons, © Microsoft Corporation, MIT license."
 msgstr "Pictogrammen van de opdrachtbalk: Fluent UI System Icons, © Microsoft Corporation, MIT-licentie."
@@ -88,6 +82,9 @@ msgstr "Apparaat:"
 msgid "Devices and drives ({n})"
 msgstr "Apparaten en stations ({n})"
 
+msgid "Disk failing – back up your files"
+msgstr "Schijf defect – maak een back-up van uw bestanden"
+
 msgid "Display name (optional):"
 msgstr "Weergavenaam (optioneel):"
 
@@ -111,6 +108,12 @@ msgstr "Vrij: {size}"
 
 msgid "GB"
 msgstr "GB"
+
+msgid "GPL-3.0 only"
+msgstr "alleen GPL-3.0"
+
+msgid "GPL-3.0 or later"
+msgstr "GPL-3.0 of later"
 
 msgid "Game controller"
 msgstr "Gamecontroller"
@@ -168,9 +171,6 @@ msgstr "Netwerklocatie"
 
 msgid "Network locations ({n})"
 msgstr "Netwerklocaties ({n})"
-
-msgid "Network location…"
-msgstr "Netwerklocatie…"
 
 msgid "No disc"
 msgstr "Geen schijf"
@@ -271,6 +271,9 @@ msgstr "SMART niet beschikbaar"
 msgid "Safely remove"
 msgstr "Veilig verwijderen"
 
+msgid "Scanner"
+msgstr "Scanner"
+
 msgid "Searching…"
 msgstr "Zoeken…"
 
@@ -286,11 +289,11 @@ msgstr "Naam van de share (verplicht):"
 msgid "Shares found:"
 msgstr "Gevonden shares:"
 
-msgid "Show more"
-msgstr "Meer weergeven"
+msgid "Show"
+msgstr "Weergeven"
 
-msgid "Show the full ribbon"
-msgstr "Volledig lint weergeven"
+msgid "Signs of wear – see Properties"
+msgstr "Tekenen van slijtage – zie Eigenschappen"
 
 msgid "Status:"
 msgstr "Status:"
@@ -382,11 +385,17 @@ msgstr "In gebruik: {size}"
 msgid "Username (required):"
 msgstr "Gebruikersnaam (verplicht):"
 
+msgid "Version {version} of This PC is available. To update, download it and run ./install.sh again."
+msgstr "Versie {version} van Deze pc is beschikbaar. Download deze en voer ./install.sh opnieuw uit om bij te werken."
+
 msgid "Version {version} · Plasma version"
 msgstr "Versie {version} · Plasma-versie"
 
 msgid "Videos"
 msgstr "Video's"
+
+msgid "View"
+msgstr "Bekijken"
 
 msgid "Volume name"
 msgstr "Volumenaam"
@@ -417,9 +426,3 @@ msgstr "{share} op {host}"
 
 msgid "“{name}” is not responding. Check that it is turned on and connected to the network."
 msgstr "‘{name}’ reageert niet. Controleer of het is ingeschakeld en met het netwerk is verbonden."
-
-msgid "GPL-3.0 or later"
-msgstr "GPL-3.0 of later"
-
-msgid "GPL-3.0 only"
-msgstr "alleen GPL-3.0"
