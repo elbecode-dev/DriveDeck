@@ -48,6 +48,15 @@ hidden and everything else works).
   without such a sensor it asks udisks for the SMART value (cached for a minute). Partitions, LUKS/LVM volumes and
   unmounted volumes are mapped to the physical disk. The chip turns amber and red from 45 / 55 °C for spinning disks
   and from 65 / 75 °C for SSDs and NVMe drives. Drives without any sensor (many USB enclosures) simply show no chip.
+- **Keyboard navigation through every area.** Before, the arrow keys only moved inside *Devices and drives* and *Network
+  locations*. Now they cover the folder cards, drives, network locations, printers/devices **and the sidebar**
+  (`navSections()`, `moveMain()`, `sideMove()` …). *Left* in the first column enters the sidebar, *Right* on an entry without
+  sub-folders (or *Tab*) returns; in the sidebar *Right* unfolds a node and then selects its first child, *Left* folds it or
+  selects the parent; *Enter* opens (like a double-click: folder, drive, printer dialog, scanner, or the System Settings page of a
+  device), *Space* unfolds, *Home*/*End* jump to the first/last entry, *Ctrl+C* copies the path. The selected card is scrolled into view
+  (`revealItem()`), folder cards now show a selection, and the sidebar shows which area the keys act on (outlined = active,
+  faint = inactive). Duplicate entries (e.g. two folder cards pointing to the same path) are skipped by the keys, and the default
+  Quick access pins no longer contain the same folder twice or the home folder itself (an XDG folder switched off to `$HOME`).
 - **Quieter terminal.** Some icon themes (e.g. Vivid-Dark-Icons) contain SVGs with missing gradients, which made Qt print
   `qt.svg: Could not resolve property …` at every start. The program now switches only that one message category off
   (`QT_LOGGING_RULES=qt.svg.warning=false`); rules set by the user are kept and take precedence.

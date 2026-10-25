@@ -832,20 +832,33 @@ def pin_normaliser(path):
     return os.path.abspath(os.path.expanduser(path))
 
 
+def _ohne_doppelte(pins):
+    """Jeder Ordner höchstens einmal (Anzeige und Tastatursteuerung verlassen sich darauf)."""
+    gesehen, res = set(), []
+    for p in pins:
+        schluessel = pin_normaliser(p["path"])
+        if schluessel not in gesehen:
+            gesehen.add(schluessel)
+            res.append(p)
+    return res
+
+
 def load_pins():
     """Angeheftete Ordner : [{path, label, icon}]. Fehlt die Datei (erster Start), sind Desktop, Dokumente,
     Downloads und Bilder angeheftet ; eine leere Liste bleibt leer."""
     try:
         with open(PINS_CONFIG, encoding="utf-8") as f:
             data = json.load(f)
-        return [{"path": str(d["path"]), "label": str(d.get("label") or ""), "icon": str(d.get("icon") or "")}
-                for d in data if isinstance(d, dict) and d.get("path")]
+        return _ohne_doppelte([{"path": str(d["path"]), "label": str(d.get("label") or ""), "icon": str(d.get("icon") or "")}
+                               for d in data if isinstance(d, dict) and d.get("path")])
     except (OSError, ValueError, TypeError):
         pass
     name_zu_typ = {t: tr(l) for l, t, _, _ in USER_FOLDERS_SPEC}
     vorhanden = {f["label"]: f for f in list_user_folders()}
-    return [{"path": vorhanden[name_zu_typ[t]]["path"], "label": name_zu_typ[t], "icon": vorhanden[name_zu_typ[t]]["icon"]}
-            for t in PIN_STANDARD if name_zu_typ.get(t) in vorhanden]
+    heim = pin_normaliser("~")   # ein auf den Home-Ordner « abgeschalteter » XDG-Ordner wird nicht angeheftet
+    return _ohne_doppelte([{"path": vorhanden[name_zu_typ[t]]["path"], "label": name_zu_typ[t], "icon": vorhanden[name_zu_typ[t]]["icon"]}
+                           for t in PIN_STANDARD if name_zu_typ.get(t) in vorhanden
+                           and pin_normaliser(vorhanden[name_zu_typ[t]]["path"]) != heim])
 
 
 def save_pins(pins):
@@ -2606,39 +2619,39 @@ QQC2.ApplicationWindow {
     // Eine flache Liste aller sichtbaren Zeilen (Kopf, Pin, Hinweis, Baumknoten) ; hängt an allem, was sie liest
     readonly property var sidebarRows: {
         var rows = []
-        rows.push({ type: "head", key: "quick", label: trad("Quick access"), icon: "starred-symbolic",
+        rows.push({ type: "head", key: "quick", selKey: "head:quick", label: trad("Quick access"), icon: "starred-symbolic",
                     collapsed: quickCollapsed, canAdd: true })
         var ps = backend.pins
         if (!quickCollapsed) {
             for (var i = 0; i < ps.length; i++)
-                rows.push({ type: "pin", path: ps[i].path, label: ps[i].label, icon: ps[i].icon,
+                rows.push({ type: "pin", selKey: "pin:" + ps[i].path, path: ps[i].path, label: ps[i].label, icon: ps[i].icon,
                             exists: ps[i].exists, pinIndex: i, pinCount: ps.length })
             if (ps.length === 0)
                 rows.push({ type: "hint" })
         }
-        rows.push({ type: "head", key: "pc", label: trad("This PC"), icon: "computer", collapsed: pcCollapsed })
+        rows.push({ type: "head", key: "pc", selKey: "head:pc", label: trad("This PC"), icon: "computer", collapsed: pcCollapsed })
         if (!pcCollapsed) {
             var ds = backend.disks
             for (var j = 0; j < ds.length; j++) {
                 var d = ds[j]
                 if (d.mountpoint.charAt(0) !== "/" || d.isUnmounted === true || d.isOptical === true)
                     continue
-                addNode(rows, backend.displayPath(d.mountpoint), d.label, d.icon, 0, true)
+                addNode(rows, backend.displayPath(d.mountpoint), d.label, d.icon, 0, true, "head:pc")
             }
         }
         return rows
     }
     // hasKids : Antwort der Vorabprüfung des Elternordners (true = hat Unterordner oder unbekannt). Ist der Ordner selbst
     // schon gelesen, gilt dessen Liste ; so zeigt nur ein Ordner mit echten Unterordnern den Pfeil.
-    function addNode(rows, path, label, icon, depth, hasKids) {
+    function addNode(rows, path, label, icon, depth, hasKids, parentKey) {
         var open = treeOpen[path] === true
         var kids = treeKids[path]
-        rows.push({ type: "node", path: path, label: label, icon: icon, depth: depth, open: open,
+        rows.push({ type: "node", selKey: "node:" + path, parentKey: parentKey, path: path, label: label, icon: icon, depth: depth, open: open,
                     expandable: kids !== undefined ? kids.length > 0 : hasKids !== false,
                     loading: open && kids === undefined })
         if (open && kids !== undefined)
             for (var i = 0; i < kids.length; i++)
-                addNode(rows, kids[i].path, kids[i].name, "folder", depth + 1, kids[i].hasKids)
+                addNode(rows, kids[i].path, kids[i].name, "folder", depth + 1, kids[i].hasKids, "node:" + path)
     }
     // Laufwerks-Wurzeln gleich lesen, damit auch ein leerer Stick keinen unnötigen Pfeil zeigt
     function probeRoots() {
@@ -2676,75 +2689,297 @@ QQC2.ApplicationWindow {
         var t = g / 1024
         return t.toFixed(t < 10 ? 2 : (t < 100 ? 1 : 0)).replace(".", trDecimal) + " " + trad("TB")
     }
-    // Tastatur : Pfeile wählen ein Laufwerk/einen Ort, Enter öffnet, F5 aktualisiert, Esc hebt die Auswahl auf,
-    // Strg+C kopiert den Pfad. Das Element unten hat nur Fokus, solange kein Dialog/Menü offen ist.
-    function moveSel(dx, dy) {
-        var secs = []
+    // Tastatur : Die Pfeiltasten bewegen die Auswahl durch ALLE Bereiche : Ordner, Laufwerke, Netzwerkorte, Drucker und Geräte
+    // im Hauptfenster sowie durch die Seitenleiste. « Links » in der ersten Spalte wechselt in die Seitenleiste, « Rechts »
+    // auf einem Eintrag ohne Unterordner (oder Tab) zurück. In der Seitenleiste klappt « Rechts » einen Ordner auf, « Links »
+    // klappt zu bzw. springt zum übergeordneten Ordner. Enter öffnet, Leertaste klappt auf/zu, Pos1/Ende springen an den
+    // Anfang/das Ende, F5 aktualisiert, Esc hebt die Auswahl auf, Strg+C kopiert den Pfad. Das Element unten hat nur Fokus,
+    // solange kein Dialog/Menü offen ist.
+    property string navZone: "main"      // wohin die Pfeiltasten wirken : "main" oder "sidebar"
+    property string lastMainKey: ""      // zuletzt gewählter Eintrag im Hauptfenster (Rückkehr aus der Seitenleiste)
+    readonly property bool sidebarUsable: quickShown && sidebarRows.length > 0
+
+    // Sichtbare Bereiche des Hauptfensters in Anzeigereihenfolge, je mit Spaltenzahl und Einträgen
+    function navUnique(items) {   // doppelte Schlüssel überspringen (z. B. zwei Ordnerkarten mit gleichem Pfad)
+        var seen = {}, out = []
+        for (var i = 0; i < items.length; i++)
+            if (!seen[items[i].key]) {
+                seen[items[i].key] = true
+                out.push(items[i])
+            }
+        return out
+    }
+    function navSections() {
+        var res = []
+        if (foldersShown && !foldersCollapsed && foldersModel.length > 0)
+            res.push({ cols: folderGrid.columns, items: navUnique(foldersModel.map(function(f) { return { key: "folder:" + f.path, kind: "folder", e: f } })) })
         if (disksShown && !disksCollapsed && backend.disks.length > 0)
-            secs.push(backend.disks)
+            res.push({ cols: cardCols, items: navUnique(backend.disks.map(function(d) { return { key: d.mountpoint, kind: "disk", e: d } })) })
         if (netShown && !netCollapsed && backend.networks.length > 0)
-            secs.push(backend.networks)
-        if (secs.length === 0)
+            res.push({ cols: cardCols, items: navUnique(backend.networks.map(function(d) { return { key: d.mountpoint, kind: "net", e: d } })) })
+        if (printersShown && !printersCollapsed && backend.printers.length > 0)
+            res.push({ cols: cardCols, items: navUnique(backend.printers.map(function(p) { return { key: p.key, kind: "printer", e: p } })) })
+        return res
+    }
+    function navFind(secs, key) {
+        for (var s = 0; s < secs.length; s++)
+            for (var i = 0; i < secs[s].items.length; i++)
+                if (secs[s].items[i].key === key)
+                    return { s: s, i: i }
+        return null
+    }
+    function navEntry(key) {
+        var secs = navSections()
+        var pos = navFind(secs, key)
+        return pos === null ? null : secs[pos.s].items[pos.i]
+    }
+    function moveMain(dx, dy) {
+        var secs = navSections()
+        var pos = navFind(secs, selectedKey)
+        if (pos === null) {   // noch nichts gewählt : « Links » geht in die Seitenleiste, alles andere wählt den ersten Eintrag
+            if (dx < 0 && sidebarUsable)
+                enterSidebar()
+            else if (secs.length > 0)
+                selectedKey = secs[0].items[0].key
             return
-        var s = -1, i = -1
-        for (var a = 0; a < secs.length && s < 0; a++) {
-            for (var b = 0; b < secs[a].length; b++) {
-                if (secs[a][b].mountpoint === selectedKey) {
-                    s = a
-                    i = b
-                    break
-                }
-            }
         }
-        if (s < 0) {
-            selectedKey = secs[0][0].mountpoint
-            return
-        }
-        var cols = cardCols
+        var items = secs[pos.s].items
+        var cols = Math.max(1, secs[pos.s].cols)
+        var i = pos.i
         var col = i % cols
+        var ts = pos.s
+        var target = -1
         if (dx !== 0) {
-            var j = i + dx
-            if (j >= 0 && j < secs[s].length)
-                selectedKey = secs[s][j].mountpoint
-            else if (j < 0 && s > 0)
-                selectedKey = secs[s - 1][secs[s - 1].length - 1].mountpoint
-            else if (j >= secs[s].length && s < secs.length - 1)
-                selectedKey = secs[s + 1][0].mountpoint
-        } else if (dy > 0) {
-            var k = i + cols
-            if (k < secs[s].length)
-                selectedKey = secs[s][k].mountpoint
-            else if (s < secs.length - 1)
-                selectedKey = secs[s + 1][Math.min(col, secs[s + 1].length - 1)].mountpoint
-        } else if (dy < 0) {
-            var k2 = i - cols
-            if (k2 >= 0) {
-                selectedKey = secs[s][k2].mountpoint
-            } else if (s > 0) {
-                var p = secs[s - 1]
-                var lastRow = Math.floor((p.length - 1) / cols) * cols
-                selectedKey = p[Math.min(lastRow + col, p.length - 1)].mountpoint
+            if (dx < 0 && col === 0 && sidebarUsable) {
+                enterSidebar()
+                return
             }
+            var j = i + dx
+            if (j >= 0 && j < items.length) {
+                target = j
+            } else if (j < 0 && pos.s > 0) {
+                ts = pos.s - 1
+                target = secs[ts].items.length - 1
+            } else if (j >= items.length && pos.s < secs.length - 1) {
+                ts = pos.s + 1
+                target = 0
+            }
+        } else if (dy > 0) {
+            if (i + cols < items.length) {
+                target = i + cols
+            } else if (pos.s < secs.length - 1) {   // erste Zeile des nächsten Bereichs, nach Möglichkeit gleiche Spalte
+                ts = pos.s + 1
+                target = Math.min(col, Math.max(1, secs[ts].cols) - 1, secs[ts].items.length - 1)
+            }
+        } else if (dy < 0) {
+            if (i - cols >= 0) {
+                target = i - cols
+            } else if (pos.s > 0) {   // letzte Zeile des vorigen Bereichs
+                ts = pos.s - 1
+                var pn = secs[ts].items.length
+                var pc = Math.max(1, secs[ts].cols)
+                target = Math.min(Math.floor((pn - 1) / pc) * pc + Math.min(col, pc - 1), pn - 1)
+            }
+        }
+        if (target >= 0)
+            selectedKey = secs[ts].items[target].key
+    }
+    function enterSidebar() {
+        if (!sidebarUsable)
+            return
+        if (selectedKey !== "")
+            lastMainKey = selectedKey
+        selectedKey = ""
+        navZone = "sidebar"
+        sideSetSel(sideIndexOfKey(sideSelKey) >= 0 ? sideSelKey : sideNavRows()[0].selKey)
+    }
+    function enterMain() {
+        navZone = "main"
+        var secs = navSections()
+        if (secs.length > 0)
+            selectedKey = (lastMainKey !== "" && navFind(secs, lastMainKey) !== null) ? lastMainKey : secs[0].items[0].key
+    }
+    function activateMain() {
+        var it = navEntry(selectedKey)
+        if (it === null)
+            return
+        if (it.kind === "folder") {
+            backend.openFolder(it.e.path)
+        } else if (it.kind === "disk" || it.kind === "net") {
+            barRoot.runCmd("open")
+        } else if (it.e.scanner === true) {   // wie der Doppelklick auf die Karte
+            backend.launchApp("skanpage")
+        } else if (!it.e.indicator) {
+            showPrinter(it.e)
+        } else {
+            var m = settingsModuleFor(it.e)
+            if (m !== "" && backend.hasSettings(m))
+                backend.openSettings(m)
         }
     }
+    // ---- Seitenleiste
+    function sideNavRows() { return sidebarRows.filter(function(r) { return r.type !== "hint" }) }
+    function sideIndexOfKey(key) {
+        var rs = sideNavRows()
+        for (var i = 0; i < rs.length; i++)
+            if (rs[i].selKey === key)
+                return i
+        return -1
+    }
+    function sideCurrent() {
+        var i = sideIndexOfKey(sideSelKey)
+        return i < 0 ? null : sideNavRows()[i]
+    }
+    function sideSetSel(key) {
+        sideSelKey = key
+        var rs = sidebarRows
+        for (var i = 0; i < rs.length; i++)
+            if (rs[i].selKey === key) {
+                sideList.positionViewAtIndex(i, ListView.Contain)
+                break
+            }
+    }
+    function sideMove(d) {
+        var rs = sideNavRows()
+        if (rs.length === 0)
+            return
+        var i = sideIndexOfKey(sideSelKey)
+        var n = i < 0 ? (d > 0 ? 0 : rs.length - 1) : Math.max(0, Math.min(rs.length - 1, i + d))
+        sideSetSel(rs[n].selKey)
+    }
+    function toggleHead(key) {
+        keepSideScroll(function() {
+            if (key === "quick")
+                quickCollapsed = !quickCollapsed
+            else
+                pcCollapsed = !pcCollapsed
+        })
+    }
+    function sideRight() {
+        var r = sideCurrent()
+        if (r === null) {
+            sideMove(1)
+        } else if (r.type === "head") {
+            if (r.collapsed)
+                toggleHead(r.key)
+            else
+                sideMove(1)
+        } else if (r.type === "node") {
+            if (r.open)
+                sideMove(1)
+            else if (r.expandable)
+                toggleNode(r.path)
+            else
+                enterMain()
+        } else {
+            enterMain()
+        }
+    }
+    function sideLeft() {
+        var r = sideCurrent()
+        if (r === null)
+            return
+        if (r.type === "head") {
+            if (!r.collapsed)
+                toggleHead(r.key)
+        } else if (r.type === "node") {
+            if (r.open)
+                toggleNode(r.path)
+            else
+                sideSetSel(r.parentKey)
+        } else if (r.type === "pin") {
+            sideSetSel("head:quick")
+        }
+    }
+    function sideActivate(nurAufklappen) {
+        var r = sideCurrent()
+        if (r === null)
+            return
+        if (r.type === "head")
+            toggleHead(r.key)
+        else if (r.type === "node" && nurAufklappen)
+            toggleNode(r.path)
+        else if (r.path)
+            backend.openFolder(r.path)
+    }
+    // Hält den gewählten Eintrag im sichtbaren Bereich des Hauptfensters (Aufruf aus den Karten, wenn sie gewählt werden)
+    function revealItem(it) {
+        var fl = scroll.contentItem
+        if (!fl || fl.contentY === undefined || !fl.contentItem)
+            return
+        var y = it.mapToItem(fl.contentItem, 0, 0).y
+        var oben = y - 58   // Platz für die Überschrift des Bereichs über der ersten Zeile ; ganz oben bleibt es bei 0
+        var unten = y + it.height + 10
+        if (oben < fl.contentY)
+            fl.contentY = Math.max(0, oben)
+        else if (unten > fl.contentY + fl.height)
+            fl.contentY = Math.min(Math.max(0, fl.contentHeight - fl.height), unten - fl.height)
+    }
+    function copyTargetPath() {
+        if (navZone === "sidebar" && sidebarUsable) {
+            var r = sideCurrent()
+            return (r !== null && r.path) ? r.path : ""
+        }
+        var it = navEntry(selectedKey)
+        if (it === null)
+            return ""
+        if (it.kind === "folder")
+            return it.e.path
+        return (it.kind === "disk" || it.kind === "net") && it.e.mountpoint.charAt(0) === "/" ? it.e.mountpoint : ""
+    }
     function handleKey(ev) {
+        var seite = navZone === "sidebar" && sidebarUsable
+        var strg = (ev.modifiers & Qt.ControlModifier) !== 0
         if (ev.key === Qt.Key_F5) {
             backend.refreshAll()
+        } else if (ev.key === Qt.Key_Tab || ev.key === Qt.Key_Backtab) {
+            if (seite)
+                enterMain()
+            else if (sidebarUsable)
+                enterSidebar()
+            else
+                return
         } else if (ev.key === Qt.Key_Return || ev.key === Qt.Key_Enter) {
-            barRoot.runCmd("open")
+            if (seite)
+                sideActivate(false)
+            else
+                activateMain()
+        } else if (ev.key === Qt.Key_Space) {
+            if (seite)
+                sideActivate(true)
+            else
+                return
         } else if (ev.key === Qt.Key_Escape) {
             selectedKey = ""
+            if (seite) {
+                sideSelKey = ""
+                navZone = "main"
+            }
         } else if (ev.key === Qt.Key_Left) {
-            moveSel(-1, 0)
+            seite ? sideLeft() : moveMain(-1, 0)
         } else if (ev.key === Qt.Key_Right) {
-            moveSel(1, 0)
+            seite ? sideRight() : moveMain(1, 0)
         } else if (ev.key === Qt.Key_Up) {
-            moveSel(0, -1)
+            seite ? sideMove(-1) : moveMain(0, -1)
         } else if (ev.key === Qt.Key_Down) {
-            moveSel(0, 1)
-        } else if (ev.key === Qt.Key_C && (ev.modifiers & Qt.ControlModifier)) {
-            if (selEntry !== null && selEntry.mountpoint.charAt(0) === "/")
-                backend.copyPath(selEntry.mountpoint)
+            seite ? sideMove(1) : moveMain(0, 1)
+        } else if (ev.key === Qt.Key_Home || ev.key === Qt.Key_End) {
+            var ende = ev.key === Qt.Key_End
+            if (seite) {
+                var rs = sideNavRows()
+                if (rs.length > 0)
+                    sideSetSel(rs[ende ? rs.length - 1 : 0].selKey)
+            } else {
+                var secs = navSections()
+                if (secs.length > 0) {
+                    var sec = secs[ende ? secs.length - 1 : 0]
+                    selectedKey = sec.items[ende ? sec.items.length - 1 : 0].key
+                }
+            }
+        } else if (ev.key === Qt.Key_C && strg) {
+            var pfad = copyTargetPath()
+            if (pfad !== "")
+                backend.copyPath(pfad)
         } else {
             ev.accepted = false
             return
@@ -3667,8 +3902,9 @@ QQC2.ApplicationWindow {
                         readonly property bool isNode: r.type === "node"
                         readonly property bool isPinRow: r.type === "pin"
                         readonly property bool pinned: (isNode || isPinRow) && win.isPinned(r.path)
-                        readonly property string selKey: r.type + ":" + (r.path || "")
-                        readonly property bool selected: (isNode || isPinRow) && win.sideSelKey === selKey
+                        readonly property string selKey: r.selKey || ""
+                        readonly property bool selected: selKey !== "" && win.sideSelKey === selKey
+                        readonly property bool zoneActive: win.navZone === "sidebar"   // die Pfeiltasten wirken gerade hier
                         width: ListView.view.width
                         height: isHead ? 38 : (r.type === "hint" ? 54 : 30)
                         opacity: (isPinRow && r.exists === false) ? 0.5 : 1.0
@@ -3681,12 +3917,14 @@ QQC2.ApplicationWindow {
                             anchors.leftMargin: 6
                             anchors.rightMargin: 6
                             radius: 6
-                            visible: !row.isHead && r.type !== "hint"
-                            opacity: (rowHover.hovered || rowMouse.pressed || row.selected) ? 1 : 0
+                            visible: (!row.isHead || row.selected) && r.type !== "hint"
+                            opacity: ((rowHover.hovered && !row.isHead) || rowMouse.pressed || row.selected) ? 1 : 0
                             Behavior on opacity { NumberAnimation { duration: 120 } }
+                            // Ist die Seitenleiste nicht die aktive Zone, bleibt die Markierung nur als blasse Spur sichtbar
                             color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
-                                           Kirigami.Theme.highlightColor.b, (row.selected || rowMouse.pressed) ? 0.24 : 0.14)
-                            border.width: row.selected ? 1 : 0
+                                           Kirigami.Theme.highlightColor.b,
+                                           rowMouse.pressed ? 0.26 : (row.selected ? (row.zoneActive ? 0.24 : 0.12) : 0.14))
+                            border.width: (row.selected && row.zoneActive) ? 1 : 0
                             border.color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
                                            Kirigami.Theme.highlightColor.b, 0.7)
                         }
@@ -3777,7 +4015,12 @@ QQC2.ApplicationWindow {
                             z: -1
                             hoverEnabled: true
                             acceptedButtons: Qt.LeftButton | Qt.RightButton
-                            onPressed: if (row.isNode || row.isPinRow) win.sideSelKey = row.selKey
+                            onPressed: {
+                                if (row.selKey !== "")
+                                    win.sideSelKey = row.selKey
+                                win.navZone = "sidebar"
+                                keyHandler.forceActiveFocus()
+                            }
                             onClicked: function(mouse) {
                                 if (row.isHead) {
                                     if (r.key === "quick") win.quickCollapsed = !win.quickCollapsed
@@ -3810,6 +4053,7 @@ QQC2.ApplicationWindow {
 
             QQC2.ScrollView {
                 id: scroll
+                objectName: "mainScroll"
                 anchors.left: sidebar.right
                 anchors.right: parent.right
                 anchors.top: parent.top
@@ -3892,6 +4136,9 @@ QQC2.ApplicationWindow {
                                 Layout.fillWidth: false
                                 Layout.preferredWidth: folderGrid.cellWidth
                                 Layout.preferredHeight: 80
+                                id: navRoot
+                                readonly property bool navSel: win.selectedKey === "folder:" + modelData.path
+                                onNavSelChanged: if (navSel) win.revealItem(navRoot)
 
                                 Row {
                                     anchors.left: parent.left
@@ -3916,12 +4163,12 @@ QQC2.ApplicationWindow {
                                     anchors.bottom: parent.bottom
                                     width: Math.min(parent.width, folderGrid.frameWidth)
                                     radius: 5
-                                    visible: folderMouse.containsMouse || folderMouse.pressed
+                                    visible: folderMouse.containsMouse || folderMouse.pressed || navRoot.navSel
                                     color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
-                                                   Kirigami.Theme.highlightColor.b, 0.12)
+                                                   Kirigami.Theme.highlightColor.b, navRoot.navSel ? 0.22 : 0.12)
                                     border.width: 1
                                     border.color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
-                                                          Kirigami.Theme.highlightColor.b, 0.35)
+                                                          Kirigami.Theme.highlightColor.b, navRoot.navSel ? 0.8 : 0.35)
                                 }
                                 MouseArea {
                                     id: folderMouse
@@ -3931,7 +4178,7 @@ QQC2.ApplicationWindow {
                                     width: Math.min(parent.width, folderGrid.frameWidth)
                                     hoverEnabled: true
                                     acceptedButtons: Qt.LeftButton | Qt.RightButton
-                                    onPressed: win.selectedKey = ""
+                                    onPressed: { win.selectedKey = "folder:" + modelData.path; keyHandler.forceActiveFocus() }
                                     onDoubleClicked: backend.openFolder(modelData.path)
                                     onClicked: function(mouse) {
                                         if (mouse.button === Qt.RightButton)
@@ -4025,6 +4272,9 @@ QQC2.ApplicationWindow {
                                 Layout.preferredWidth: win.cardWidth
                                 Layout.preferredHeight: 88
                                 property real frac: modelData.total > 0 ? modelData.used / modelData.total : 0
+                                id: navRoot
+                                readonly property bool navSel: win.selectedKey === modelData.mountpoint
+                                onNavSelChanged: if (navSel) win.revealItem(navRoot)
 
                                 RowLayout {
                                     anchors.fill: parent
@@ -4375,6 +4625,9 @@ QQC2.ApplicationWindow {
                                 Layout.preferredWidth: win.cardWidth
                                 Layout.preferredHeight: 88
                                 property real frac: modelData.total > 0 ? modelData.used / modelData.total : 0
+                                id: navRoot
+                                readonly property bool navSel: win.selectedKey === modelData.mountpoint
+                                onNavSelChanged: if (navSel) win.revealItem(navRoot)
                                 readonly property bool offline: modelData.available === false
 
                                 RowLayout {
@@ -4649,6 +4902,9 @@ QQC2.ApplicationWindow {
                                 Layout.preferredWidth: win.cardWidth
                                 Layout.preferredHeight: 72
                                 opacity: modelData.offline ? 0.5 : 1.0
+                                id: navRoot
+                                readonly property bool navSel: win.selectedKey === modelData.key
+                                onNavSelChanged: if (navSel) win.revealItem(navRoot)
                                 readonly property string settingsMod: win.settingsModuleFor(modelData)
 
                                 RowLayout {
@@ -4803,6 +5059,8 @@ QQC2.ApplicationWindow {
                 anchors.fill: parent
                 onPressed: function(mouse) {
                     win.selectedKey = ""
+                    // Klick links in die Seitenleiste : Pfeiltasten wirken dort ; sonst im Hauptfenster
+                    win.navZone = (sidebar.visible && mouse.x < sidebar.width) ? "sidebar" : "main"
                     keyHandler.forceActiveFocus()
                     mouse.accepted = false
                 }

@@ -2,12 +2,12 @@
 
 # DriveDeck
 
-A "This PC" window for **KDE Plasma 6**, inspired by Windows 11. It shows your personal folders, drives, network
+A "This PC" window for **KDE Plasma 6**, inspired by Windows. It shows your personal folders, drives, network
 locations, printers and devices in one clean window, and it follows your Plasma colours and icon theme.
 
 > **DriveDeck is a community fork** of **Fenestra "This PC"** by [naykkalak](https://github.com/naykkalak/fenestra-ce-pc).
 > All credit for the original idea, design and code goes to **naykkalak**. This fork fixes bugs, makes the program
-> faster and adds new features under its own name. See [what is different](#whats-different-in-this-fork) below, or
+> faster and adds many new features under its own name. See [what is different](#whats-different-in-this-fork) below, or
 > the detailed [CHANGELOG](CHANGELOG.md).
 
 ---
@@ -69,8 +69,11 @@ Everything below is explained in plain words. You do **not** need to be a progra
 - **More right-click options**
   - On drives: *Mount*, *Open in terminal*, *Copy path*
   - On network locations: *Disconnect*, *Open in terminal*, *Copy path*
-- **Use it with the keyboard:** arrow keys select a drive, **Enter** opens it, **F5** refreshes, **Esc** clears the
-  selection, **Ctrl+C** copies the path.
+- **Use it with the keyboard.** The arrow keys move through **everything**: folders, drives, network locations,
+  printers and devices, and the sidebar. **Left** in the first column jumps into the sidebar, **Right** on a pinned folder (or
+  **Tab**) comes back. In the sidebar **Right** unfolds a folder and then goes to its first sub-folder, **Left** folds it
+  again or jumps to the parent folder. **Enter** opens, **Space** unfolds, **Home**/**End** jump to the first/last entry,
+  **F5** refreshes, **Esc** clears the selection and **Ctrl+C** copies the path.
 - **Only one window at a time.** Starting the program a second time simply brings the existing window to the front.
 - **Correct name and icon in the task bar.** On Wayland the window now shows its real icon and name instead of
   "python3".
