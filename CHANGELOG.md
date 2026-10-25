@@ -20,10 +20,9 @@ hidden and everything else works).
   smooths them (`glaetten`, triangular 5-point window, edge-corrected). The scale is at least 1 MB/s so idle noise
   does not look like load. Device paths such as `/dev/mapper/…` are resolved to their kernel name. The data is a
   separate property (`ioStats`) so the disk list is not rebuilt every second (see bug fix 3).
-- **Configurable "almost full" warning.** A gear with the current value in the ribbon group *Show* opens a small
-  popup (slider 30–99 %, quick buttons 50 / 70 / 80 / 90 %). From the chosen level on, the usage bar and the ring turn red and the
-  card shows a badge such as "⚠ 90 %" with the tooltip "Almost full". The value is stored in
-  `~/.config/fenestra/ce-pc-reglages.json` (default 80 %; removed by `uninstall.sh --purge`). German texts are included.
+- **"Almost full" warning.** From 80 % usage on (`alertFrac`, fixed in the code), the usage bar and the ring turn red and
+  the card shows a badge such as "⚠ 90 %" with the tooltip "Almost full". German text included. (A ribbon button with a
+  slider to change the level was built and removed again: it did not fit the design.)
 
 - **Jump to the matching System Settings page.** Double-click (or right-click → *Open settings*) on a device card in
   *Printers and devices* opens System Settings directly at the right module: game controller → `kcm_gamecontroller`,

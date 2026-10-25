@@ -74,9 +74,8 @@ Everything below is explained in plain words. You do **not** need to be a progra
   "python3".
 - **Live read/write graph per drive.** Every drive card shows a small graph of the last minute: green is reading,
   yellow is writing. Hover it to see the current speed. (Needs NumPy; without it the graph is simply not shown.)
-- **"Almost full" warning you can adjust.** Click the gear with the percentage in the *Show* group of the ribbon
-  and choose the level, for example 50 % or 80 %. Above it, the bar and the ring turn red and the card gets a badge
-  such as "⚠ 90 %". The choice is remembered.
+- **"Almost full" warning.** From 80 % usage on, the bar and the ring turn red and the card gets a badge such as
+  "⚠ 90 %".
 - **Straight to the right settings.** On the cards under *Printers and devices*, **double-click** (or right-click →
   *Open settings*) a game controller, keyboard, mouse, touchpad or drawing tablet and the matching System Settings page
   opens right away. Printers still open their properties on double-click.

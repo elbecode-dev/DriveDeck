@@ -82,9 +82,6 @@ EXTRA_DE = {
     "Cannot open terminal": "Terminal kann nicht geöffnet werden",
     "No terminal program found": "Kein Terminalprogramm gefunden",
     "Folder not found": "Ordner nicht gefunden",
-    "Warning threshold": "Warnschwelle",
-    "Warn when a drive is fuller than": "Warnen, wenn ein Laufwerk voller ist als",
-    "Affects the usage bars, the ring and the warning badge.": "Gilt für Auslastungsbalken, Ring und Warnhinweis.",
     "Almost full": "Fast voll",
     "Open settings": "Einstellungen öffnen",
 }
@@ -768,7 +765,6 @@ def badge_offline():
         return ""
 
 
-SETTINGS_CONFIG = os.path.join(CONFIG_DIR, "ce-pc-reglages.json")   # Warnschwelle (Laufwerk fast voll)
 SECT_CONFIG = os.path.join(CONFIG_DIR, "ce-pc-rubriques.json")   # rubriquesMemo (Ce PC 1.1)
 SECTIONS = ("folders", "disks", "net", "printers")
 
@@ -783,17 +779,6 @@ def load_sections():
             d = data.get(k, {})
             res[k]["collapsed"] = bool(d.get("collapsed", False))
             res[k]["shown"] = bool(d.get("shown", True))
-    except (OSError, ValueError, TypeError, AttributeError):
-        pass
-    return res
-
-
-def load_settings():
-    """Einstellungen : Füllstand (Anteil), ab dem ein Laufwerk als fast voll gilt. Standard 80 %."""
-    res = {"alertFrac": 0.8}
-    try:
-        with open(SETTINGS_CONFIG, encoding="utf-8") as f:
-            res["alertFrac"] = min(0.99, max(0.3, float(json.load(f).get("alertFrac", 0.8))))
     except (OSError, ValueError, TypeError, AttributeError):
         pass
     return res
@@ -1701,17 +1686,6 @@ class Backend(QObject):
         oublier_imprimante(name)
         self._prnWake.set()
 
-    @pyqtSlot(float)
-    def saveSettings(self, alert_frac):
-        try:
-            os.makedirs(CONFIG_DIR, exist_ok=True)
-            tmp = SETTINGS_CONFIG + ".tmp"
-            with open(tmp, "w", encoding="utf-8") as f:
-                json.dump({"alertFrac": min(0.99, max(0.3, float(alert_frac)))}, f)
-            os.replace(tmp, SETTINGS_CONFIG)
-        except (OSError, ValueError, TypeError) as e:
-            print("[ce_pc_plasma] réglages :", e)
-
     @pyqtSlot(str)
     def saveSections(self, texte):
         try:
@@ -2236,8 +2210,8 @@ QQC2.ApplicationWindow {
     function sectName(s) {
         return s.replace("({n})", "").replace("（{n}）", "").trim()
     }
-    // seuilAlerte : au-delà de cette occupation (fraction du disque), les jauges passent au rouge
-    property real alertFrac: settingsInit.alertFrac   // einstellbar (Zahnrad neben der Suche)
+    // seuilAlerte : au-delà de cette occupation (fraction du disque), les jauges passent au rouge et la carte affiche « ⚠ »
+    readonly property real alertFrac: 0.8
     // couleursJauge : bleu des jauges normales et rouge des jauges en alerte (fixes)
     readonly property color gaugeBlue: "#1e88e5"
     readonly property color gaugeRed: "#d92b2b"
@@ -3125,99 +3099,6 @@ QQC2.ApplicationWindow {
                                         text: win.sectName(modelData.t)
                                         checked: win[modelData.k + "Shown"]
                                         onToggled: win[modelData.k + "Shown"] = checked
-                                    }
-                                }
-                                // warnschwelle : kompaktes Zahnrad in der freien Zelle unter « Drucker », öffnet « Laufwerk fast voll »
-                                Item {
-                                    id: warnRib
-                                    width: warnRow.implicitWidth + 12
-                                    height: 20
-                                    Rectangle {
-                                        anchors.fill: parent
-                                        radius: 4
-                                        visible: warnMouse.containsMouse || settingsPopup.opened
-                                        color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
-                                                       Kirigami.Theme.highlightColor.b, warnMouse.pressed ? 0.28 : 0.14)
-                                        border.width: 1
-                                        border.color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
-                                                              Kirigami.Theme.highlightColor.b, 0.5)
-                                    }
-                                    Row {
-                                        id: warnRow
-                                        anchors.centerIn: parent
-                                        spacing: 5
-                                        Kirigami.Icon { source: "configure"; width: 16; height: 16; anchors.verticalCenter: parent.verticalCenter }
-                                        QQC2.Label {
-                                            text: Math.round(win.alertFrac * 100) + " %"
-                                            font: Kirigami.Theme.smallFont
-                                            anchors.verticalCenter: parent.verticalCenter
-                                        }
-                                    }
-                                    MouseArea {
-                                        id: warnMouse
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        onClicked: settingsPopup.opened ? settingsPopup.close() : settingsPopup.open()
-                                    }
-                                    QQC2.ToolTip.visible: warnMouse.containsMouse && !settingsPopup.opened
-                                    QQC2.ToolTip.delay: 400
-                                    QQC2.ToolTip.text: win.trad("Warning threshold")
-                                    QQC2.Popup {
-                                        id: settingsPopup
-                                        x: parent.width - width
-                                        y: parent.height + 4
-                                        width: 320
-                                        padding: 14
-                                        onClosed: keyHandler.forceActiveFocus()
-                                        contentItem: ColumnLayout {
-                                            spacing: 10
-                                            QQC2.Label {
-                                                text: win.trad("Warn when a drive is fuller than")
-                                                font.weight: Font.DemiBold
-                                                wrapMode: Text.Wrap
-                                                Layout.fillWidth: true
-                                            }
-                                            RowLayout {
-                                                Layout.fillWidth: true
-                                                spacing: 8
-                                                QQC2.Slider {
-                                                    Layout.fillWidth: true
-                                                    Layout.preferredWidth: 100
-                                                    from: 0.3; to: 0.99; stepSize: 0.01
-                                                    snapMode: QQC2.Slider.SnapAlways
-                                                    value: win.alertFrac
-                                                    onMoved: win.alertFrac = value
-                                                    onPressedChanged: if (!pressed) backend.saveSettings(win.alertFrac)
-                                                }
-                                                QQC2.Label {
-                                                    text: Math.round(win.alertFrac * 100) + " %"
-                                                    Layout.preferredWidth: 42
-                                                    horizontalAlignment: Text.AlignRight
-                                                }
-                                            }
-                                            RowLayout {
-                                                Layout.fillWidth: true
-                                                spacing: 6
-                                                Repeater {
-                                                    model: [0.5, 0.7, 0.8, 0.9]
-                                                    delegate: QQC2.Button {
-                                                        Layout.fillWidth: true
-                                                        Layout.preferredWidth: 1
-                                                        text: Math.round(modelData * 100) + " %"
-                                                        flat: Math.abs(win.alertFrac - modelData) >= 0.005
-                                                        highlighted: Math.abs(win.alertFrac - modelData) < 0.005
-                                                        onClicked: { win.alertFrac = modelData; backend.saveSettings(modelData) }
-                                                    }
-                                                }
-                                            }
-                                            QQC2.Label {
-                                                text: win.trad("Affects the usage bars, the ring and the warning badge.")
-                                                font: Kirigami.Theme.smallFont
-                                                opacity: 0.7
-                                                wrapMode: Text.Wrap
-                                                Layout.fillWidth: true
-                                            }
-                                        }
                                     }
                                 }
                             }
@@ -4363,7 +4244,6 @@ def main():
     engine.rootContext().setContextProperty("barIconsRuban", bar_icons_ruban())
     engine.rootContext().setContextProperty("aboutInfo", about_info())
     engine.rootContext().setContextProperty("sectInit", load_sections())
-    engine.rootContext().setContextProperty("settingsInit", load_settings())
     engine.rootContext().setContextProperty("winInit", load_window_state())
     engine.rootContext().setContextProperty("badgeOffline", badge_offline())
     engine.rootContext().setContextProperty("badgeHealth", badge_health())
