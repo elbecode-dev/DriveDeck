@@ -16,6 +16,7 @@ import subprocess
 import sys
 import threading
 import time
+from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 
 os.environ["QT_QUICK_CONTROLS_STYLE"] = "org.kde.desktop"
@@ -1425,6 +1426,41 @@ def lire_derniere_version():
         return None
 
 
+IO_FENSTER = 60   # ioVerlauf : Sekunden an Verlauf pro Laufwerk
+SECTEUR = 512     # /proc/diskstats zählt immer in Sektoren zu 512 Bytes
+
+
+def lire_diskstats():
+    """{Kernelname: (gelesene Sektoren, geschriebene Sektoren)} aus /proc/diskstats."""
+    stats = {}
+    try:
+        with open("/proc/diskstats") as f:
+            for ligne in f:
+                c = ligne.split()
+                if len(c) >= 10:
+                    stats[c[2]] = (int(c[5]), int(c[9]))
+    except OSError:
+        pass
+    return stats
+
+
+def nom_noyau(device):
+    """/dev/mapper/xxx oder /dev/disk/by-… -> Name in /proc/diskstats (dm-0, nvme0n1p4, sdb1 …)."""
+    return os.path.basename(os.path.realpath(device))
+
+
+def glaetten(taux):
+    """Glättet die Bytes/s-Reihe eines Laufwerks (1 Wert pro Sekunde, ältester zuerst) für die Sparkline.
+    Rohwerte zucken stark, weil Schreibzugriffe stoßweise (Cache-Flush) kommen.
+    Bekommt und liefert ein 1-D-NumPy-Array gleicher Länge."""
+    import numpy as np
+    kern = np.array([1.0, 2.0, 3.0, 2.0, 1.0])   # Dreiecksfenster : Spitzen bleiben Hügel, Zacken verschwinden
+    if len(taux) < len(kern):
+        return taux
+    # Durch die tatsächliche Gewichtssumme teilen : an den Rändern (neuester Wert!) kein Abfall Richtung 0
+    return np.convolve(taux, kern, "same") / np.convolve(np.ones(len(taux)), kern, "same")
+
+
 class Backend(QObject):
     disksChanged = pyqtSignal()
     networksChanged = pyqtSignal()
@@ -1437,6 +1473,8 @@ class Backend(QObject):
     printersUpdated = pyqtSignal(list)
     updateAvailable = pyqtSignal(str, str)   # miseAJour : (version, adresse de la page)
     printersChanged = pyqtSignal()
+    ioChanged = pyqtSignal()
+    ioUpdated = pyqtSignal(dict)
     raiseRequested = pyqtSignal()   # ein zweiter Start soll das vorhandene Fenster nach vorn holen
 
     def __init__(self):
@@ -1460,10 +1498,44 @@ class Backend(QObject):
         threading.Thread(target=self._diskLoop, daemon=True).start()
         threading.Thread(target=self._netLoop, daemon=True).start()
         threading.Thread(target=self._printLoop, daemon=True).start()
+        self._io = {}
+        self.ioUpdated.connect(self._setIo)
+        threading.Thread(target=self._ioLoop, daemon=True).start()
 
     @pyqtProperty("QVariantList", notify=disksChanged)
     def disks(self):
         return self._disks
+
+    @pyqtProperty("QVariantMap", notify=ioChanged)
+    def ioStats(self):
+        return self._io
+
+    def _setIo(self, new):
+        self._io = new
+        self.ioChanged.emit()
+
+    def _ioLoop(self):
+        # ioVerlauf : einmal pro Sekunde /proc/diskstats lesen, Raten per NumPy aus den Zählerdifferenzen bilden.
+        # NumPy wird erst hier im Thread geladen : der Fensterstart bleibt davon unberührt.
+        import numpy as np
+        verlauf = {}   # Kernelname -> deque[(Zeitpunkt, gelesen, geschrieben)]
+        while True:
+            t = time.monotonic()
+            for nom, (lu, ecrit) in lire_diskstats().items():
+                verlauf.setdefault(nom, deque(maxlen=IO_FENSTER + 1)).append((t, lu, ecrit))
+            resultat = {}
+            for d in list(self._disks):
+                h = verlauf.get(nom_noyau(d["device"]))
+                if not h or len(h) < 2:
+                    continue
+                a = np.array(h, dtype=float)
+                dt = np.diff(a[:, 0])
+                taux = np.clip(np.diff(a[:, 1:], axis=0) * SECTEUR / dt[:, None], 0, None)   # Zähler-Reset -> 0
+                resultat[d["device"]] = {
+                    "read": glaetten(taux[:, 0]).tolist(), "write": glaetten(taux[:, 1]).tolist(),
+                    "readRate": float(taux[-1, 0]), "writeRate": float(taux[-1, 1])}
+            self.ioUpdated.emit(resultat)
+            time.sleep(1)
 
     @pyqtProperty("QVariantList", notify=networksChanged)
     def networks(self):
@@ -2136,6 +2208,12 @@ QQC2.ApplicationWindow {
     }
 
     // taille : Go avec une décimale sous 1 To, puis To avec trois chiffres significatifs
+    // rateText : Durchsatz lesbar (B/s … GB/s)
+    function rateText(n) {
+        var u = ["B/s", "KB/s", "MB/s", "GB/s"], i = 0
+        while (n >= 1024 && i < 3) { n /= 1024; i++ }
+        return (i === 0 ? Math.round(n) : n.toFixed(1)).toString().replace(".", trDecimal) + " " + u[i]
+    }
     function taille(n) {
         var g = n / 1073741824
         if (Math.round(g * 10) / 10 < 1024)
@@ -3235,6 +3313,8 @@ QQC2.ApplicationWindow {
                                         Kirigami.Icon {
                                             anchors.centerIn: parent
                                             source: modelData.icon
+                                            scale: cardMouse.containsMouse ? 1.08 : 1.0
+                                            Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
                                             width: modelData.isKey ? 40 : 48
                                             height: width
                                         }
@@ -3303,6 +3383,48 @@ QQC2.ApplicationWindow {
                                             Layout.fillWidth: true
                                         }
                                     }
+
+                                    // ioVerlauf : Lese-/Schreib-Sparkline der letzten 60 s ; Tooltip mit den Momentanwerten
+                                    Item {
+                                        id: ioBox
+                                        readonly property var io: backend.ioStats[modelData.device]
+                                        readonly property real peak: io ? Math.max(1048576, Math.max.apply(null, io.read.concat(io.write))) : 1048576
+                                        function pts(serie) {
+                                            var n = serie.length, out = [], step = width / 59
+                                            for (var i = 0; i < n; i++)
+                                                out.push(Qt.point(width - (n - 1 - i) * step, height - 1 - (height - 3) * serie[i] / peak))
+                                            return out
+                                        }
+                                        visible: io !== undefined && modelData.isUnmounted !== true && modelData.isOptical !== true
+                                        Layout.preferredWidth: 72
+                                        Layout.preferredHeight: 32
+                                        Layout.alignment: Qt.AlignVCenter
+                                        opacity: ioHover.hovered ? 1.0 : 0.8
+                                        Behavior on opacity { NumberAnimation { duration: 140 } }
+                                        Rectangle {
+                                            anchors.fill: parent
+                                            radius: 6
+                                            color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.05)
+                                        }
+                                        Shape {
+                                            anchors.fill: parent
+                                            preferredRendererType: Shape.CurveRenderer
+                                            ShapePath {
+                                                strokeColor: Kirigami.Theme.positiveTextColor
+                                                strokeWidth: 1.5; fillColor: "transparent"; joinStyle: ShapePath.RoundJoin
+                                                PathPolyline { path: ioBox.io ? ioBox.pts(ioBox.io.read) : [] }
+                                            }
+                                            ShapePath {
+                                                strokeColor: Kirigami.Theme.neutralTextColor
+                                                strokeWidth: 1.5; fillColor: "transparent"; joinStyle: ShapePath.RoundJoin
+                                                PathPolyline { path: ioBox.io ? ioBox.pts(ioBox.io.write) : [] }
+                                            }
+                                        }
+                                        HoverHandler { id: ioHover }
+                                        QQC2.ToolTip.visible: ioHover.hovered && ioBox.io !== undefined
+                                        QQC2.ToolTip.delay: 300
+                                        QQC2.ToolTip.text: ioBox.io ? ("\u25BC " + win.rateText(ioBox.io.readRate) + "   \u25B2 " + win.rateText(ioBox.io.writeRate)) : ""
+                                    }
                                 }
                                 // Fin cadre au survol ; au clic, fond teinté de la couleur d'accent (reste jusqu'à un autre clic)
                                 Rectangle {
@@ -3319,6 +3441,15 @@ QQC2.ApplicationWindow {
                                     border.width: 1
                                     border.color: selected ? Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.75)
                                                             : Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.30)
+                                    Rectangle {   // Akzentstreifen der Auswahl
+                                        width: 3; radius: 1.5
+                                        height: parent.height - 24
+                                        anchors.left: parent.left; anchors.leftMargin: 3
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        color: Kirigami.Theme.highlightColor
+                                        opacity: parent.selected ? 1 : 0
+                                        Behavior on opacity { NumberAnimation { duration: 140 } }
+                                    }
                                 }
                                 MouseArea {
                                     id: cardMouse
@@ -3463,6 +3594,8 @@ QQC2.ApplicationWindow {
                                         Kirigami.Icon {
                                             anchors.centerIn: parent
                                             source: modelData.icon
+                                            scale: cardMouse.containsMouse ? 1.08 : 1.0
+                                            Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
                                             width: 48
                                             height: 48
                                             opacity: offline ? 0.4 : 1.0
@@ -3545,6 +3678,15 @@ QQC2.ApplicationWindow {
                                     border.width: 1
                                     border.color: selected ? Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.75)
                                                             : Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.30)
+                                    Rectangle {   // Akzentstreifen der Auswahl
+                                        width: 3; radius: 1.5
+                                        height: parent.height - 24
+                                        anchors.left: parent.left; anchors.leftMargin: 3
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        color: Kirigami.Theme.highlightColor
+                                        opacity: parent.selected ? 1 : 0
+                                        Behavior on opacity { NumberAnimation { duration: 140 } }
+                                    }
                                 }
                                 MouseArea {
                                     id: cardMouse
@@ -3686,6 +3828,8 @@ QQC2.ApplicationWindow {
                                         Kirigami.Icon {
                                             anchors.centerIn: parent
                                             source: modelData.icon
+                                            scale: printerMouse.containsMouse ? 1.08 : 1.0
+                                            Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
                                             width: 48
                                             height: 48
                                         }
