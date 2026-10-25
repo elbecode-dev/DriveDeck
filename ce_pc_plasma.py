@@ -86,6 +86,7 @@ EXTRA_DE = {
     "Warn when a drive is fuller than": "Warnen, wenn ein Laufwerk voller ist als",
     "Affects the usage bars, the ring and the warning badge.": "Gilt für Auslastungsbalken, Ring und Warnhinweis.",
     "Almost full": "Fast voll",
+    "Open settings": "Einstellungen öffnen",
 }
 
 
@@ -1263,7 +1264,7 @@ def list_peripheriques():
                     trouves[cle] = {"key": "device:" + chemin, "label": nom, "name": nom,
                                     "icon": disk_icon([icone]),
                                     "statusText": tr(texte) + ((" · " + connexion) if connexion else ""),
-                                    "device": "", "inks": [], "indicator": True, "_genre": genre}
+                                    "device": "", "inks": [], "indicator": True, "kind": genre, "_genre": genre}
                 break
     # peripheriquesSouris : le « clavier » d'une souris (nom = nom de la souris + « Keyboard ») n'est pas un vrai clavier
     for (groupe, genre), d in list(trouves.items()):
@@ -1752,6 +1753,40 @@ class Backend(QObject):
             self.messageRequested.emit(tr("Program not found"),
                                        tr("The program “{name}” is not installed on this computer.").format(name=name))
 
+    # einstellungsSprung : nur diese Module der Systemeinstellungen dürfen geöffnet werden
+    SETTINGS_MODULES = {"kcm_gamecontroller", "kcm_keyboard", "kcm_mouse", "kcm_touchpad", "kcm_tablet",
+                        "kcm_printer_manager"}
+    _kcm_cache = {}
+
+    @pyqtSlot(str, result=bool)
+    def hasSettings(self, module):
+        """Ist dieses Modul der Systemeinstellungen installiert? (Dateisuche, gemerkt ; kein Prozessstart)"""
+        if module not in self.SETTINGS_MODULES:
+            return False
+        if module not in self._kcm_cache:
+            import glob
+            dirs = [os.path.expanduser("~/.local/share")] + (os.environ.get("XDG_DATA_DIRS") or
+                                                              "/usr/local/share:/usr/share").split(":")
+            treffer = any(os.path.isfile(os.path.join(d, "applications", module + ".desktop")) for d in dirs if d)
+            treffer = treffer or bool(glob.glob("/usr/lib*/qt6/plugins/plasma/kcms/*/%s.so" % module)
+                                      or glob.glob("/usr/lib/*/qt6/plugins/plasma/kcms/*/%s.so" % module))
+            self._kcm_cache[module] = treffer
+        return self._kcm_cache[module]
+
+    @pyqtSlot(str)
+    def openSettings(self, module):
+        """Öffnet die Systemeinstellungen direkt bei diesem Modul (z. B. kcm_gamecontroller)."""
+        if module not in self.SETTINGS_MODULES:
+            return
+        for cmd in (["systemsettings", module], ["kcmshell6", module]):
+            try:
+                lancer(cmd)
+                return
+            except OSError:
+                continue
+        self.messageRequested.emit(tr("Program not found"),
+                                   tr("The program “{name}” is not installed on this computer.").format(name="systemsettings"))
+
     @pyqtSlot()
     def refreshAll(self):
         self._diskWake.set()
@@ -2238,6 +2273,16 @@ QQC2.ApplicationWindow {
     }
 
     // taille : Go avec une décimale sous 1 To, puis To avec trois chiffres significatifs
+    // einstellungsSprung : Gerätetyp -> Modul der Systemeinstellungen (Doppelklick / Rechtsklick auf der Karte)
+    readonly property var kindModule: ({ keyboard: "kcm_keyboard", mouse: "kcm_mouse", touchpad: "kcm_touchpad",
+                                         tablet: "kcm_tablet", gamepad: "kcm_gamecontroller" })
+    function settingsModuleFor(d) {
+        if (d.scanner === true)
+            return ""
+        if (d.indicator === true)
+            return kindModule[d.kind] || ""
+        return "kcm_printer_manager"
+    }
     // rateText : Durchsatz lesbar (B/s … GB/s)
     function rateText(n) {
         var u = ["B/s", "KB/s", "MB/s", "GB/s"], i = 0
@@ -3996,6 +4041,7 @@ QQC2.ApplicationWindow {
                                 Layout.preferredWidth: win.cardWidth
                                 Layout.preferredHeight: 72
                                 opacity: modelData.offline ? 0.5 : 1.0
+                                readonly property string settingsMod: win.settingsModuleFor(modelData)
 
                                 RowLayout {
                                     anchors.fill: parent
@@ -4034,6 +4080,52 @@ QQC2.ApplicationWindow {
                                             elide: Text.ElideRight
                                         }
                                     }
+
+                                    // tintenBalken : Füllstand je Patrone als kleines Balkendiagramm direkt auf der Druckerkarte
+                                    Item {
+                                        id: inkBox
+                                        readonly property var inks: modelData.inks || []
+                                        visible: inks.length > 0 && modelData.offline !== true
+                                        Layout.preferredWidth: inks.length * 9 + Math.max(0, inks.length - 1) * 5
+                                        Layout.preferredHeight: 44
+                                        Layout.alignment: Qt.AlignVCenter
+                                        Row {
+                                            spacing: 5
+                                            Repeater {
+                                                model: inkBox.inks
+                                                delegate: Item {
+                                                    width: 9
+                                                    height: 44
+                                                    readonly property bool dark: Qt.colorEqual(modelData.color, "#000000")
+                                                    Rectangle {   // Spur
+                                                        anchors.fill: parent
+                                                        radius: 4
+                                                        color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.10)
+                                                        border.width: 1
+                                                        border.color: modelData.low ? win.gaugeRed
+                                                                                     : Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.30)
+                                                    }
+                                                    Rectangle {   // Füllung, wächst von unten
+                                                        property real shown: 0
+                                                        Component.onCompleted: shown = modelData.level
+                                                        Behavior on shown { NumberAnimation { duration: 600; easing.type: Easing.OutCubic } }
+                                                        anchors.bottom: parent.bottom
+                                                        width: parent.width
+                                                        height: Math.max(parent.width, parent.height * shown / 100)
+                                                        radius: 4
+                                                        visible: modelData.level > 0
+                                                        // schwarze Tinte würde auf dunklem Thema verschwinden : dann Textfarbe des Themas
+                                                        color: parent.dark ? Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.85)
+                                                                           : modelData.color
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        HoverHandler { id: inkHover }
+                                        QQC2.ToolTip.visible: inkHover.hovered
+                                        QQC2.ToolTip.delay: 300
+                                        QQC2.ToolTip.text: inks.map(function(i) { return i.name + ": " + i.level + " %" }).join("\n")
+                                    }
                                 }
                                 Rectangle {
                                     z: -1
@@ -4065,18 +4157,28 @@ QQC2.ApplicationWindow {
                                             backend.launchApp("skanpage")
                                         else if (!modelData.indicator)
                                             win.showPrinter(modelData)
+                                        else if (settingsMod !== "" && backend.hasSettings(settingsMod))
+                                            backend.openSettings(settingsMod)   // Controller, Maus, Tastatur … -> Systemeinstellungen
                                     }
                                     onClicked: function(mouse) {
-                                        if (mouse.button === Qt.RightButton && !modelData.indicator)
+                                        if (mouse.button === Qt.RightButton && (!modelData.indicator
+                                                || (settingsMod !== "" && backend.hasSettings(settingsMod))))
                                             printerMenu.popup()
                                     }
                                 }
                                 QQC2.Menu {
                                     id: printerMenu
                                     QQC2.MenuItem {
+                                        visible: !modelData.indicator
                                         text: win.trad("Properties")
                                         icon.name: "document-properties"
                                         onTriggered: win.showPrinter(modelData)
+                                    }
+                                    QQC2.MenuItem {
+                                        visible: settingsMod !== "" && backend.hasSettings(settingsMod)
+                                        text: win.trad("Open settings")
+                                        icon.name: "configure"
+                                        onTriggered: backend.openSettings(settingsMod)
                                     }
                                 }
                             }

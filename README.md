@@ -77,6 +77,11 @@ Everything below is explained in plain words. You do **not** need to be a progra
 - **"Almost full" warning you can adjust.** Click the gear with the percentage in the *Show* group of the ribbon
   and choose the level, for example 50 % or 80 %. Above it, the bar and the ring turn red and the card gets a badge
   such as "⚠ 90 %". The choice is remembered.
+- **Straight to the right settings.** On the cards under *Printers and devices*, **double-click** (or right-click →
+  *Open settings*) a game controller, keyboard, mouse, touchpad or drawing tablet and the matching System Settings page
+  opens right away. Printers still open their properties on double-click.
+- **Ink levels at a glance.** A printer card now shows a small bar for each ink cartridge in its own colour, so you no
+  longer need *Properties* to see how much is left. Hover it for the exact percentages.
 - **For tinkerers:** the user interface can be exported to a file and loaded from there, which makes it easy to edit
   with syntax colours (see [Developer notes](#developer-notes)).
 

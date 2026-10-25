@@ -25,6 +25,17 @@ hidden and everything else works).
   card shows a badge such as "⚠ 90 %" with the tooltip "Almost full". The value is stored in
   `~/.config/fenestra/ce-pc-reglages.json` (default 80 %; removed by `uninstall.sh --purge`). German texts are included.
 
+- **Jump to the matching System Settings page.** Double-click (or right-click → *Open settings*) on a device card in
+  *Printers and devices* opens System Settings directly at the right module: game controller → `kcm_gamecontroller`,
+  keyboard → `kcm_keyboard`, mouse → `kcm_mouse`, touchpad → `kcm_touchpad`, graphics tablet → `kcm_tablet`. Printers keep
+  the *Properties* dialog on double-click and get *Open settings* (`kcm_printer_manager`) in the menu when
+  print-manager is installed. Only a fixed list of modules can be opened (`SETTINGS_MODULES`); a module that is not
+  installed is not offered. The device type is now part of the device data (`kind`).
+- **Ink levels on the printer card.** A small bar chart right on the card shows every cartridge (up to four or more
+  bars, in the ink's own colour, filling from the bottom with an animation); black ink uses the theme's text colour so it
+  stays visible on dark themes, and a red outline marks a cartridge below its low-level mark. The tooltip lists the
+  exact percentages. No need to open *Properties* any more. Hidden while the printer is offline.
+
 ### Visual changes
 
 - **Donut ring** instead of the pie chart in the *Properties* dialog (`QtQuick.Shapes`, GPU curve renderer): rounded
