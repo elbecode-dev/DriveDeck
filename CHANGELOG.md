@@ -1,16 +1,34 @@
-# Changelog – Fork of Fenestra "This PC" (`ce_pc_plasma.py`)
+# Changelog – DriveDeck (fork of Fenestra "This PC")
 
-This fork is based on **Fenestra This PC 1.1** by [naykkalak](https://github.com/naykkalak/fenestra-ce-pc)
+DriveDeck is based on **Fenestra This PC 1.1** by [naykkalak](https://github.com/naykkalak/fenestra-ce-pc)
 (GPL-3.0-or-later). All original copyright notices are kept. This file lists every change made in the fork,
 as required by GPL-3.0 §5(a) (prominent notice of modifications).
 
-The exact line counts are best taken from the GitHub diff against upstream. The program is still the single file `ce_pc_plasma.py`. `PyQt6.QtNetwork` is used when available (otherwise the
+The exact line counts are best taken from the GitHub diff against upstream. The program is still a single file, now called `drivedeck.py` (formerly `ce_pc_plasma.py`). `PyQt6.QtNetwork` is used when available (otherwise the
 single-instance feature is skipped); **NumPy** is an optional dependency for the live I/O graph (without it the graph is
 hidden and everything else works).
 
 ---
 
-## Unreleased – 2026-10-25 (modern look and monitoring)
+## Unreleased – 2026-10-26 (DriveDeck: new name, modern look and monitoring)
+
+### Renamed to DriveDeck
+
+- **New name and icon.** The program is now called **DriveDeck**, with its own icon (`assets/`, generated in all sizes by
+  `assets/make_icons.py` from `drivedeck-source.jpg`: rounded corners, 16 to 512 px). The window title, the *About* window,
+  the menu entry (`drivedeck.desktop`, `Icon=drivedeck`), the application id (`drivedeck`, so Plasma matches window and
+  icon under Wayland), the single-instance name and the log prefix use the new name. The original authorship of
+  naykkalak is kept in the file header, the *About* window, the README and `COPYING`.
+- **File renamed** `ce_pc_plasma.py` → `drivedeck.py`. `install.sh` keeps the old command alive: if
+  `~/.local/bin/ce_pc_plasma.py` exists it is replaced by a tiny forwarder that starts `drivedeck.py`, so old copies and
+  shortcuts keep working. It also removes the old menu entry `fenestra-ce-pc.desktop` and the old desktop shortcut.
+- **Own folders.** Settings: `~/.config/drivedeck/`, caches: `~/.cache/drivedeck/`, data: `~/.local/share/drivedeck/`
+  (the `ce-pc-` prefix of the file names is gone). At the first start `migrer_ancienne_config()` **copies** the settings of the
+  old name (`~/.config/fenestra/ce-pc-*.json`: pinned folders, network locations, known printers, window size, sections) into
+  the new folder; nothing is deleted, the old files stay as a backup. `uninstall.sh --purge` removes both generations.
+- **Kept on purpose:** the Dolphin bookmark tag `fenestra-cepc-` and the KWallet folder `Fenestra Ce PC`, so bookmarks and saved
+  network passwords created earlier keep working; the `CEPC_*` environment variables; the `ce-pc` translation catalogue.
+- The language files are also found next to the program (start from the project folder without installing).
 
 ### New features
 

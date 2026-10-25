@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-# Fenestra This PC (Custom Fork) — part of the Fenestra series
+# DriveDeck — a community fork of Fenestra “This PC” (https://github.com/naykkalak/fenestra-ce-pc)
 # Original Copyright (C) 2026 naykkalak
-# Modifications and Btrfs/NVMe fixes Copyright (C) 2026 Christian
+# Modifications, Btrfs/NVMe fixes and the DriveDeck features Copyright (C) 2026 Christian
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Ce PC (version Plasma/QML) - suit automatiquement les couleurs de Plasma."""
+"""DriveDeck (Plasma/QML) - folders, drives, network locations, printers and devices; follows the Plasma colours."""
 
 import configparser
 import hashlib
@@ -37,7 +37,23 @@ except ImportError:   # ohne QtNetwork läuft alles, nur ohne Einzelinstanz
 # fenestraLangues : traductions au format gettext (un dossier par langue), l'anglais sert de repli
 import gettext
 
-LANG_DIR = os.path.expanduser("~/.local/share/fenestra/ce-pc-langues")
+# drivedeckPfade : eigener Namensraum. Die alten Orte (~/.config/fenestra, …) werden nur noch gelesen, um beim ersten
+# Start Einstellungen zu übernehmen (siehe migrer_ancienne_config) ; sie bleiben als Sicherung unverändert liegen.
+APP_ID = "drivedeck"
+SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+DATA_DIR = os.path.expanduser("~/.local/share/drivedeck")
+CONFIG_DIR = os.path.expanduser("~/.config/drivedeck")
+CACHE_DIR = os.path.expanduser("~/.cache/drivedeck")
+LEGACY_CONFIG_DIR = os.path.expanduser("~/.config/fenestra")
+
+
+def _erstes_vorhandenes(*pfade):
+    return next((p for p in pfade if os.path.isdir(p)), pfade[0])
+
+
+# Sprachdateien : installiert, sonst direkt neben dem Programm (Start aus dem Projektordner), sonst die alte Installation
+LANG_DIR = _erstes_vorhandenes(os.path.join(DATA_DIR, "locale"), os.path.join(SCRIPT_DIR, "locale"),
+                               os.path.expanduser("~/.local/share/fenestra/ce-pc-langues"))
 LANG_ALIAS = {"pt": "pt_BR", "pt_PT": "pt_BR", "zh": "zh_CN", "zh_SG": "zh_CN",
               "zh_HK": "zh_TW", "zh_MO": "zh_TW"}
 
@@ -89,6 +105,9 @@ EXTRA_DE = {
     "Almost full": "Fast voll",
     "Open settings": "Einstellungen öffnen",
     "Quick access": "Schnellzugriff",
+    "About DriveDeck": "Über DriveDeck",
+    "A community fork of Fenestra “This PC” by naykkalak: your folders, drives, network locations, printers and devices in one window for KDE Plasma.":
+        "Ein Community-Fork von Fenestra „This PC“ von naykkalak: deine Ordner, Laufwerke, Netzwerkorte, Drucker und Geräte in einem Fenster für KDE Plasma.",
     "Temperature": "Temperatur",
     "Temperature:": "Temperatur:",
     "No subfolders": "Keine Unterordner",
@@ -568,8 +587,7 @@ def list_network_mounts():
     return mounts
 
 
-CONFIG_DIR = os.path.expanduser("~/.config/fenestra")
-NET_CONFIG = os.path.join(CONFIG_DIR, "ce-pc-reseau.json")
+NET_CONFIG = os.path.join(CONFIG_DIR, "reseau.json")
 
 
 def load_net_locations():
@@ -597,6 +615,7 @@ def net_url(loc):
 
 
 PLACES = os.path.expanduser("~/.local/share/user-places.xbel")
+# Bewusst unverändert : so findet das Programm die schon angelegten Dolphin-Favoriten weiter und kann sie sauber entfernen.
 PLACES_TAG = "fenestra-cepc-"
 
 
@@ -647,7 +666,7 @@ def _sync_places(locs):
             f.write(nouveau)
         os.replace(tmp, PLACES)
     except OSError as e:
-        print("[ce_pc_plasma] favoris Dolphin :", e)
+        print("[drivedeck] favoris Dolphin :", e)
 
 
 _PLACES_LOCK = threading.Lock()
@@ -659,6 +678,7 @@ def sync_places(locs):
         _sync_places(locs)
 
 
+# Bewusst unverändert : unter diesem KWallet-Ordner liegen die gespeicherten Netzwerk-Passwörter.
 WALLET_DOSSIER = "Fenestra Ce PC"
 _ESPACE = {}          # url -> (heure, valeur ou None) : évite d'interroger le NAS toutes les 3 secondes
 _PORTEFEUILLE = {"ko_jusqu": 0}
@@ -750,7 +770,7 @@ def badge_health():
                '  <path d="M10 4.6 L10 11.4" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round"/>\n'
                '  <circle cx="10" cy="15" r="1.5" fill="#ffffff"/>\n'
                '</svg>\n' % couleur)
-        chemin = os.path.join(os.path.expanduser("~/.cache/fenestra"), "ce-pc-sante-%s.svg" % etat)
+        chemin = os.path.join(CACHE_DIR, "sante-%s.svg" % etat)
         try:
             os.makedirs(os.path.dirname(chemin), exist_ok=True)
             if not os.path.isfile(chemin) or _lire_texte(chemin) != svg:
@@ -769,7 +789,7 @@ def badge_offline():
            '  <path d="M5.6 5.6 L14.4 14.4 M14.4 5.6 L5.6 14.4" stroke="#ffffff" stroke-width="2.6" '
            'stroke-linecap="round" fill="none"/>\n'
            '</svg>\n')
-    chemin = os.path.join(os.path.expanduser("~/.cache/fenestra"), "ce-pc-pastille.svg")
+    chemin = os.path.join(CACHE_DIR, "pastille.svg")
     try:
         os.makedirs(os.path.dirname(chemin), exist_ok=True)
         if not os.path.isfile(chemin) or _lire_texte(chemin) != svg:
@@ -780,7 +800,7 @@ def badge_offline():
         return ""
 
 
-SECT_CONFIG = os.path.join(CONFIG_DIR, "ce-pc-rubriques.json")   # rubriquesMemo (Ce PC 1.1)
+SECT_CONFIG = os.path.join(CONFIG_DIR, "rubriques.json")   # rubriquesMemo (Ce PC 1.1)
 SECTIONS = ("folders", "disks", "net", "printers", "quick")
 
 
@@ -800,7 +820,7 @@ def load_sections():
 
 
 # schnellzugriff : angeheftete Ordner der linken Leiste (wie « Schnellzugriff » im Windows-Explorer)
-PINS_CONFIG = os.path.join(CONFIG_DIR, "ce-pc-epingles.json")
+PINS_CONFIG = os.path.join(CONFIG_DIR, "epingles.json")
 PIN_STANDARD = ("DESKTOP", "DOWNLOAD", "DOCUMENTS", "PICTURES")   # beim ersten Start angeheftet (Reihenfolge wie unter Windows)
 
 
@@ -836,7 +856,7 @@ def save_pins(pins):
             json.dump(pins, f, ensure_ascii=False)
         os.replace(tmp, PINS_CONFIG)
     except OSError as e:
-        print("[ce_pc_plasma] schnellzugriff :", e)
+        print("[drivedeck] schnellzugriff :", e)
 
 
 def hat_unterordner(pfad, max_eintraege=5000):
@@ -997,8 +1017,8 @@ def build_network_list():
     return result
 
 
-DISK_CACHE = os.path.expanduser("~/.cache/fenestra/ce-pc-disques-cache.json")   # Laufwerke sofort beim Start anzeigen
-NET_CACHE = os.path.expanduser("~/.cache/fenestra/ce-pc-reseau-cache.json")   # reseauCache
+DISK_CACHE = os.path.join(CACHE_DIR, "disques-cache.json")   # Laufwerke sofort beim Start anzeigen
+NET_CACHE = os.path.join(CACHE_DIR, "reseau-cache.json")   # reseauCache
 
 
 def charger_cache_reseau():
@@ -1062,7 +1082,7 @@ def enregistrer_cache_reseau(liste):
         pass
 
 
-PRN_CACHE = os.path.expanduser("~/.cache/fenestra/ce-pc-imprimantes-cache.json")   # imprimantesCache
+PRN_CACHE = os.path.join(CACHE_DIR, "imprimantes-cache.json")   # imprimantesCache
 
 
 def charger_cache_imprimantes():
@@ -1159,7 +1179,7 @@ def _encre_url(url):
     return res
 
 
-PRN_CONNUES = os.path.expanduser("~/.config/fenestra/ce-pc-imprimantes.json")   # imprimantesConnues
+PRN_CONNUES = os.path.join(CONFIG_DIR, "imprimantes.json")   # imprimantesConnues
 _PRN_CONNUES_ECRIT = [None]
 _PRN_ESSAI = {}
 
@@ -1411,7 +1431,7 @@ def list_peripheriques():
 # elle tourne en arrière-plan (au démarrage puis toutes les 10 minutes) et le dernier résultat est gardé
 # en cache. Sécurité : un scanner RÉSEAU n'est affiché que s'il correspond à une imprimante installée
 # sur ce PC (même nom de modèle) ; les scanners des autres sur le même Wi-Fi restent cachés.
-SCAN_CACHE = os.path.expanduser("~/.cache/fenestra/ce-pc-scanners-cache.json")
+SCAN_CACHE = os.path.join(CACHE_DIR, "scanners-cache.json")
 _SCAN_TYPE = re.compile(r"\s+(?:(?:flatbed|platen|sheetfed|sheet-fed|adf|film|handheld)\s+)?scanner$"
                         r"|\s+multi-function peripheral$|\s+all-in-one$", re.I)
 
@@ -1513,8 +1533,8 @@ def cartes_scanners(scanners, trouves, imprimantes):
 # miseAJour (Ce PC 1.1) : au plus une fois par semaine, Ce PC demande à GitHub le numéro de la dernière
 # version publiée. Rien n'est installé : un bandeau propose seulement d'ouvrir la page de la version.
 # Aucune donnée personnelle n'est envoyée (GitHub voit l'adresse IP, comme pour toute visite).
-# Désactivable dans « À propos ». Essai du bandeau : CEPC_MAJ_TEST=9.9 python3 ce_pc_plasma.py
-MAJ_CONFIG = os.path.join(CONFIG_DIR, "ce-pc-mise-a-jour.json")
+# Désactivable dans « À propos ». Essai du bandeau : CEPC_MAJ_TEST=9.9 python3 drivedeck.py
+MAJ_CONFIG = os.path.join(CONFIG_DIR, "mise-a-jour.json")
 # Fork : leer = keine Update-Prüfung (das Original-Repository würde sonst ein Update melden, das diesen Fork
 # überschreibt). Für ein eigenes Repository z. B.:
 #   MAJ_API  = "https://api.github.com/repos/DEIN-NAME/DEIN-REPO/releases/latest"
@@ -1559,7 +1579,7 @@ def lire_derniere_version():
     """(version, adresse de la page) de la dernière version publiée sur GitHub, ou None (hors ligne, erreur)."""
     import urllib.request
     try:
-        req = urllib.request.Request(MAJ_API, headers={"User-Agent": "Fenestra-This-PC/" + APP_VERSION,
+        req = urllib.request.Request(MAJ_API, headers={"User-Agent": "DriveDeck/" + APP_VERSION,
                                                        "Accept": "application/vnd.github+json"})
         with urllib.request.urlopen(req, timeout=8) as r:
             data = json.loads(r.read(200000).decode("utf-8"))
@@ -1836,7 +1856,7 @@ class Backend(QObject):
                     enregistrer_cache_disques(liste)
                     self.disksUpdated.emit(liste)
                 except Exception as e:
-                    print("[ce_pc_plasma] disques :", e)
+                    print("[drivedeck] disques :", e)
                 derniere, dernier = etat, time.monotonic()
             forcer = self._diskWake.wait(1)
             self._diskWake.clear()
@@ -1849,7 +1869,7 @@ class Backend(QObject):
                 enregistrer_cache_reseau(liste)
                 self.netUpdated.emit(liste)
             except Exception as e:
-                print("[ce_pc_plasma] réseau :", e)
+                print("[drivedeck] réseau :", e)
             self._netWake.wait(3)
             self._netWake.clear()
 
@@ -1862,7 +1882,7 @@ class Backend(QObject):
                 enregistrer_cache_imprimantes(imprimantes)
                 self.printersUpdated.emit(imprimantes)
             except Exception as e:
-                print("[ce_pc_plasma] imprimantes :", e)
+                print("[drivedeck] imprimantes :", e)
             self._prnWake.wait(3)
             self._prnWake.clear()
 
@@ -1925,7 +1945,7 @@ class Backend(QObject):
                     enregistrer_cache_scanners(self._scanners)
                     self._prnWake.set()
             except Exception as e:
-                print("[ce_pc_plasma] scanners :", e)
+                print("[drivedeck] scanners :", e)
             if self._scanWake.wait(delai):
                 essais_rapides = 0   # « Actualiser » : on repart pour une série d'essais rapides
             self._scanWake.clear()
@@ -1957,7 +1977,7 @@ class Backend(QObject):
                 json.dump(etat, f)
             os.replace(tmp, SECT_CONFIG)
         except (OSError, ValueError, TypeError, KeyError) as e:
-            print("[ce_pc_plasma] rubriques :", e)
+            print("[drivedeck] rubriques :", e)
 
     @pyqtSlot(int, int, bool)
     def saveWindow(self, w, h, maximized):
@@ -1973,7 +1993,7 @@ class Backend(QObject):
                 json.dump(etat, f)
             os.replace(tmp, WIN_CONFIG)
         except OSError as e:
-            print("[ce_pc_plasma] taille de la fenêtre :", e)
+            print("[drivedeck] taille de la fenêtre :", e)
 
     @pyqtSlot(str)
     def launchApp(self, name):
@@ -2426,7 +2446,7 @@ import org.kde.kirigami as Kirigami
 QQC2.ApplicationWindow {
     id: win
     visible: true
-    title: trad("This PC")
+    title: "DriveDeck"
     // minRuban : la fenêtre ne descend pas sous la largeur du ruban (elle dépend de la langue)
     minimumWidth: Math.max(740, ribbonRow.implicitWidth + 20)
     width: Math.max(minimumWidth, winInit.w > 0 ? winInit.w : 850)   // tailleInitiale
@@ -3202,7 +3222,7 @@ QQC2.ApplicationWindow {
         id: aboutDialog
         modal: true
         anchors.centerIn: QQC2.Overlay.overlay
-        title: win.trad("About This PC")
+        title: win.trad("About DriveDeck")
         width: 460
         standardButtons: QQC2.Dialog.Close
 
@@ -3227,7 +3247,7 @@ QQC2.ApplicationWindow {
                     Layout.fillWidth: true
                     spacing: 2
                     QQC2.Label {
-                        text: win.trad("This PC")
+                        text: "DriveDeck"
                         font.pixelSize: 22
                         font.bold: true
                     }
@@ -3243,7 +3263,7 @@ QQC2.ApplicationWindow {
             QQC2.Label {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
-                text: win.trad("Part of the Fenestra series, which gives KDE Plasma the look of a Windows 11 desktop.")
+                text: win.trad("A community fork of Fenestra “This PC” by naykkalak: your folders, drives, network locations, printers and devices in one window for KDE Plasma.")
             }
             QQC2.Label {
                 Layout.fillWidth: true
@@ -4815,21 +4835,31 @@ Modified and maintained by Christian (2026), with help from his son Leon"""
 APP_LICENCE = 'GPL-3.0-or-later'
 
 
+def app_icon_pfad():
+    """Das DriveDeck-Symbol : installiert, sonst aus dem Projektordner, zuletzt ein eigenes app-icon.png des Benutzers."""
+    for p in (os.path.join(DATA_DIR, "drivedeck.png"),
+              os.path.join(SCRIPT_DIR, "assets", "hicolor", "256x256", "apps", "drivedeck.png"),
+              os.path.join(ICON_CACHE_DIR, "app-icon.png")):
+        if os.path.isfile(p):
+            return p
+    return ""
+
+
 def about_info():
-    """Informations affichées par « À propos de Ce PC »."""
+    """Informations affichées par « À propos de DriveDeck »."""
     from PyQt6.QtCore import PYQT_VERSION_STR, QT_VERSION_STR
-    icone = os.path.join(ICON_CACHE_DIR, "app-icon.png")
+    icone = app_icon_pfad()
     return {"version": APP_VERSION, "auteur": APP_AUTEUR, "licence": {"GPL-3.0-or-later": tr("GPL-3.0 or later"), "GPL-3.0-only": tr("GPL-3.0 only")}.get(APP_LICENCE, APP_LICENCE),   # licenceTraduite
             "qt": QT_VERSION_STR, "pyqt": PYQT_VERSION_STR,
             "python": "%d.%d.%d" % sys.version_info[:3],
-            "icon": ("file://" + icone) if os.path.isfile(icone) else ""}
+            "icon": ("file://" + icone) if icone else ""}
 
 
 def bar_icons_ruban():
     """Icônes du mode complet de la barre (rubanWindows) : jeu coloré windows-modern, sinon icône du thème."""
     svg = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">\n<path d="M12 4.5C16.1421 4.5 19.5 7.85786 19.5 12C19.5 16.1421 16.1421 19.5 12 19.5C7.85786 19.5 4.5 16.1421 4.5 12C4.5 11.6236 4.52772 11.2538 4.58123 10.8923C4.64845 10.4382 4.31609 10 3.85708 10C3.48623 10 3.161 10.2562 3.10471 10.6228C3.03576 11.0718 3 11.5317 3 12C3 16.9706 7.02944 21 12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3C9.69494 3 7.59227 3.86656 6 5.29168V4.25C6 3.83579 5.66421 3.5 5.25 3.5C4.83579 3.5 4.5 3.83579 4.5 4.25V7.25C4.5 7.66421 4.83579 8 5.25 8H8.25C8.66421 8 9 7.66421 9 7.25C9 6.83579 8.66421 6.5 8.25 6.5H6.90093C8.23907 5.25883 10.0309 4.5 12 4.5Z" fill="#1e88e5"/>\n</svg>\n'
     actualiser = ""
-    chemin = os.path.join(os.path.expanduser("~/.cache/fenestra"), "ce-pc-actualiser.svg")
+    chemin = os.path.join(CACHE_DIR, "actualiser.svg")
     try:
         os.makedirs(os.path.dirname(chemin), exist_ok=True)
         if not os.path.isfile(chemin) or _lire_texte(chemin) != svg:
@@ -4856,7 +4886,7 @@ def bar_icons_ruban():
     return res
 
 
-WIN_CONFIG = os.path.join(CONFIG_DIR, "ce-pc-fenetre.json")   # fenetreMemo
+WIN_CONFIG = os.path.join(CONFIG_DIR, "fenetre.json")   # fenetreMemo
 
 
 def load_window_state():
@@ -4911,26 +4941,48 @@ def serveur_instance(nom, backend):
     return srv
 
 
+# Einstellungen früherer Versionen (Name « Fenestra This PC » : ~/.config/fenestra/ce-pc-*.json) -> neuer Ordner
+_ALTE_EINSTELLUNGEN = {"ce-pc-reseau.json": "reseau.json", "ce-pc-rubriques.json": "rubriques.json",
+                       "ce-pc-epingles.json": "epingles.json", "ce-pc-imprimantes.json": "imprimantes.json",
+                       "ce-pc-mise-a-jour.json": "mise-a-jour.json", "ce-pc-fenetre.json": "fenetre.json"}
+
+
+def migrer_ancienne_config():
+    """Kopiert beim ersten Start die Einstellungen aus ~/.config/fenestra in ~/.config/drivedeck (angeheftete Ordner,
+    Netzwerkorte, bekannte Drucker, Fenstergröße …). Es wird nur kopiert und nur, was im neuen Ordner noch fehlt :
+    die alten Dateien bleiben unverändert als Sicherung liegen."""
+    for alt, neu in _ALTE_EINSTELLUNGEN.items():
+        quelle, ziel = os.path.join(LEGACY_CONFIG_DIR, alt), os.path.join(CONFIG_DIR, neu)
+        if os.path.isfile(quelle) and not os.path.exists(ziel):
+            try:
+                os.makedirs(CONFIG_DIR, exist_ok=True)
+                shutil.copy2(quelle, ziel)
+                print("[drivedeck] Einstellung übernommen :", alt, "->", neu)
+            except OSError as e:
+                print("[drivedeck] Übernahme von", alt, "fehlgeschlagen :", e)
+
+
 def main():
     if "--dump-qml" in sys.argv:   # Oberfläche als .qml-Datei ausgeben (Bearbeitung mit Syntaxfarben)
         sys.stdout.write(QML)
         return 0
+    migrer_ancienne_config()
     app = QApplication(sys.argv)
-    app.setApplicationName("fenestra-ce-pc")
-    app.setDesktopFileName("fenestra-ce-pc")
-    nom_instance = "fenestra-ce-pc-%d" % os.getuid()
+    app.setApplicationName(APP_ID)
+    app.setDesktopFileName(APP_ID)   # Plasma ordnet das Fenster über drivedeck.desktop dem Symbol und dem Namen zu
+    nom_instance = "%s-%d" % (APP_ID, os.getuid())
     if not os.environ.get("CEPC_MULTI") and instance_existante(nom_instance):
         return 0
     theme = get_icon_theme_name()
     QIcon.setThemeName(theme)
 
-    app_icon = os.path.join(ICON_CACHE_DIR, "app-icon.png")
-    if os.path.isfile(app_icon):
+    app_icon = app_icon_pfad()
+    if app_icon:
         app.setWindowIcon(QIcon(app_icon))
 
     folders = list_user_folders()
-    print(f"[ce_pc_plasma] thème d'icônes : {theme}")
-    print("[ce_pc_plasma] icônes dossiers :",
+    print(f"[drivedeck] thème d'icônes : {theme}")
+    print("[drivedeck] icônes dossiers :",
           {f["label"]: f["icon"] for f in folders})
 
     backend = Backend()
@@ -4942,7 +4994,7 @@ def main():
             with open(chemin_qml, encoding="utf-8") as f:
                 qml = f.read()
         except OSError as e:
-            print("[ce_pc_plasma] CEPC_QML nicht lesbar :", e)
+            print("[drivedeck] CEPC_QML nicht lesbar :", e)
     engine = QQmlApplicationEngine()
     engine.rootContext().setContextProperty("foldersModel", folders)
     engine.rootContext().setContextProperty("backend", backend)

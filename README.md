@@ -1,12 +1,14 @@
-# Fenestra This PC – Community Fork
+<p align="center"><img src="assets/hicolor/256x256/apps/drivedeck.png" alt="DriveDeck" width="128"></p>
+
+# DriveDeck
 
 A "This PC" window for **KDE Plasma 6**, inspired by Windows 11. It shows your personal folders, drives, network
 locations, printers and devices in one clean window, and it follows your Plasma colours and icon theme.
 
-> **This is an unofficial fork** of [naykkalak/fenestra-ce-pc](https://github.com/naykkalak/fenestra-ce-pc).
+> **DriveDeck is a community fork** of **Fenestra "This PC"** by [naykkalak](https://github.com/naykkalak/fenestra-ce-pc).
 > All credit for the original idea, design and code goes to **naykkalak**. This fork fixes bugs, makes the program
-> faster and adds a few new features. See [what is different](#whats-different-in-this-fork) below, or the detailed
-> [CHANGELOG](CHANGELOG.md).
+> faster and adds new features under its own name. See [what is different](#whats-different-in-this-fork) below, or
+> the detailed [CHANGELOG](CHANGELOG.md).
 
 ---
 
@@ -135,12 +137,19 @@ Optional tools switch on extra features:
 Installs for your user only. No administrator rights needed.
 
 ```bash
-git clone https://github.com/elbecode-dev/DriveDeck
-cd fenestra-ce-pc
+git clone https://github.com/elbecode-dev/DriveDeck.git
+cd drivedeck
 bash install.sh
 ```
 
-The program then appears in your application menu (and on the desktop unless you use `bash install.sh --no-desktop-icon`).
+The program then appears as **DriveDeck** in your application menu (and on the desktop unless you use
+`bash install.sh --no-desktop-icon`).
+
+**Coming from "Fenestra This PC" / `ce_pc_plasma.py`?** Just run `bash install.sh`. It replaces the old menu entry and
+desktop shortcut, keeps the old command `ce_pc_plasma.py` working (it simply starts DriveDeck), and DriveDeck copies your
+settings (pinned folders, network locations, window size …) from `~/.config/fenestra` to `~/.config/drivedeck` at its first
+start. The old files are left untouched as a backup.
+
 To remove it again: `bash uninstall.sh` (keeps your settings) or `bash uninstall.sh --purge` (removes everything).
 
 **Updating:** pull the latest version and run `bash install.sh` again.
@@ -163,18 +172,18 @@ To remove it again: `bash uninstall.sh` (keeps your settings) or `bash uninstall
 
 ```bash
 # Run directly from the source folder
-python3 ce_pc_plasma.py
+python3 drivedeck.py
 
 # Export the user interface (QML) to a file, edit it, and run from the file
-python3 ce_pc_plasma.py --dump-qml > ce_pc_plasma.qml
-CEPC_QML=ce_pc_plasma.qml python3 ce_pc_plasma.py
+python3 drivedeck.py --dump-qml > drivedeck.qml
+CEPC_QML=drivedeck.qml python3 drivedeck.py
 
 # Allow several windows at once (for testing)
-CEPC_MULTI=1 python3 ce_pc_plasma.py
+CEPC_MULTI=1 python3 drivedeck.py
 ```
 
 Bug reports and pull requests are welcome. If you find a problem, please include the terminal output of
-`python3 ce_pc_plasma.py`.
+`python3 drivedeck.py`.
 
 ---
 
@@ -184,7 +193,7 @@ Bug reports and pull requests are welcome. If you find a problem, please include
 - Icon sets and design ideas as credited in the original project (Fluent UI System Icons by Microsoft, MIT licence;
   Windows Modern for KDE Plasma 6 by Jeysef; Win11OS-kde by yeyushengfan258). These are **not** bundled with the
   program unless the original project bundles them.
-- Fork changes: Christian, 2026
+- DriveDeck (fork changes, new features, name and icon): Christian, 2026
 
 ## AI assistance
 
