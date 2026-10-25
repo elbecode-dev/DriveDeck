@@ -1533,7 +1533,10 @@ class Backend(QObject):
     def _ioLoop(self):
         # ioVerlauf : einmal pro Sekunde /proc/diskstats lesen, Raten per NumPy aus den Zählerdifferenzen bilden.
         # NumPy wird erst hier im Thread geladen : der Fensterstart bleibt davon unberührt.
-        import numpy as np
+        try:
+            import numpy as np
+        except ImportError:   # ohne NumPy : kein I/O-Verlauf, der Rest läuft normal
+            return
         verlauf = {}   # Kernelname -> deque[(Zeitpunkt, gelesen, geschrieben)]
         while True:
             t = time.monotonic()

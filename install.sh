@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fenestra – This PC : installation for the current user (no root needed).
+# Fenestra – This PC (community fork of naykkalak/fenestra-ce-pc) : installation for the current user (no root needed).
 # SPDX-License-Identifier: GPL-3.0-or-later
 #   ./install.sh                   install, add a menu entry and a desktop shortcut
 #   ./install.sh --no-desktop-icon install without the desktop shortcut
@@ -25,14 +25,19 @@ fi
 for cmd in lsblk udevadm; do
     command -v "$cmd" >/dev/null || { echo "  MISSING  $cmd (required)"; missing=1; }
 done
-for pair in "udisksctl:CD/DVD mounting" "eject:ejecting media" "smartctl:disk health (smartmontools)" \
+for pair in "udisksctl:mounting and safely removing drives" "eject:ejecting media" "smartctl:disk health (smartmontools)" \
             "smbclient:network shares (Samba client)" "lpstat:printers (CUPS client)" \
             "ipptool:ink levels (CUPS IPP tools)" "avahi-browse:real printer status (Avahi tools)" \
             "kwallet-query:remembered network passwords" "dolphin:opening folders" "xdg-open:opening files" \
-            "busctl:disk health warnings" "scanimage:scanners (SANE)" "skanpage:scanning from the scanner card"; do
+            "busctl:disk health warnings" "scanimage:scanners (SANE)" "skanpage:scanning from the scanner card" \
+            "konsole:\"Open in terminal\" in the right-click menu"; do
     cmd="${pair%%:*}"; what="${pair#*:}"
     command -v "$cmd" >/dev/null || echo "  optional $cmd not found — $what will not be available"
 done
+python3 -c "import PyQt6.QtNetwork" 2>/dev/null \
+    || echo "  optional PyQt6.QtNetwork not found — a second start will open a second window instead of showing the first"
+python3 -c "import numpy" 2>/dev/null \
+    || echo "  optional NumPy not found — the live I/O graph on the drive cards stays hidden (install python-numpy)"
 [ "$missing" = 0 ] || { echo "Install the missing items above, then run ./install.sh again. Nothing was installed."; exit 1; }
 
 echo "Installing…"
@@ -77,4 +82,5 @@ fi
 command -v update-desktop-database >/dev/null && update-desktop-database "$APPS" 2>/dev/null || true
 
 echo "Done. Open \"This PC\" from the application menu or the desktop shortcut."
-echo "To update later: download the new version and run this script again (your settings are kept)."
+echo "If \"This PC\" is already running, close it first, otherwise the old version stays open."
+echo "To update later: download the new version (or git pull) and run this script again (your settings are kept)."

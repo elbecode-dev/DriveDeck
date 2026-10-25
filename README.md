@@ -1,128 +1,183 @@
-# Fenestra This PC
+# Fenestra This PC – Community Fork
 
-A "This PC" window for KDE Plasma 6, inspired by the Windows 11 view of the same name. Part of the Fenestra series.
+A "This PC" window for **KDE Plasma 6**, inspired by Windows 11. It shows your personal folders, drives, network
+locations, printers and devices in one clean window, and it follows your Plasma colours and icon theme.
 
-It shows, in one window, your personal folders, your drives, your network locations, your printers and your input devices. It follows the colours and the icon theme of your Plasma desktop.
+> **This is an unofficial fork** of [naykkalak/fenestra-ce-pc](https://github.com/naykkalak/fenestra-ce-pc).
+> All credit for the original idea, design and code goes to **naykkalak**. This fork fixes bugs, makes the program
+> faster and adds a few new features. See [what is different](#whats-different-in-this-fork) below, or the detailed
+> [CHANGELOG](CHANGELOG.md).
 
-![This PC](preview.png)
+---
 
-## Features
+## What the program does
 
-- **Folders**: Desktop, Documents, Pictures, Music, Downloads and Videos, opened in Dolphin.
-- **Devices and drives**
-  - Internal disks, USB sticks, memory cards and external disks, each with a usage gauge. The gauge turns red when less than 20 % of free space is left.
-  - Your CD/DVD drive is always shown, even when empty, and it can be ejected.
-  - Disk health is watched for you: an orange badge and "Signs of wear" appear under the gauge when a disk reports bad sectors or a failing SMART attribute, a red badge and "Disk failing – back up your files" when it predicts its own failure. Nothing is shown for a healthy disk. No password is asked: the state comes from udisks2.
-  - Properties shows the full disk health report (SMART). USB volumes can be renamed.
-- **Network locations**
-  - Add an SMB share (NAS, another computer) with a button. You don't need a terminal or administrator rights.
-  - The share shows its free space. Its password is kept in KWallet.
-  - When the server is off, the share stays listed with a red badge.
-- **Printers and devices**
-  - Each printer shows its state (Ready, Printing, Offline), whether it is the default printer, and its ink levels.
-  - The state reflects whether a network printer really answers, not only what CUPS believes.
-  - A known printer that is switched off stays listed as Offline, and you can remove it from the list.
-  - Scanners have their own card ("Scanner · Network" or "Scanner · USB"). A double-click opens Skanpage, the KDE scanning app, when it is installed.
-  - For your safety, a network scanner is only shown when it belongs to a printer installed on this PC: the scanners of other people on the same Wi-Fi (hotel, office…) stay hidden.
-  - Keyboards, mice, touchpads, graphics tablets and game controllers are listed with their connection (USB, Bluetooth, built-in).
-- **Ribbon**: Location, Network and System commands, and a **Show** group with one tick box per section. Untick a section to hide it.
-- **Your choice is kept**: each section remembers whether it is folded or hidden, and the window remembers its size. The lists show instantly on opening.
-- **New versions**: at most once a week, This PC checks on GitHub whether a newer version is published and shows a banner with a "View" button. Nothing is installed automatically. You can turn this off in "About".
-- **Languages**: 13 languages, following your system language, with English as the fallback.
+Open it and you see everything about your computer in one place:
+
+- **Folders** – Desktop, Documents, Pictures, Music, Downloads, Videos. One click opens them in Dolphin.
+- **Drives** – internal disks, USB sticks, memory cards and CD/DVD drives, each with a bar that shows how full
+  they are. You can eject USB sticks safely, rename them and check the disk health.
+- **Network locations** – add a shared folder from another computer or NAS (SMB) without a terminal. Passwords are
+  stored safely in KWallet.
+- **Printers and devices** – printers with their status and ink levels, plus keyboards, mice, game controllers and
+  similar devices.
+
+The window remembers its size, supports 13 languages and uses your own system colours and icons. Drives also show a
+small **live graph** of their read and write speed, and warn you when they are almost full.
+
+---
+
+## What's different in this fork
+
+Everything below is explained in plain words. You do **not** need to be a programmer to read it.
+
+### Problems that are fixed
+
+| What went wrong before | What happens now |
+|---|---|
+| On computers with a **Btrfs** disk, double-clicking your main drive ("Local Disk") opened a strange system folder (`/var/tmp`). | It opens **your home folder**, for every user. The main drive is also recognised correctly again (sort order, icon, health check). |
+| The list of drives **flickered** and an open right-click menu **closed by itself** every few seconds, because the free space changes all the time. | The list only redraws when something you can actually see has changed. |
+| Network folders with a **space in their name** (for example `My Share`) showed up twice. | They show up once. |
+| Version comparison fixed: 1.1.0 was wrongly treated as newer than 1.1, which could trigger a false update notice. | Fixed. |
+| A USB stick could be **mistaken for the previous stick** after you swapped them. | Every refresh now checks the real device. |
+| A drive that simply had no name could end up with the wrong name, or a drive really named "Local Disk" got renamed. | Unnamed drives get a clear fallback name ("Local Disk" or "Removable Disk"), and real names are left alone. |
+| Two parts of the program could **write to the same settings file at the same moment** and corrupt it. | They now take turns. |
+| User names containing a `%` sign could break the network login. | They are now rejected with a clear message. |
+| Opening folders left **invisible leftover processes** running in the background until the program was closed. | They are cleaned up automatically. |
+| If the scanner tool was not installed, the program kept **searching for scanners** for nothing. | It stops when the tool is missing. |
+
+### It is much faster and smoother
+
+- **The window opens instantly.** Slow checks (disks, disk health, network, printers) now run **in the background**
+  instead of making the window wait for them.
+- **Your drives show up immediately** when you start the program, because the last known list is remembered.
+- **One slow device no longer slows down everything.** A switched-off NAS used to delay the printer list. Disks,
+  network locations and printers are now handled separately, and many devices are checked **at the same time**
+  instead of one after another.
+- **Much less work in the background.** The program used to run several system tools every 3 seconds. Now it only
+  takes a tiny look at the system every second and does the full check **when something really changes** (you plug in
+  a stick, mount a drive, …). Free-space bars are refreshed every 10 seconds.
+- **Fewer system calls.** Information that used to need one request per disk is now collected in a single request.
+
+### New features
+
+- **Unmounted drives are now visible.** A second hard disk, a Windows partition or a USB stick that was not opened
+  automatically shows up as a card marked "Not mounted". **Double-click it** (or right-click → *Mount*) and it is
+  connected and opened. Tiny system partitions (boot, recovery, swap, encrypted) are hidden on purpose.
+- **More right-click options**
+  - On drives: *Mount*, *Open in terminal*, *Copy path*
+  - On network locations: *Disconnect*, *Open in terminal*, *Copy path*
+- **Use it with the keyboard:** arrow keys select a drive, **Enter** opens it, **F5** refreshes, **Esc** clears the
+  selection, **Ctrl+C** copies the path.
+- **Only one window at a time.** Starting the program a second time simply brings the existing window to the front.
+- **Correct name and icon in the task bar.** On Wayland the window now shows its real icon and name instead of
+  "python3".
+- **Live read/write graph per drive.** Every drive card shows a small graph of the last minute: green is reading,
+  yellow is writing. Hover it to see the current speed. (Needs NumPy; without it the graph is simply not shown.)
+- **"Almost full" warning you can adjust.** Click the gear with the percentage in the *Show* group of the ribbon
+  and choose the level, for example 50 % or 80 %. Above it, the bar and the ring turn red and the card gets a badge
+  such as "⚠ 90 %". The choice is remembered.
+- **For tinkerers:** the user interface can be exported to a file and loaded from there, which makes it easy to edit
+  with syntax colours (see [Developer notes](#developer-notes)).
+
+### A fresher look
+
+- The pie chart in the *Properties* window is now a smooth **donut ring** with the percentage in the middle.
+- Usage bars are slimmer and rounded, and **animate** to their value.
+- Cards react more softly to the mouse: they fade a highlight in, the icon grows a little, and the selected card gets
+  an accent strip.
+
+### Small things
+
+- The built-in update check is **switched off** in this fork, because it would point to the original project and
+  suggest replacing this version. (You can switch it back on with your own repository, see the code comment at
+  `MAJ_API`.)
+- New menu texts come with **German** translations. Other languages show English for the new entries until someone
+  translates them (help is welcome!).
+- Unused leftover code was removed.
+
+---
 
 ## Requirements
 
-- KDE Plasma 6 (Qt 6), Wayland session. X11 is not supported.
-- Python 3 with PyQt6, including the QtQml and QtQuick modules, and Kirigami.
-- Required tools: `lsblk`, `udevadm`.
-- Optional tools, each one enabling a feature:
-  - `udisksctl` and `eject`: CD/DVD mounting and ejecting.
-  - `smartctl` (smartmontools): disk health.
-  - `smbclient`: network shares.
-  - `lpstat` (CUPS): printers.
-  - `ipptool` (CUPS IPP tools): ink levels.
-  - `avahi-browse` (Avahi tools): real printer status.
-  - `kwallet-query`: remembered passwords.
-  - `busctl` and udisks2: disk health warnings.
-  - `scanimage` (SANE): scanners.
-  - `skanpage`: scanning from the scanner card.
+- **KDE Plasma 6** (Wayland, same as the original)
+- **Python 3** with **PyQt6** (QtQml, QtQuick) and **Kirigami**
+- `lsblk` and `udevadm` (almost every Linux system has them)
 
-On Kubuntu 26.04 everything is already installed. The install script checks what is present before installing anything.
+Optional tools switch on extra features:
 
-## Installation
+| Tool | Feature |
+|---|---|
+| `smartctl` / udisks2 | Disk health |
+| `smbclient` | Finding and adding network shares |
+| `udisksctl` | Mounting, unmounting and safely removing drives |
+| `lpstat`, `ipptool`, `avahi-browse` | Printer status and ink levels |
+| `konsole` | "Open in terminal" |
+| NumPy (`python-numpy`) | Live read/write graph on the drive cards |
 
-**Option 1 — KDE Store.** Download the archive, extract it, then run the install script below.
+---
 
-**Option 2 — from this repository.** Download or clone it, then, in the folder:
+## Install
 
-```
+Installs for your user only. No administrator rights needed.
+
+```bash
+git clone https://github.com/elbecode-dev/DriveDeck
+cd fenestra-ce-pc
 bash install.sh
 ```
 
-It installs for the current user only (no root needed):
+The program then appears in your application menu (and on the desktop unless you use `bash install.sh --no-desktop-icon`).
+To remove it again: `bash uninstall.sh` (keeps your settings) or `bash uninstall.sh --purge` (removes everything).
 
-- the program in `~/.local/bin/`;
-- its icons and languages in `~/.local/share/fenestra/`;
-- a "This PC" entry in the application menu;
-- a desktop shortcut. Use `bash install.sh --no-desktop-icon` if you don't want it.
+**Updating:** pull the latest version and run `bash install.sh` again.
 
-**Updating.** Download the new version and run `bash install.sh` again. Your settings are kept (network locations, window size, sections, printers).
-
-To remove it:
-
-```
-bash uninstall.sh            # keeps your settings
-bash uninstall.sh --purge    # also removes settings and caches
-```
-
-## Appearance
-
-This PC uses your Plasma colours and your icon theme, so its look changes with your theme: with another icon theme (Breeze, for example), it will look different from the screenshots. The screenshots were taken with the **windows-modern** icon theme from [Windows Modern for KDE Plasma 6](https://github.com/Jeysef/KDE-Windows-Modern) (by Jeysef, based on [Win11OS-kde](https://github.com/yeyushengfan258/Win11OS-kde) by yeyushengfan258), which is not included here.
-
-## Languages
-
-English, French, German, Spanish, Italian, Brazilian Portuguese, Dutch, Polish, Russian, Turkish, Japanese, Simplified Chinese and Traditional Chinese.
-
-English and French are written by the author. The other languages were translated with the help of an AI and still need a review by native speakers. Corrections are welcome.
+---
 
 ## Known limitations
 
-- **Printer states come from CUPS.**
-  - A printer detected automatically on the network is a temporary queue. It disappears when the printer is switched off, and CUPS then forgets that it was the default printer.
-  - Installing the printer in *Printer Settings* gives a permanent queue that keeps this setting.
-- **Real printer status needs `avahi-browse`.** Without it, the state shown is the one reported by CUPS.
-- **Disk health** is only available for internal SATA and NVMe disks. USB sticks and card readers do not report it.
-- **Scanners:** searching the network takes about 10 seconds, so it runs in the background (at start-up, then every 10 minutes or on "Refresh"). A scanner whose printer is not installed on this PC is not shown.
-- **Battery levels** of wireless mice and keyboards are not shown yet.
-- **Input devices:** only keyboards, mice, touchpads, graphics tablets and game controllers are listed. Screens, cameras and audio devices are not.
-- **Tested on:** Solus (Plasma 6) and Kubuntu 26.04 LTS. Feedback from other distributions and other printer brands is welcome.
+- Disconnecting a network share uses the system `umount` command. If the share was not set up to be unmountable by
+  normal users, you will see a "permission denied" message.
+- A network share that is mounted by IP address but saved by host name is not recognised as the same one.
+- Removing a saved network location only blanks the stored password in KWallet. KWallet's command line tool cannot
+  delete entries.
+- Tested on KDE Plasma 6 with a Btrfs system disk. Other setups should work, but have not been tested by the fork
+  maintainer.
 
-## Contents
+---
 
-| Path | Description |
-|---|---|
-| `ce_pc_plasma.py` | The program |
-| `icons/` | Command bar icons (Fluent UI System Icons) and their licence |
-| `locale/` | Translations (gettext `.po` and compiled `.mo`) |
-| `install.sh` / `uninstall.sh` | Installation and removal for the current user |
-| `COPYING` | GNU General Public License v3.0 |
+## Developer notes
 
-## Credits
+```bash
+# Run directly from the source folder
+python3 ce_pc_plasma.py
 
-- This PC © 2026 naykkalak, Fenestra series.
-- Command bar icons: Fluent UI System Icons © Microsoft Corporation, MIT licence (see `icons/`).
-- Icon theme used for the screenshots: windows-modern, from [Windows Modern for KDE Plasma 6](https://github.com/Jeysef/KDE-Windows-Modern) by Jeysef, based on Win11OS-kde by yeyushengfan258. It is not included in this repository.
+# Export the user interface (QML) to a file, edit it, and run from the file
+python3 ce_pc_plasma.py --dump-qml > ce_pc_plasma.qml
+CEPC_QML=ce_pc_plasma.qml python3 ce_pc_plasma.py
 
-## Privacy
+# Allow several windows at once (for testing)
+CEPC_MULTI=1 python3 ce_pc_plasma.py
+```
 
-This PC sends nothing about you. The only request it makes on its own is the weekly version check: it asks GitHub for the number of the latest release. As with any visit to a website, GitHub sees your IP address. Untick "Check for a new version once a week" in "About" to stop it.
+Bug reports and pull requests are welcome. If you find a problem, please include the terminal output of
+`python3 ce_pc_plasma.py`.
 
-## Trademarks
+---
 
-This project is not affiliated with, endorsed by or sponsored by Microsoft Corporation. Windows is a trademark of Microsoft Corporation.
+## Credits and licence
 
-## License
+- Original project: **naykkalak** – [fenestra-ce-pc](https://github.com/naykkalak/fenestra-ce-pc)
+- Icon sets and design ideas as credited in the original project (Fluent UI System Icons by Microsoft, MIT licence;
+  Windows Modern for KDE Plasma 6 by Jeysef; Win11OS-kde by yeyushengfan258). These are **not** bundled with the
+  program unless the original project bundles them.
+- Fork changes: Christian, 2026
 
-This PC is licensed under the GNU General Public License v3.0 or later (GPL-3.0-or-later). See `COPYING`.
+## AI assistance
 
-The icons in `icons/` keep their own MIT licence.
+The changes in this fork were developed by Christian with the help of AI assistants
+(Claude by Anthropic and Gemini by Google). The code was reviewed and tested by hand on
+KDE Plasma 6, but as with any software, bugs are possible. Bug reports are welcome.
+
+Licensed under the **GNU General Public Licence v3.0 or later** (see `COPYING`), the same as the original.
+This project is **not affiliated with Microsoft** or with the original author.
