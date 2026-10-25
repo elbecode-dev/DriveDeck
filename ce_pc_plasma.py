@@ -20,6 +20,10 @@ from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 
 os.environ["QT_QUICK_CONTROLS_STYLE"] = "org.kde.desktop"
+# Manche Symbolthemen (z. B. Vivid-Dark-Icons) enthalten SVGs mit fehlenden Farbverläufen : Qt meldet das bei jedem
+# Start im Terminal (« qt.svg: Could not resolve property … »), zeichnet das Icon aber trotzdem. Diese eine Meldung
+# wird ausgeblendet ; eigene QT_LOGGING_RULES des Benutzers bleiben erhalten und haben Vorrang (stehen weiter hinten).
+os.environ["QT_LOGGING_RULES"] = ";".join(r for r in ("qt.svg.warning=false", os.environ.get("QT_LOGGING_RULES", "")) if r)
 
 from PyQt6.QtCore import QObject, pyqtProperty, pyqtSignal, pyqtSlot
 from PyQt6.QtGui import QIcon

@@ -30,6 +30,9 @@ hidden and everything else works).
   without such a sensor it asks udisks for the SMART value (cached for a minute). Partitions, LUKS/LVM volumes and
   unmounted volumes are mapped to the physical disk. The chip turns amber and red from 45 / 55 °C for spinning disks
   and from 65 / 75 °C for SSDs and NVMe drives. Drives without any sensor (many USB enclosures) simply show no chip.
+- **Quieter terminal.** Some icon themes (e.g. Vivid-Dark-Icons) contain SVGs with missing gradients, which made Qt print
+  `qt.svg: Could not resolve property …` at every start. The program now switches only that one message category off
+  (`QT_LOGGING_RULES=qt.svg.warning=false`); rules set by the user are kept and take precedence.
 - **Jump to the matching System Settings page.** Double-click (or right-click → *Open settings*) on a device card in
   *Printers and devices* opens System Settings directly at the right module: game controller → `kcm_gamecontroller`,
   keyboard → `kcm_keyboard`, mouse → `kcm_mouse`, touchpad → `kcm_touchpad`, graphics tablet → `kcm_tablet`. Printers keep
