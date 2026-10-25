@@ -2433,9 +2433,39 @@ QQC2.ApplicationWindow {
     }
     // seitenleiste : Baum « Dieser PC » (Laufwerke -> Ordner, Unterordner erst beim Aufklappen im Hintergrund geladen)
     property bool pcCollapsed: false
+    property string sideSelKey: ""   // zuletzt angeklickte Zeile der Seitenleiste (bleibt, bis eine andere angeklickt wird)
     property var treeOpen: ({})
     property var treeKids: ({})
+    // Ein neues Zeilenmodell setzt die ListView nach oben : Scrollposition merken und danach wiederherstellen
+    // Das neue Modell setzt contentY erst NACH der Änderung (im nächsten Bild) zurück : die gemerkte Position wird deshalb
+    // von einem kurzen Timer ein paarmal wieder eingesetzt. Läuft die Wiederherstellung schon (z. B. kommt die
+    // Unterordner-Liste kurz nach dem Klick), bleibt die zuerst gemerkte Position erhalten.
+    property real pendingY: -1
+    Timer {
+        id: scrollRestore
+        interval: 70
+        repeat: true
+        property int runs: 0
+        onTriggered: {
+            if (win.pendingY >= 0)
+                sideList.contentY = Math.min(win.pendingY, Math.max(0, sideList.contentHeight - sideList.height))
+            if (++runs >= 4) {
+                stop()
+                win.pendingY = -1
+            }
+        }
+    }
+    function keepSideScroll(aendern) {
+        if (pendingY < 0)
+            pendingY = sideList.contentY
+        scrollRestore.runs = 0
+        scrollRestore.restart()
+        aendern()
+    }
     function toggleNode(path) {
+        keepSideScroll(function() { toggleNodeNow(path) })
+    }
+    function toggleNodeNow(path) {
         var o = Object.assign({}, treeOpen)
         if (o[path]) {
             delete o[path]
@@ -2448,9 +2478,11 @@ QQC2.ApplicationWindow {
     Connections {
         target: backend
         function onDirsListed(path, list) {
-            var k = Object.assign({}, win.treeKids)
-            k[path] = list
-            win.treeKids = k
+            win.keepSideScroll(function() {
+                var k = Object.assign({}, win.treeKids)
+                k[path] = list
+                win.treeKids = k
+            })
         }
         function onDisksChanged() { win.probeRoots() }
     }
@@ -3490,6 +3522,7 @@ QQC2.ApplicationWindow {
 
                 ListView {
                     id: sideList
+                    objectName: "sideList"
                     anchors.fill: parent
                     anchors.rightMargin: 1
                     clip: true
@@ -3504,20 +3537,28 @@ QQC2.ApplicationWindow {
                         readonly property bool isNode: r.type === "node"
                         readonly property bool isPinRow: r.type === "pin"
                         readonly property bool pinned: (isNode || isPinRow) && win.isPinned(r.path)
+                        readonly property string selKey: r.type + ":" + (r.path || "")
+                        readonly property bool selected: (isNode || isPinRow) && win.sideSelKey === selKey
                         width: ListView.view.width
                         height: isHead ? 38 : (r.type === "hint" ? 54 : 30)
                         opacity: (isPinRow && r.exists === false) ? 0.5 : 1.0
 
-                        Rectangle {   // Hover
+                        // Hover über die GANZE Zeile : ein HoverHandler hängt nicht davon ab, welches Kind (Beschriftung, Symbol …) unter der
+                        // Maus liegt ; die Beschriftung fängt Hover-Ereignisse selbst ab, eine MouseArea darunter bekäme sie nicht.
+                        HoverHandler { id: rowHover }
+                        Rectangle {   // Hover und Auswahl
                             anchors.fill: parent
                             anchors.leftMargin: 6
                             anchors.rightMargin: 6
                             radius: 6
                             visible: !row.isHead && r.type !== "hint"
-                            opacity: (rowMouse.containsMouse || rowMouse.pressed) ? 1 : 0
+                            opacity: (rowHover.hovered || rowMouse.pressed || row.selected) ? 1 : 0
                             Behavior on opacity { NumberAnimation { duration: 120 } }
                             color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
-                                           Kirigami.Theme.highlightColor.b, rowMouse.pressed ? 0.26 : 0.14)
+                                           Kirigami.Theme.highlightColor.b, (row.selected || rowMouse.pressed) ? 0.24 : 0.14)
+                            border.width: row.selected ? 1 : 0
+                            border.color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
+                                           Kirigami.Theme.highlightColor.b, 0.7)
                         }
                         // Hierarchielinien : eine dünne senkrechte Linie je Ebene
                         Repeater {
@@ -3579,7 +3620,7 @@ QQC2.ApplicationWindow {
                                 source: (row.pinned !== pinGlyphMouse.containsMouse) ? "window-pin" : "window-unpin"   // zeigt beim Überfahren das Ergebnis des Klicks
                                 Layout.preferredWidth: 13; Layout.preferredHeight: 13
                                 opacity: pinGlyphMouse.containsMouse ? 1.0
-                                       : (row.pinned ? 0.55 : (rowMouse.containsMouse ? 0.35 : 0.0))
+                                       : (row.pinned ? 0.55 : (rowHover.hovered ? 0.35 : 0.0))
                                 Behavior on opacity { NumberAnimation { duration: 120 } }
                                 MouseArea {
                                     id: pinGlyphMouse
@@ -3606,6 +3647,7 @@ QQC2.ApplicationWindow {
                             z: -1
                             hoverEnabled: true
                             acceptedButtons: Qt.LeftButton | Qt.RightButton
+                            onPressed: if (row.isNode || row.isPinRow) win.sideSelKey = row.selKey
                             onClicked: function(mouse) {
                                 if (row.isHead) {
                                     if (r.key === "quick") win.quickCollapsed = !win.quickCollapsed
@@ -3624,7 +3666,7 @@ QQC2.ApplicationWindow {
                                     backend.openFolder(r.path)   // Doppelklick öffnet in Dolphin
                             }
                         }
-                        QQC2.ToolTip.visible: rowMouse.containsMouse && !!r.path
+                        QQC2.ToolTip.visible: rowHover.hovered && !!r.path
                         QQC2.ToolTip.delay: 700
                         QQC2.ToolTip.text: (isPinRow && r.exists === false) ? win.trad("Folder not found") : (r.path || "")
                     }

@@ -51,6 +51,9 @@ hidden and everything else works).
   The arrow only appears on folders that really have sub-folders: when a folder is listed, the thread also checks every
   child with an early exit (`hat_unterordner`, 2 s time budget; unknown counts as "has sub-folders"), and drive roots are
   read at start-up.
+  The clicked row stays highlighted (accent tint and outline) until another one is clicked; the hover highlight covers the
+  whole row, not only the icon (a label swallows hover events, so the row uses a `HoverHandler` instead of a `MouseArea`).
+  Expanding or collapsing keeps the scroll position of the list.
   Every node can be pinned to Quick access with its pin symbol or the right-click menu. The system drive expands to
   the home folder, exactly like opening its card.
 - `pin_normaliser`: pins are compared with `~` expanded and trailing slashes removed; symbolic links are **not** resolved
