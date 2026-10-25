@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-# Fenestra This PC — part of the Fenestra series by naykkalak
-# https://github.com/naykkalak/fenestra-ce-pc
-# Copyright (C) 2026 naykkalak
+# Fenestra This PC (Custom Fork) — part of the Fenestra series
+# Original Copyright (C) 2026 naykkalak
+# Modifications and Btrfs/NVMe fixes Copyright (C) 2026 Christian
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Ce PC (version Plasma/QML) - suit automatiquement les couleurs de Plasma."""
 
@@ -16,13 +16,18 @@ import subprocess
 import sys
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 os.environ["QT_QUICK_CONTROLS_STYLE"] = "org.kde.desktop"
 
-from PyQt6.QtCore import QObject, QTimer, pyqtProperty, pyqtSignal, pyqtSlot
+from PyQt6.QtCore import QObject, pyqtProperty, pyqtSignal, pyqtSlot
 from PyQt6.QtGui import QIcon
 from PyQt6.QtQml import QQmlApplicationEngine
 from PyQt6.QtWidgets import QApplication
+try:
+    from PyQt6.QtNetwork import QLocalServer, QLocalSocket
+except ImportError:   # ohne QtNetwork läuft alles, nur ohne Einzelinstanz
+    QLocalServer = QLocalSocket = None
 
 # fenestraLangues : traductions au format gettext (un dossier par langue), l'anglais sert de repli
 import gettext
@@ -64,9 +69,27 @@ except Exception:
     _TRAD = gettext.NullTranslations()
 
 
+# Neue Texte dieses Forks, die in den gettext-Dateien (.mo) nicht vorkommen : deutsche Übersetzung als Rückfall
+EXTRA_DE = {
+    "Mount": "Einbinden",
+    "Open in terminal": "Im Terminal öffnen",
+    "Copy path": "Pfad kopieren",
+    "Disconnect": "Trennen",
+    "Not mounted": "Nicht eingebunden",
+    "Cannot mount": "Einbinden nicht möglich",
+    "Cannot disconnect": "Trennen nicht möglich",
+    "Cannot open terminal": "Terminal kann nicht geöffnet werden",
+    "No terminal program found": "Kein Terminalprogramm gefunden",
+    "Folder not found": "Ordner nicht gefunden",
+}
+
+
 def tr(texte):
     """Texte traduit dans la langue du système ; le texte anglais si la langue n'est pas connue."""
-    return _TRAD.gettext(texte)
+    t = _TRAD.gettext(texte)
+    if t == texte and LANGUES and LANGUES[0].split("_")[0] == "de":
+        return EXTRA_DE.get(texte, texte)
+    return t
 
 
 def point_decimal():
@@ -151,12 +174,16 @@ IGNORED_FSTYPES = {
 }
 IGNORED_MOUNT_PREFIXES = (
     "/run/user", "/run/lock", "/run/credentials", "/run/systemd",
-    "/sys", "/proc", "/dev", "/snap", "/boot/efi", "/tmp",
+    "/sys", "/proc", "/dev", "/snap", "/boot", "/tmp",
 )
+# Pour les disques locaux, /var (sous-volumes Btrfs, conteneurs, Flatpak…) est ignoré en plus
+DISK_IGNORED_PREFIXES = IGNORED_MOUNT_PREFIXES + ("/var",)
 
 
-def go(n_bytes):
-    return f"{n_bytes / (1024 ** 3):.1f}".replace(".", DECIMAL)
+def ignore_mount(mountpoint, prefixes=IGNORED_MOUNT_PREFIXES):
+    """True si le point de montage est (ou se trouve sous) un dossier système à ne pas afficher.
+    Comparaison par dossier entier : « /bootdisk » n'est pas ignoré à cause de « /boot »."""
+    return any(mountpoint == p or mountpoint.startswith(p + "/") for p in prefixes)
 
 
 def taille(n_bytes):
@@ -178,98 +205,124 @@ def nom_emplacement(loc):
     return nom
 
 
-def get_mount_label(mountpoint, device):
-    try:
-        out = subprocess.check_output(
-            ["lsblk", "-no", "LABEL", device],
-            stderr=subprocess.DEVNULL, text=True,
-        ).strip()
-        if out:
-            return out
-    except Exception:
-        pass
-    return tr("Local Disk")
-
-
 def get_base_disk_device(device):
     base = os.path.basename(device)
     m = re.match(r"^(sd[a-z]+|nvme\d+n\d+|mmcblk\d+)", base)
     return "/dev/" + m.group(1) if m else device
 
 
-def is_removable(device):
-    try:
-        base = os.path.basename(device)
-        m = re.match(r"^(sd[a-z]+|nvme\d+n\d+|mmcblk\d+)", base)
-        if not m:
-            return False
-        with open(f"/sys/block/{m.group(1)}/removable") as f:
-            return f.read().strip() == "1"
-    except Exception:
-        return False
+def _vrai(valeur):
+    return str(valeur).strip().lower() in ("1", "true")
 
 
-_USB_CACHE = {}
+def _lsblk_json():
+    """Sortie JSON de lsblk (un seul appel, TRAN et RM compris), ou None."""
+    for colonne in ("MOUNTPOINTS", "MOUNTPOINT"):   # MOUNTPOINTS : util-linux 2.37 et plus récent
+        try:
+            out = subprocess.check_output(
+                ["lsblk", "-J", "-b",
+                 "-o", "NAME,PATH," + colonne + ",FSTYPE,SIZE,TYPE,LABEL,TRAN,RM"],
+                stderr=subprocess.DEVNULL, text=True, timeout=5,
+            )
+            return json.loads(out)
+        except Exception:
+            continue
+    return None
 
 
-def is_usb_connected(device):
-    if device in _USB_CACHE:
-        return _USB_CACHE[device]
-    try:
-        out = subprocess.check_output(
-            ["lsblk", "-no", "TRAN", get_base_disk_device(device)],
-            stderr=subprocess.DEVNULL, text=True, timeout=5,
-        )
-        result = any(t.strip().lower() == "usb" for t in out.splitlines())
-    except Exception:
-        result = False
-    _USB_CACHE[device] = result
-    return result
+# Dateisysteme normaler Datenträger (Swap, LUKS, LVM, RAID usw. gehören nicht dazu)
+DATA_FSTYPES = {"ext2", "ext3", "ext4", "btrfs", "xfs", "ntfs", "ntfs3", "exfat", "vfat", "f2fs", "jfs",
+                "reiserfs", "udf", "hfsplus"}
+PETITE_PARTITION = 1024 ** 3   # kleinere feste Partitionen (EFI, Recovery …) werden nicht angeboten
 
 
-def list_real_disks_lsblk():
-    try:
-        out = subprocess.check_output(
-            ["lsblk", "-J", "-b",
-             "-o", "NAME,PATH,MOUNTPOINT,FSTYPE,SIZE,TYPE,LABEL"],
-            stderr=subprocess.DEVNULL, text=True, timeout=5,
-        )
-        data = json.loads(out)
-    except Exception:
+def partitions_non_montees(data):
+    """[(label, périphérique, système de fichiers, taille, amovible, USB)] : volumes de données non montés,
+    pour les proposer comme dans l'Explorateur Windows (clic = montage avec udisks)."""
+    res = []
+
+    def walk(devices, tran="", rm=False):
+        for dev in devices:
+            tran_dev = (dev.get("tran") or tran or "").lower()
+            rm_dev = _vrai(dev["rm"]) if dev.get("rm") is not None else rm
+            children = dev.get("children") or []
+            if children:
+                walk(children, tran_dev, rm_dev)
+            path = dev.get("path") or (f"/dev/{dev['name']}" if dev.get("name") else "")
+            fstype = (dev.get("fstype") or "").lower()
+            if dev.get("type") not in ("part", "disk") or fstype not in DATA_FSTYPES \
+                    or not path.startswith("/dev/"):
+                continue
+            if [m for m in (dev.get("mountpoints") or [dev.get("mountpoint")]) if m]:
+                continue   # déjà monté (même sur un dossier système ignoré)
+            try:
+                taille_oct = int(dev.get("size") or 0)
+            except (TypeError, ValueError):
+                taille_oct = 0
+            if taille_oct <= 0 or (not rm_dev and taille_oct < PETITE_PARTITION):
+                continue
+            res.append((dev.get("label") or "", path, fstype, taille_oct, rm_dev, tran_dev == "usb"))
+
+    walk(data.get("blockdevices", []))
+    return res
+
+
+def list_real_disks_lsblk(data=None):
+    """[(label, point de montage, périphérique, usage, système de fichiers, amovible, USB)].
+    Un seul appel à lsblk (TRAN et RM compris), sans lecture de /sys ni appel par disque."""
+    if data is None:
+        data = _lsblk_json()
+    if data is None:
         return []
 
     disks = []
     seen = set()
 
-    def walk(devices):
+    def walk(devices, tran="", rm=False):
         for dev in devices:
+            tran_dev = (dev.get("tran") or tran or "").lower()
+            rm_dev = _vrai(dev["rm"]) if dev.get("rm") is not None else rm
             children = dev.get("children") or []
             if children:
-                walk(children)
-            mountpoint = dev.get("mountpoint")
-            if not mountpoint or mountpoint == "[SWAP]" or mountpoint in seen:
-                continue
-            if any(mountpoint.startswith(p) for p in IGNORED_MOUNT_PREFIXES):
-                continue
-            fstype = dev.get("fstype") or ""
-            if fstype in IGNORED_FSTYPES:
-                continue
+                walk(children, tran_dev, rm_dev)
+
             path = dev.get("path") or (
                 f"/dev/{dev['name']}" if dev.get("name") else None)
             if not path or not path.startswith("/dev/"):
                 continue
+
+            # Un périphérique peut avoir plusieurs points de montage (sous-volumes Btrfs…) :
+            # « / » s'il y en a un, sinon le premier qui n'est pas un dossier système.
+            mps = [m for m in (dev.get("mountpoints") or [dev.get("mountpoint")])
+                   if m and m != "[SWAP]"]
+            if "/" in mps:
+                mountpoint = "/"
+            else:
+                mountpoint = next((m for m in mps if not ignore_mount(m, DISK_IGNORED_PREFIXES)), None)
+            if not mountpoint or mountpoint in seen:
+                continue
+
+            fstype = dev.get("fstype") or ""
+            if fstype in IGNORED_FSTYPES:
+                continue
+
             try:
                 usage = shutil.disk_usage(mountpoint)
             except (PermissionError, FileNotFoundError, OSError):
                 continue
+
             if usage.total == 0:
                 continue
+
             seen.add(mountpoint)
-            label = dev.get("label") or get_mount_label(mountpoint, path)
-            disks.append((label, mountpoint, path, usage, fstype))
+            disks.append((dev.get("label") or "", mountpoint, path, usage, fstype,
+                          rm_dev, tran_dev == "usb"))
 
     walk(data.get("blockdevices", []))
     return disks
+
+
+_ICONE_THEME = {}   # nom d'icône -> présent dans le thème ? (le thème ne change pas pendant l'exécution)
 
 
 def disk_icon(names):
@@ -278,7 +331,9 @@ def disk_icon(names):
         if os.path.isfile(manual):
             return "file://" + manual
     for n in names:
-        if QIcon.hasThemeIcon(n):
+        if n not in _ICONE_THEME:
+            _ICONE_THEME[n] = QIcon.hasThemeIcon(n)
+        if _ICONE_THEME[n]:
             return n
     return names[-1]
 
@@ -373,15 +428,30 @@ def disk_health(device, mountpoint=""):
 HEALTH_TEXT = {"warn": "Signs of wear – see Properties", "fail": "Disk failing – back up your files"}
 
 
+DISQUES_INTERVALLE = 10   # Sekunden zwischen zwei vollständigen Lesevorgängen (Füllstand)
+
+
+def etat_montages():
+    """Empreinte de /proc/self/mountinfo et /proc/partitions : change dès qu'un volume apparaît, disparaît
+    ou est monté/démonté. None si illisible (on retombe alors sur une lecture régulière)."""
+    try:
+        with open("/proc/self/mountinfo", "rb") as f:
+            a = f.read()
+        with open("/proc/partitions", "rb") as f:
+            b = f.read()
+        return hash((a, b))
+    except OSError:
+        return None
+
+
 def list_real_disks():
     result = []
-    for label, mountpoint, device, usage, fstype in list_real_disks_lsblk():
-        raw_label = label
+    data = _lsblk_json()
+    for label, mountpoint, device, usage, fstype, removable, usb in list_real_disks_lsblk(data):
+        raw_label = label   # vide si le volume n'a pas de nom (sert de valeur de départ pour « Renommer »)
         optical = device.startswith("/dev/sr")
-        removable = is_removable(device)
-        usb = is_usb_connected(device)
-        if removable and not optical and label == tr("Local Disk"):   # disqueAmovible
-            label = tr("Removable Disk")
+        if not label:   # disqueAmovible
+            label = tr("Removable Disk") if (removable and not optical) else tr("Local Disk")
         if usb and not removable and not optical:
             label = "USB-" + label
         if optical:
@@ -404,9 +474,26 @@ def list_real_disks():
         })
         result[-1]["healthText"] = tr(HEALTH_TEXT[result[-1]["health"]]) if result[-1]["health"] else ""
 
+    for label, device, fstype, taille_oct, removable, usb in (partitions_non_montees(data) if data else []):
+        raw_label = label
+        if not label:
+            label = tr("Removable Disk") if removable else tr("Local Disk")
+        if usb and not removable:
+            label = "USB-" + label
+        result.append({
+            "rawLabel": raw_label, "label": label, "mountpoint": "unmounted:" + device, "device": device,
+            "fstype": fstype, "total": taille_oct, "used": 0, "free": taille_oct,
+            "icon": disk_icon(["drive-removable-media"] if removable else ["drive-harddisk"]),
+            "isKey": removable, "isUsb": removable or usb, "isOptical": False, "isUnmounted": True,
+            "freeText": tr("Not mounted") + " · " + taille(taille_oct),
+            "health": "", "healthText": "",
+        })
+
     def sort_key(d):
         if d["mountpoint"] == "/":
             return 0
+        if d.get("isUnmounted"):
+            return 3
         if d.get("isOptical"):
             return 1.5
         return 2 if d["isUsb"] else 1
@@ -437,12 +524,13 @@ def list_network_mounts():
         if len(parts) < 3:
             continue
         device, mountpoint, fstype = parts[0], parts[1], parts[2]
+        device = _unescape_mount_path(device)   # « \\040 » = espace, aussi dans //serveur/Mon partage
         mountpoint = _unescape_mount_path(mountpoint)
         if fstype not in NETWORK_FSTYPES and fstype not in NETWORK_FUSE_TYPES:
             continue
         if mountpoint in seen:
             continue
-        if any(mountpoint.startswith(p) for p in IGNORED_MOUNT_PREFIXES):
+        if ignore_mount(mountpoint):
             continue
         try:
             usage = shutil.disk_usage(mountpoint)
@@ -494,7 +582,7 @@ PLACES = os.path.expanduser("~/.local/share/user-places.xbel")
 PLACES_TAG = "fenestra-cepc-"
 
 
-def sync_places(locs):
+def _sync_places(locs):
     """Remet les favoris « Distant » de Dolphin en phase avec la liste des emplacements réseau de Ce PC.
     Ne touche qu'aux favoris créés par Ce PC (identifiant « fenestra-cepc-… »)."""
     try:
@@ -544,6 +632,15 @@ def sync_places(locs):
         print("[ce_pc_plasma] favoris Dolphin :", e)
 
 
+_PLACES_LOCK = threading.Lock()
+
+
+def sync_places(locs):
+    """Verrouillé : le thread de démarrage et un ajout/retrait ne partagent pas le même fichier temporaire."""
+    with _PLACES_LOCK:
+        _sync_places(locs)
+
+
 WALLET_DOSSIER = "Fenestra Ce PC"
 _ESPACE = {}          # url -> (heure, valeur ou None) : évite d'interroger le NAS toutes les 3 secondes
 _PORTEFEUILLE = {"ko_jusqu": 0}
@@ -563,7 +660,7 @@ def wallet_ecrire(cle, mot_de_passe):
         return False
 
 
-def wallet_lire(cle):
+def _wallet_lire(cle):
     if time.time() < _PORTEFEUILLE["ko_jusqu"]:
         return None
     try:
@@ -577,6 +674,15 @@ def wallet_lire(cle):
         return None
     secret = r.stdout.rstrip("\n")
     return secret or None
+
+
+_WALLET_LOCK = threading.Lock()
+
+
+def wallet_lire(cle):
+    """Un seul accès à KWallet à la fois (les partages sont maintenant interrogés en parallèle)."""
+    with _WALLET_LOCK:
+        return _wallet_lire(cle)
 
 
 def net_espace(loc):
@@ -609,6 +715,14 @@ def net_espace(loc):
     return valeur
 
 
+def _lire_texte(chemin):
+    try:
+        with open(chemin, encoding="utf-8") as f:
+            return f.read()
+    except OSError:
+        return None
+
+
 def badge_health():
     """Pastilles de santé du disque (santeDisque) : orange = signes d'usure, rouge = défaillant. {état: adresse}."""
     res = {}
@@ -621,7 +735,7 @@ def badge_health():
         chemin = os.path.join(os.path.expanduser("~/.cache/fenestra"), "ce-pc-sante-%s.svg" % etat)
         try:
             os.makedirs(os.path.dirname(chemin), exist_ok=True)
-            if not os.path.isfile(chemin) or open(chemin, encoding="utf-8").read() != svg:
+            if not os.path.isfile(chemin) or _lire_texte(chemin) != svg:
                 with open(chemin, "w", encoding="utf-8") as f:
                     f.write(svg)
             res[etat] = "file://" + chemin
@@ -640,7 +754,7 @@ def badge_offline():
     chemin = os.path.join(os.path.expanduser("~/.cache/fenestra"), "ce-pc-pastille.svg")
     try:
         os.makedirs(os.path.dirname(chemin), exist_ok=True)
-        if not os.path.isfile(chemin) or open(chemin, encoding="utf-8").read() != svg:
+        if not os.path.isfile(chemin) or _lire_texte(chemin) != svg:
             with open(chemin, "w", encoding="utf-8") as f:
                 f.write(svg)
         return "file://" + chemin
@@ -667,6 +781,22 @@ def load_sections():
     return res
 
 
+def chemin_affiche(path):
+    """« / » (disque système) et /var/tmp (sous-volumes Btrfs) s'ouvrent sur le dossier personnel."""
+    if path == "/" or path.startswith("/var/tmp"):
+        return os.path.expanduser("~")
+    return path
+
+
+def lancer(cmd, cwd=None):
+    """Lance un programme indépendant de Ce PC et récupère son code de sortie en arrière-plan
+    (sans cela, chaque Dolphin fermé reste un processus zombie jusqu'à la fermeture de Ce PC)."""
+    p = subprocess.Popen(cmd, cwd=cwd, start_new_session=True, stdin=subprocess.DEVNULL,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    threading.Thread(target=p.wait, daemon=True).start()
+    return p
+
+
 def host_reachable(host, port=445, timeout=0.8):
     try:
         with socket.create_connection((host, port), timeout=timeout):
@@ -677,35 +807,40 @@ def host_reachable(host, port=445, timeout=0.8):
 
 def build_network_list():
     """Partages montés + emplacements ajoutés par l'utilisateur (avec leur disponibilité).
-    Appelée dans un thread : un serveur qui ne répond pas ne doit pas figer la fenêtre."""
+    Appelée dans un thread : un serveur qui ne répond pas ne doit pas figer la fenêtre.
+    Les emplacements sont sondés en parallèle : un serveur éteint ne retarde pas les autres."""
     mounts = list_network_mounts()
-    result = []
-    used = set()
-    for loc in load_net_locations():
+
+    def entree(loc):
         key = ("//%s/%s" % (loc["host"], loc["share"])).lower()
         label = nom_emplacement(loc)
         url = net_url(loc)
         m = next((x for x in mounts if x["device"].lower().rstrip("/") == key), None)
         if m:
-            used.add(m["mountpoint"])
             entry = dict(m)
             entry.update({"label": label, "available": True, "mounted": True,
                           "configured": True, "url": url})
-        else:
-            ok = host_reachable(loc["host"])
-            esp = net_espace(loc) if (ok and loc.get("retenir")) else None
-            entry = {
-                "label": label, "mountpoint": url, "device": "//%s/%s" % (loc["host"], loc["share"]),
-                "fstype": "smb", "total": esp[0] if esp else 0, "used": esp[1] if esp else 0,
-                "free": esp[2] if esp else 0,
-                "icon": disk_icon(["folder-network", "network-server",
-                                   "network-workgroup", "folder-remote"]),
-                "isKey": False, "isUsb": False, "isNetwork": True,
-                "freeText": (tr("{free} free of {total}").format(free=taille(esp[2]), total=taille(esp[0])) if esp
-                             else (tr("Available") if ok else tr("Not connected"))),
-                "available": ok, "mounted": False, "configured": True, "url": url,
-            }
-        result.append(entry)
+            return entry
+        ok = host_reachable(loc["host"])
+        esp = net_espace(loc) if (ok and loc.get("retenir")) else None
+        return {
+            "label": label, "mountpoint": url, "device": "//%s/%s" % (loc["host"], loc["share"]),
+            "fstype": "smb", "total": esp[0] if esp else 0, "used": esp[1] if esp else 0,
+            "free": esp[2] if esp else 0,
+            "icon": disk_icon(["folder-network", "network-server",
+                               "network-workgroup", "folder-remote"]),
+            "isKey": False, "isUsb": False, "isNetwork": True,
+            "freeText": (tr("{free} free of {total}").format(free=taille(esp[2]), total=taille(esp[0])) if esp
+                         else (tr("Available") if ok else tr("Not connected"))),
+            "available": ok, "mounted": False, "configured": True, "url": url,
+        }
+
+    locs = load_net_locations()
+    result = []
+    if locs:
+        with ThreadPoolExecutor(max_workers=min(8, len(locs))) as pool:
+            result = list(pool.map(entree, locs))
+    used = {e["mountpoint"] for e in result if e["mounted"]}
     for m in mounts:
         if m["mountpoint"] not in used:
             entry = dict(m)
@@ -715,6 +850,7 @@ def build_network_list():
     return result
 
 
+DISK_CACHE = os.path.expanduser("~/.cache/fenestra/ce-pc-disques-cache.json")   # Laufwerke sofort beim Start anzeigen
 NET_CACHE = os.path.expanduser("~/.cache/fenestra/ce-pc-reseau-cache.json")   # reseauCache
 
 
@@ -728,6 +864,36 @@ def charger_cache_reseau():
     except (OSError, ValueError):
         pass
     return []
+
+
+def charger_cache_disques():
+    try:
+        with open(DISK_CACHE, encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, list) and all(isinstance(x, dict) and "mountpoint" in x for x in data):
+            return data
+    except (OSError, ValueError):
+        pass
+    return []
+
+
+_DISQUES_ECRIT = None
+
+
+def enregistrer_cache_disques(liste):
+    global _DISQUES_ECRIT
+    try:
+        contenu = json.dumps(liste)
+        if contenu == _DISQUES_ECRIT:
+            return
+        os.makedirs(os.path.dirname(DISK_CACHE), exist_ok=True)
+        tmp = DISK_CACHE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write(contenu)
+        os.replace(tmp, DISK_CACHE)
+        _DISQUES_ECRIT = contenu
+    except (OSError, TypeError, ValueError):
+        pass
 
 
 _RESEAU_ECRIT = None   # cachesEcriture : dernier contenu écrit, pour ne réécrire que si la liste change
@@ -974,9 +1140,10 @@ def list_printers():
             ordre.append(nom)
     connues = charger_imprimantes_connues()
     res = []
-    vus = set()
-    for nom in ordre:
-        vus.add(nom)
+    vus = set(ordre)
+
+    def sonde(nom):
+        """Joignabilité et niveaux d'encre d'une imprimante (lent si elle est éteinte : un thread par file)."""
         uri = uris.get(nom, "")
         fiche = dict(connues.get(nom, {}))
         injoignable = False
@@ -1000,11 +1167,17 @@ def list_printers():
         texte = etat + ((" · " + tr("Default")) if nom == defaut else "")
         peripherique = libelle_connexion(uri)
         fiche.update({"label": nom.replace("_", " "), "device": peripherique, "default": nom == defaut})
-        connues[nom] = fiche
-        res.append({"key": "printer:" + nom, "label": nom.replace("_", " "), "name": nom,
-                    "icon": disk_icon(["printer"]), "statusText": texte,
-                    "device": peripherique, "inks": [] if injoignable else niveaux_encre(nom, cible),
-                    "offline": injoignable, "absent": False})
+        carte = {"key": "printer:" + nom, "label": nom.replace("_", " "), "name": nom,
+                 "icon": disk_icon(["printer"]), "statusText": texte,
+                 "device": peripherique, "inks": [] if injoignable else niveaux_encre(nom, cible),
+                 "offline": injoignable, "absent": False}
+        return nom, fiche, carte
+
+    if ordre:
+        with ThreadPoolExecutor(max_workers=min(6, len(ordre))) as pool:
+            for nom, fiche, carte in pool.map(sonde, ordre):
+                connues[nom] = fiche
+                res.append(carte)
     for nom, fiche in list(connues.items()):
         if nom in vus:
             continue
@@ -1103,7 +1276,7 @@ def _norme(s):
 def detecter_scanners():
     """[{device, model, network}] d'après scanimage -L ; None si la recherche a échoué (on garde l'ancien résultat)."""
     if not shutil.which("scanimage"):
-        return []
+        return None   # absent : pas de série d'essais rapides, on garde l'ancien résultat
     try:
         out = subprocess.run(["scanimage", "-L"], capture_output=True, text=True, timeout=45).stdout
     except Exception:
@@ -1195,13 +1368,19 @@ def cartes_scanners(scanners, trouves, imprimantes):
 # Aucune donnée personnelle n'est envoyée (GitHub voit l'adresse IP, comme pour toute visite).
 # Désactivable dans « À propos ». Essai du bandeau : CEPC_MAJ_TEST=9.9 python3 ce_pc_plasma.py
 MAJ_CONFIG = os.path.join(CONFIG_DIR, "ce-pc-mise-a-jour.json")
-MAJ_API = "https://api.github.com/repos/naykkalak/fenestra-ce-pc/releases/latest"
-MAJ_PAGE = "https://github.com/naykkalak/fenestra-ce-pc/releases/latest"
+# Fork : leer = keine Update-Prüfung (das Original-Repository würde sonst ein Update melden, das diesen Fork
+# überschreibt). Für ein eigenes Repository z. B.:
+#   MAJ_API  = "https://api.github.com/repos/DEIN-NAME/DEIN-REPO/releases/latest"
+#   MAJ_PAGE = "https://github.com/DEIN-NAME/DEIN-REPO/releases/latest"
+MAJ_API = ""
+MAJ_PAGE = ""
 MAJ_INTERVALLE = 7 * 24 * 3600
 
 
 def _version_tuple(v):
-    return tuple(int(x) for x in re.findall(r"\d+", v or "")[:4])
+    """(1, 1) et (1, 1, 0) sont la même version : on complète par des zéros avant de comparer."""
+    t = [int(x) for x in re.findall(r"\d+", v or "")[:4]]
+    return tuple(t + [0] * (4 - len(t))) if t else ()
 
 
 def charger_maj():
@@ -1254,21 +1433,23 @@ class Backend(QObject):
     sharesError = pyqtSignal(str)
     smartReady = pyqtSignal(str, str)
     netUpdated = pyqtSignal(list)
+    disksUpdated = pyqtSignal(list)
     printersUpdated = pyqtSignal(list)
     updateAvailable = pyqtSignal(str, str)   # miseAJour : (version, adresse de la page)
     printersChanged = pyqtSignal()
+    raiseRequested = pyqtSignal()   # ein zweiter Start soll das vorhandene Fenster nach vorn holen
 
     def __init__(self):
         super().__init__()
-        self._disks = []
+        self._disks = charger_cache_disques()   # sofort sichtbar, wird gleich vom Thread aktualisiert
         self._networks = charger_cache_reseau()
         self._printers = charger_cache_imprimantes()
-        self._timer = QTimer(self)
-        self._timer.timeout.connect(self.refreshDisks)
-        self._timer.start(3000)
+        self.disksUpdated.connect(self._setDisks)
         self.netUpdated.connect(self._setNetworks)
         self.printersUpdated.connect(self._setPrinters)
+        self._diskWake = threading.Event()
         self._netWake = threading.Event()
+        self._prnWake = threading.Event()
         threading.Thread(target=lambda: sync_places(load_net_locations()), daemon=True).start()
         self._scanners = charger_cache_scanners()   # scannersInfo : dernière liste connue
         self._scanTrouves = {s["device"] for s in self._scanners}
@@ -1276,8 +1457,9 @@ class Backend(QObject):
         threading.Thread(target=self._scanLoop, daemon=True).start()
         self._maj = charger_maj()
         threading.Thread(target=self._verifierMaj, daemon=True).start()
+        threading.Thread(target=self._diskLoop, daemon=True).start()
         threading.Thread(target=self._netLoop, daemon=True).start()
-        self.refreshDisks()
+        threading.Thread(target=self._printLoop, daemon=True).start()
 
     @pyqtProperty("QVariantList", notify=disksChanged)
     def disks(self):
@@ -1291,30 +1473,67 @@ class Backend(QObject):
     def printers(self):
         return self._printers
 
-    def refreshDisks(self):
-        new = list_real_disks()
-        if new != self._disks:
+    @staticmethod
+    def _signature_disques(liste):
+        """Ce qui est affiché : sans les octets exacts (used/free/total), qui bougent toutes les secondes sur le
+        disque système sans changer le texte « x Go libres sur y Go ». Évite de reconstruire toutes les cartes
+        (menu contextuel fermé, survol qui clignote) pour rien."""
+        return [{k: v for k, v in d.items() if k not in ("used", "free", "total")} for d in liste]
+
+    def _setDisks(self, new):
+        if self._signature_disques(new) != self._signature_disques(self._disks):
             self._disks = new
             self.disksChanged.emit()
 
+    def _diskLoop(self):
+        # lsblk, udevadm et busctl (santé SMART) bloquent : hors du fil de l'interface, comme le réseau.
+        # Alle 1 s wird nur eine winzige Empreinte von /proc gelesen ; lsblk & Co. laufen erst bei einer Änderung
+        # (Stick eingesteckt, Laufwerk ein-/ausgehängt) oder alle DISQUES_INTERVALLE s für die Füllstände.
+        derniere, dernier = None, 0.0
+        forcer = True
+        while True:
+            etat = etat_montages()
+            delai = DISQUES_INTERVALLE if etat is not None else 3
+            if forcer or etat != derniere or time.monotonic() - dernier >= delai:
+                try:
+                    liste = list_real_disks()
+                    enregistrer_cache_disques(liste)
+                    self.disksUpdated.emit(liste)
+                except Exception as e:
+                    print("[ce_pc_plasma] disques :", e)
+                derniere, dernier = etat, time.monotonic()
+            forcer = self._diskWake.wait(1)
+            self._diskWake.clear()
+
     def _netLoop(self):
+        # emplacements réseau seuls : un NAS éteint ne retarde plus la liste des imprimantes
         while True:
             try:
                 liste = build_network_list()
                 enregistrer_cache_reseau(liste)
                 self.netUpdated.emit(liste)
+            except Exception as e:
+                print("[ce_pc_plasma] réseau :", e)
+            self._netWake.wait(3)
+            self._netWake.clear()
+
+    def _printLoop(self):
+        while True:
+            try:
                 imprimantes = list_printers()
                 imprimantes = imprimantes + cartes_scanners(self._scanners, self._scanTrouves, imprimantes) \
                     + list_peripheriques()
                 enregistrer_cache_imprimantes(imprimantes)
                 self.printersUpdated.emit(imprimantes)
             except Exception as e:
-                print("[ce_pc_plasma] réseau :", e)
-            self._netWake.wait(3)
-            self._netWake.clear()
+                print("[ce_pc_plasma] imprimantes :", e)
+            self._prnWake.wait(3)
+            self._prnWake.clear()
 
     def _verifierMaj(self):
         # miseAJour : prévient d'une version plus récente (déjà connue, ou lue sur GitHub au plus une fois par semaine)
+        if not MAJ_API:   # Fork ohne eigenes Repository : nichts prüfen
+            return
         time.sleep(1.5)   # laisse la fenêtre s'afficher d'abord
         if not self._maj["enabled"]:   # case décochée dans « À propos » : ni vérification ni bandeau (essai compris)
             return
@@ -1332,7 +1551,11 @@ class Backend(QObject):
 
     @pyqtProperty(bool, constant=True)
     def updateCheck(self):
-        return self._maj["enabled"]
+        return self._maj["enabled"] and bool(MAJ_API)
+
+    @pyqtProperty(bool, constant=True)
+    def updateSupported(self):
+        return bool(MAJ_API)
 
     @pyqtSlot(bool)
     def setUpdateCheck(self, actif):
@@ -1364,7 +1587,7 @@ class Backend(QObject):
                     self._scanners = [s for s in connus.values() if s["device"] in vus or s.get("network")]
                     self._scanTrouves = vus
                     enregistrer_cache_scanners(self._scanners)
-                    self._netWake.set()
+                    self._prnWake.set()
             except Exception as e:
                 print("[ce_pc_plasma] scanners :", e)
             if self._scanWake.wait(delai):
@@ -1384,17 +1607,7 @@ class Backend(QObject):
     @pyqtSlot(str)
     def forgetPrinter(self, name):   # imprimantesConnues
         oublier_imprimante(name)
-        self._netWake.set()
-
-    @pyqtSlot(str, result=str)
-    def barIcon(self, name):
-        # Icône de la barre de commandes : fichier du thème Fenestra s'il existe, sinon nom d'icône standard
-        for base in (os.path.expanduser("~/.local/share/icons/windows-modern/places"),
-                     "/usr/share/icons/windows-modern/places"):
-            p = os.path.join(base, name + ".svg")
-            if os.path.isfile(p):
-                return "file://" + p
-        return name
+        self._prnWake.set()
 
     @pyqtSlot(str)
     def saveSections(self, texte):
@@ -1432,15 +1645,16 @@ class Backend(QObject):
         if name not in ("systemsettings", "kinfocenter", "skanpage"):
             return
         try:
-            subprocess.Popen([name])
+            lancer([name])
         except OSError:
             self.messageRequested.emit(tr("Program not found"),
                                        tr("The program “{name}” is not installed on this computer.").format(name=name))
 
     @pyqtSlot()
     def refreshAll(self):
-        self.refreshDisks()
+        self._diskWake.set()
         self._netWake.set()
+        self._prnWake.set()
         self._scanWake.set()
 
     @pyqtSlot(str, str, str)
@@ -1451,7 +1665,7 @@ class Backend(QObject):
         if not re.fullmatch(r"[A-Za-z0-9._:-]+", host):
             self.sharesError.emit(tr("The server address is empty or contains a forbidden character."))
             return
-        if user and not re.fullmatch(r"[^/\\@:\s]+", user):
+        if user and not re.fullmatch(r"[^/\\@:%\s]+", user):
             self.sharesError.emit(tr("The username contains a forbidden character."))
             return
         threading.Thread(target=self._listSharesWork, args=(host, user, password), daemon=True).start()
@@ -1507,7 +1721,7 @@ class Backend(QObject):
         if not user:
             self.messageRequested.emit(titre, tr("The username is required."))
             return
-        if user and not re.fullmatch(r"[^/\\@:\s]+", user):
+        if not re.fullmatch(r"[^/\\@:%\s]+", user):
             self.messageRequested.emit(titre, tr("The username contains a forbidden character."))
             return
         locs = load_net_locations()
@@ -1516,9 +1730,6 @@ class Backend(QObject):
             return
         if remember and not password:
             self.messageRequested.emit(titre, tr("Type the password to be able to remember it."))
-            return
-        if remember and not user:
-            self.messageRequested.emit(titre, tr("The username is required to remember the password."))
             return
         nouveau = {"name": name, "host": host,
                    "share": share, "user": user}
@@ -1577,21 +1788,78 @@ class Backend(QObject):
         # Disque présent mais pas monté : on le monte, puis on l'ouvre dans Dolphin
         if not disque_present(device):
             return
+        self._mountOpen(device, True)
+
+    @pyqtSlot(str)
+    def mountDevice(self, device):
+        threading.Thread(target=self._mountOpen, args=(device, False), daemon=True).start()
+
+    def _mountOpen(self, device, ouvrir):
+        """Monte un volume avec udisks (ggf. avec la fenêtre d'authentification de Plasma), puis l'ouvre si voulu."""
+        titre = tr("Cannot open") if ouvrir else tr("Cannot mount")
         try:
             r = subprocess.run(["udisksctl", "mount", "-b", device],
-                               capture_output=True, text=True, timeout=30)
+                               capture_output=True, text=True, timeout=60)
         except FileNotFoundError:
-            self.messageRequested.emit(tr("Cannot open"), tr("Program not found"))
+            self.messageRequested.emit(titre, tr("Program not found"))
             return
         except subprocess.TimeoutExpired:
-            self.messageRequested.emit(tr("Cannot open"), tr("unknown error"))
+            self.messageRequested.emit(titre, tr("unknown error"))
             return
-        m = re.search(r" at (.+?)\.?\s*$", (r.stdout or "").strip())
-        if r.returncode != 0 or not m:
+        if r.returncode == 0:
+            m = re.search(r" at (.+?)\.?\s*$", (r.stdout or "").strip())
+        else:   # « already mounted at `/run/media/…' » : on ouvre simplement le volume déjà monté
+            m = re.search(r"already mounted at [`'\"](.+?)['\"]", r.stderr or "")
+        if not m:
             detail = ((r.stderr or "") + (r.stdout or "")).strip() or tr("unknown error")
-            self.messageRequested.emit(tr("Cannot open"), detail)
+            self.messageRequested.emit(titre, detail)
             return
-        self.openFolder(m.group(1))
+        self._diskWake.set()
+        if ouvrir:
+            self.openFolder(m.group(1))
+
+    @pyqtSlot(str)
+    def unmountNetwork(self, mountpoint):
+        threading.Thread(target=self._unmountNetwork, args=(mountpoint,), daemon=True).start()
+
+    def _unmountNetwork(self, mountpoint):
+        titre = tr("Cannot disconnect")
+        if not mountpoint.startswith("/"):
+            return
+        try:
+            r = subprocess.run(["umount", mountpoint], capture_output=True, text=True, timeout=30)
+        except FileNotFoundError:
+            self.messageRequested.emit(titre, tr("Program not found"))
+            return
+        except subprocess.TimeoutExpired:
+            self.messageRequested.emit(titre, tr("unknown error"))
+            return
+        if r.returncode != 0:
+            self.messageRequested.emit(titre, (r.stderr or "").strip() or tr("unknown error"))
+        self._netWake.set()
+        self._diskWake.set()
+
+    @pyqtSlot(str)
+    def copyPath(self, path):
+        QApplication.clipboard().setText(chemin_affiche(path))
+
+    @pyqtSlot(str)
+    def openTerminal(self, path):
+        path = chemin_affiche(path)
+        titre = tr("Cannot open terminal")
+        if not os.path.isdir(path):
+            self.messageRequested.emit(titre, tr("Folder not found"))
+            return
+        for cmd in (["konsole", "--workdir", path], ["xdg-terminal-exec"], ["x-terminal-emulator"]):
+            try:
+                lancer(cmd, cwd=path)
+                return
+            except FileNotFoundError:
+                continue
+            except OSError as e:
+                self.messageRequested.emit(titre, str(e))
+                return
+        self.messageRequested.emit(titre, tr("No terminal program found"))
 
     @pyqtSlot(str, str)
     def ejectDevice(self, device, label):
@@ -1764,11 +2032,15 @@ class Backend(QObject):
         if path.startswith("optical:"):
             threading.Thread(target=self._openOptical, args=(path[8:],), daemon=True).start()
             return
+        if path.startswith("unmounted:"):   # nicht eingebundenes Volume : einbinden, dann öffnen
+            threading.Thread(target=self._mountOpen, args=(path[10:], True), daemon=True).start()
+            return
+        path = chemin_affiche(path)
         try:
-            subprocess.Popen(["dolphin", "--new-window", path])
+            lancer(["dolphin", "--new-window", path])
         except FileNotFoundError:
             try:
-                subprocess.Popen(["xdg-open", path])
+                lancer(["xdg-open", path])
             except Exception:
                 print(f"Impossible d'ouvrir {path}")
 
@@ -1777,6 +2049,7 @@ QML = """
 import QtQuick
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts
+import QtQuick.Shapes
 import org.kde.kirigami as Kirigami
 
 QQC2.ApplicationWindow {
@@ -1794,6 +2067,7 @@ QQC2.ApplicationWindow {
     Component.onCompleted: {
         if (winInit.max)
             win.showMaximized()
+        keyHandler.forceActiveFocus()
     }
     color: Kirigami.Theme.backgroundColor
 
@@ -1861,9 +2135,6 @@ QQC2.ApplicationWindow {
         return null
     }
 
-    function go(n) {
-        return (n / 1073741824).toFixed(1).replace(".", trDecimal)
-    }
     // taille : Go avec une décimale sous 1 To, puis To avec trois chiffres significatifs
     function taille(n) {
         var g = n / 1073741824
@@ -1871,6 +2142,88 @@ QQC2.ApplicationWindow {
             return g.toFixed(1).replace(".", trDecimal) + " " + trad("GB")
         var t = g / 1024
         return t.toFixed(t < 10 ? 2 : (t < 100 ? 1 : 0)).replace(".", trDecimal) + " " + trad("TB")
+    }
+    // Tastatur : Pfeile wählen ein Laufwerk/einen Ort, Enter öffnet, F5 aktualisiert, Esc hebt die Auswahl auf,
+    // Strg+C kopiert den Pfad. Das Element unten hat nur Fokus, solange kein Dialog/Menü offen ist.
+    function moveSel(dx, dy) {
+        var secs = []
+        if (disksShown && !disksCollapsed && backend.disks.length > 0)
+            secs.push(backend.disks)
+        if (netShown && !netCollapsed && backend.networks.length > 0)
+            secs.push(backend.networks)
+        if (secs.length === 0)
+            return
+        var s = -1, i = -1
+        for (var a = 0; a < secs.length && s < 0; a++) {
+            for (var b = 0; b < secs[a].length; b++) {
+                if (secs[a][b].mountpoint === selectedKey) {
+                    s = a
+                    i = b
+                    break
+                }
+            }
+        }
+        if (s < 0) {
+            selectedKey = secs[0][0].mountpoint
+            return
+        }
+        var cols = cardCols
+        var col = i % cols
+        if (dx !== 0) {
+            var j = i + dx
+            if (j >= 0 && j < secs[s].length)
+                selectedKey = secs[s][j].mountpoint
+            else if (j < 0 && s > 0)
+                selectedKey = secs[s - 1][secs[s - 1].length - 1].mountpoint
+            else if (j >= secs[s].length && s < secs.length - 1)
+                selectedKey = secs[s + 1][0].mountpoint
+        } else if (dy > 0) {
+            var k = i + cols
+            if (k < secs[s].length)
+                selectedKey = secs[s][k].mountpoint
+            else if (s < secs.length - 1)
+                selectedKey = secs[s + 1][Math.min(col, secs[s + 1].length - 1)].mountpoint
+        } else if (dy < 0) {
+            var k2 = i - cols
+            if (k2 >= 0) {
+                selectedKey = secs[s][k2].mountpoint
+            } else if (s > 0) {
+                var p = secs[s - 1]
+                var lastRow = Math.floor((p.length - 1) / cols) * cols
+                selectedKey = p[Math.min(lastRow + col, p.length - 1)].mountpoint
+            }
+        }
+    }
+    function handleKey(ev) {
+        if (ev.key === Qt.Key_F5) {
+            backend.refreshAll()
+        } else if (ev.key === Qt.Key_Return || ev.key === Qt.Key_Enter) {
+            barRoot.runCmd("open")
+        } else if (ev.key === Qt.Key_Escape) {
+            selectedKey = ""
+        } else if (ev.key === Qt.Key_Left) {
+            moveSel(-1, 0)
+        } else if (ev.key === Qt.Key_Right) {
+            moveSel(1, 0)
+        } else if (ev.key === Qt.Key_Up) {
+            moveSel(0, -1)
+        } else if (ev.key === Qt.Key_Down) {
+            moveSel(0, 1)
+        } else if (ev.key === Qt.Key_C && (ev.modifiers & Qt.ControlModifier)) {
+            if (selEntry !== null && selEntry.mountpoint.charAt(0) === "/")
+                backend.copyPath(selEntry.mountpoint)
+        } else {
+            ev.accepted = false
+            return
+        }
+        ev.accepted = true
+    }
+    Item {
+        id: keyHandler
+        width: 0
+        height: 0
+        focus: true
+        Keys.onPressed: function(event) { win.handleKey(event) }
     }
     function showPrinter(d) {
         printerDialog.info = d
@@ -1925,7 +2278,7 @@ QQC2.ApplicationWindow {
                 spacing: 20
                 Layout.alignment: Qt.AlignHCenter
 
-                Canvas {
+                Item {
                     id: pie
                     Layout.preferredWidth: 100
                     Layout.preferredHeight: 100
@@ -1937,32 +2290,44 @@ QQC2.ApplicationWindow {
                     property color lineColor: Qt.rgba(Kirigami.Theme.textColor.r,
                                                       Kirigami.Theme.textColor.g,
                                                       Kirigami.Theme.textColor.b, 0.35)
-                    onFracChanged: requestPaint()
-                    onUsedColorChanged: requestPaint()
-                    onFreeColorChanged: requestPaint()
-                    onPaint: {
-                        var ctx = getContext("2d")
-                        ctx.reset()
-                        var cx = width / 2
-                        var cy = height / 2
-                        var r = 46
-                        ctx.lineWidth = 1
-                        ctx.strokeStyle = lineColor
-                        ctx.fillStyle = freeColor
-                        ctx.beginPath()
-                        ctx.arc(cx, cy, r, 0, 2 * Math.PI)
-                        ctx.fill()
-                        ctx.stroke()
-                        if (frac > 0) {
-                            ctx.fillStyle = usedColor
-                            ctx.beginPath()
-                            ctx.moveTo(cx, cy)
-                            ctx.arc(cx, cy, r, -Math.PI / 2,
-                                    -Math.PI / 2 + 2 * Math.PI * frac)
-                            ctx.closePath()
-                            ctx.fill()
-                            ctx.stroke()
+                    // donutAnim : der Ring läuft beim Öffnen und bei Änderungen sanft auf den Wert
+                    property real shownFrac: 0
+                    onFracChanged: shownFrac = frac
+                    Component.onCompleted: shownFrac = frac
+                    Behavior on shownFrac { NumberAnimation { duration: 700; easing.type: Easing.OutCubic } }
+                    Behavior on usedColor { ColorAnimation { duration: 300 } }
+
+                    Shape {
+                        anchors.fill: parent
+                        preferredRendererType: Shape.CurveRenderer
+                        ShapePath {   // Spur (freier Platz)
+                            strokeColor: pie.freeColor
+                            strokeWidth: 12
+                            fillColor: "transparent"
+                            capStyle: ShapePath.FlatCap
+                            PathAngleArc {
+                                centerX: pie.width / 2; centerY: pie.height / 2
+                                radiusX: 44; radiusY: 44
+                                startAngle: -90; sweepAngle: 359.99
+                            }
                         }
+                        ShapePath {   // belegter Anteil
+                            strokeColor: pie.usedColor
+                            strokeWidth: 12
+                            fillColor: "transparent"
+                            capStyle: ShapePath.RoundCap
+                            PathAngleArc {
+                                centerX: pie.width / 2; centerY: pie.height / 2
+                                radiusX: 44; radiusY: 44
+                                startAngle: -90; sweepAngle: 359.99 * pie.shownFrac
+                            }
+                        }
+                    }
+                    QQC2.Label {   // Prozentwert in der Mitte
+                        anchors.centerIn: parent
+                        text: Math.round(pie.shownFrac * 100) + " %"
+                        font.pointSize: Kirigami.Theme.defaultFont.pointSize + 2
+                        font.weight: Font.DemiBold
                     }
                 }
 
@@ -2049,6 +2414,12 @@ QQC2.ApplicationWindow {
 
     Connections {
         target: backend
+        function onRaiseRequested() {   // zweiter Start : vorhandenes Fenster zeigen (3 = minimiert)
+            if (win.visibility === 3 || !win.visible)
+                win.showNormal()
+            win.raise()
+            win.requestActivate()
+        }
         function onSmartReady(titre, texte) {
             smartDialog.title = titre
             smartText.text = texte
@@ -2378,6 +2749,7 @@ QQC2.ApplicationWindow {
             // miseAJour (1.1)
             QQC2.CheckBox {
                 Layout.fillWidth: true
+                visible: backend.updateSupported
                 text: win.trad("Check for a new version once a week")
                 checked: backend.updateCheck
                 onToggled: backend.setUpdateCheck(checked)
@@ -2409,7 +2781,7 @@ QQC2.ApplicationWindow {
             Layout.preferredHeight: 118
             readonly property var sel: win.selEntry
             readonly property bool canOpen: sel !== null && sel.available !== false
-            readonly property bool canProps: sel !== null
+            readonly property bool canProps: sel !== null && sel.isUnmounted !== true
                 && (sel.isNetwork !== true || sel.mounted === true || sel.total > 0)
 
             function runCmd(a) {
@@ -2769,7 +3141,7 @@ QQC2.ApplicationWindow {
                                     anchors.left: parent.left
                                     anchors.top: parent.top
                                     anchors.bottom: parent.bottom
-                                    width: Math.min(parent.width, parent.parent.frameWidth)
+                                    width: Math.min(parent.width, folderGrid.frameWidth)
                                     radius: 5
                                     visible: folderMouse.containsMouse || folderMouse.pressed
                                     color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
@@ -2783,7 +3155,7 @@ QQC2.ApplicationWindow {
                                     anchors.left: parent.left
                                     anchors.top: parent.top
                                     anchors.bottom: parent.bottom
-                                    width: Math.min(parent.width, parent.parent.frameWidth)
+                                    width: Math.min(parent.width, folderGrid.frameWidth)
                                     hoverEnabled: true
                                     onPressed: win.selectedKey = ""
                                     onDoubleClicked: backend.openFolder(modelData.path)
@@ -2892,21 +3264,24 @@ QQC2.ApplicationWindow {
 
                                         Rectangle {
                                             Layout.fillWidth: true
-                                            Layout.preferredHeight: 16
-                                            visible: !(modelData.isOptical === true && modelData.total === 0)
+                                            Layout.preferredHeight: 10
+                                            visible: !(modelData.isOptical === true && modelData.total === 0) && modelData.isUnmounted !== true
                                             // jaugeGrise : fond de jauge gris clair (16 % de la couleur du texte sur le fond)
                                             color: Qt.tint(Kirigami.Theme.backgroundColor,
                                                            Qt.rgba(Kirigami.Theme.textColor.r,
                                                                    Kirigami.Theme.textColor.g,
                                                                    Kirigami.Theme.textColor.b, 0.16))
-                                            border.width: 1
-                                            border.color: Qt.rgba(Kirigami.Theme.textColor.r,
-                                                                  Kirigami.Theme.textColor.g,
-                                                                  Kirigami.Theme.textColor.b, 0.38)
+                                            radius: height / 2
                                             Rectangle {
-                                                x: 1; y: 1
-                                                width: (parent.width - 2) * frac
-                                                height: parent.height - 2
+                                                property real shownFrac: 0
+                                                readonly property real target: frac
+                                                onTargetChanged: shownFrac = target
+                                                Component.onCompleted: shownFrac = target
+                                                Behavior on shownFrac { NumberAnimation { duration: 600; easing.type: Easing.OutCubic } }
+                                                Behavior on color { ColorAnimation { duration: 300 } }
+                                                width: parent.width * shownFrac
+                                                height: parent.height
+                                                radius: height / 2
                                                 color: (frac < win.alertFrac || modelData.isOptical === true) ? win.gaugeBlue
                                                                   : win.gaugeRed
                                             }
@@ -2933,26 +3308,27 @@ QQC2.ApplicationWindow {
                                 Rectangle {
                                     z: -1
                                     anchors.fill: parent
-                                    radius: 4
+                                    radius: 8
                                     readonly property bool selected: win.selectedKey === modelData.mountpoint
-                                    visible: selected || cardMouse.containsMouse
+                                    opacity: (selected || cardMouse.containsMouse) ? 1 : 0
+                                    Behavior on opacity { NumberAnimation { duration: 140 } }
                                     color: (selected || cardMouse.pressed)
-                                           ? Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
-                                                     Kirigami.Theme.highlightColor.b, 0.22)
-                                           : "transparent"
+                                           ? Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.20)
+                                           : Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.06)
+                                    Behavior on color { ColorAnimation { duration: 140 } }
                                     border.width: 1
-                                    border.color: selected
-                                                  ? Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
-                                                            Kirigami.Theme.highlightColor.b, 0.8)
-                                                  : Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
-                                                            Kirigami.Theme.textColor.b, 0.55)
+                                    border.color: selected ? Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.75)
+                                                            : Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.30)
                                 }
                                 MouseArea {
                                     id: cardMouse
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     acceptedButtons: Qt.LeftButton | Qt.RightButton
-                                    onPressed: win.selectedKey = modelData.mountpoint
+                                    onPressed: {
+                                        win.selectedKey = modelData.mountpoint
+                                        keyHandler.forceActiveFocus()
+                                    }
                                     onDoubleClicked: function(mouse) {
                                         if (mouse.button === Qt.LeftButton)
                                             backend.openFolder(modelData.mountpoint)
@@ -2970,9 +3346,30 @@ QQC2.ApplicationWindow {
                                         onTriggered: backend.openFolder(modelData.mountpoint)
                                     }
                                     QQC2.MenuItem {
+                                        text: win.trad("Mount")
+                                        icon.name: "media-mount"
+                                        visible: modelData.isUnmounted === true
+                                        height: visible ? implicitHeight : 0
+                                        onTriggered: backend.mountDevice(modelData.device)
+                                    }
+                                    QQC2.MenuItem {
+                                        text: win.trad("Open in terminal")
+                                        icon.name: "utilities-terminal"
+                                        visible: modelData.mountpoint.charAt(0) === "/"
+                                        height: visible ? implicitHeight : 0
+                                        onTriggered: backend.openTerminal(modelData.mountpoint)
+                                    }
+                                    QQC2.MenuItem {
+                                        text: win.trad("Copy path")
+                                        icon.name: "edit-copy"
+                                        visible: modelData.mountpoint.charAt(0) === "/"
+                                        height: visible ? implicitHeight : 0
+                                        onTriggered: backend.copyPath(modelData.mountpoint)
+                                    }
+                                    QQC2.MenuItem {
                                         text: win.trad("Safely remove")
                                         icon.name: "media-eject"
-                                        visible: modelData.isUsb
+                                        visible: modelData.isUsb && modelData.isUnmounted !== true
                                         height: visible ? implicitHeight : 0
                                         onTriggered: backend.ejectDevice(modelData.device, modelData.label)
                                     }
@@ -2986,6 +3383,8 @@ QQC2.ApplicationWindow {
                                     QQC2.MenuItem {
                                         text: win.trad("Properties")
                                         icon.name: "document-properties"
+                                        visible: modelData.isUnmounted !== true
+                                        height: visible ? implicitHeight : 0
                                         onTriggered: win.showProps(modelData)
                                     }
                                 }
@@ -3101,20 +3500,23 @@ QQC2.ApplicationWindow {
                                         Rectangle {
                                             visible: modelData.total > 0
                                             Layout.fillWidth: true
-                                            Layout.preferredHeight: 16
+                                            Layout.preferredHeight: 10
                                             // jaugeGrise : fond de jauge gris clair (16 % de la couleur du texte sur le fond)
                                             color: Qt.tint(Kirigami.Theme.backgroundColor,
                                                            Qt.rgba(Kirigami.Theme.textColor.r,
                                                                    Kirigami.Theme.textColor.g,
                                                                    Kirigami.Theme.textColor.b, 0.16))
-                                            border.width: 1
-                                            border.color: Qt.rgba(Kirigami.Theme.textColor.r,
-                                                                  Kirigami.Theme.textColor.g,
-                                                                  Kirigami.Theme.textColor.b, 0.38)
+                                            radius: height / 2
                                             Rectangle {
-                                                x: 1; y: 1
-                                                width: (parent.width - 2) * frac
-                                                height: parent.height - 2
+                                                property real shownFrac: 0
+                                                readonly property real target: frac
+                                                onTargetChanged: shownFrac = target
+                                                Component.onCompleted: shownFrac = target
+                                                Behavior on shownFrac { NumberAnimation { duration: 600; easing.type: Easing.OutCubic } }
+                                                Behavior on color { ColorAnimation { duration: 300 } }
+                                                width: parent.width * shownFrac
+                                                height: parent.height
+                                                radius: height / 2
                                                 color: (frac < win.alertFrac || modelData.isOptical === true) ? win.gaugeBlue
                                                                   : win.gaugeRed
                                             }
@@ -3132,26 +3534,27 @@ QQC2.ApplicationWindow {
                                 Rectangle {
                                     z: -1
                                     anchors.fill: parent
-                                    radius: 4
+                                    radius: 8
                                     readonly property bool selected: win.selectedKey === modelData.mountpoint
-                                    visible: selected || cardMouse.containsMouse
+                                    opacity: (selected || cardMouse.containsMouse) ? 1 : 0
+                                    Behavior on opacity { NumberAnimation { duration: 140 } }
                                     color: (selected || cardMouse.pressed)
-                                           ? Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
-                                                     Kirigami.Theme.highlightColor.b, 0.22)
-                                           : "transparent"
+                                           ? Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.20)
+                                           : Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.06)
+                                    Behavior on color { ColorAnimation { duration: 140 } }
                                     border.width: 1
-                                    border.color: selected
-                                                  ? Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
-                                                            Kirigami.Theme.highlightColor.b, 0.8)
-                                                  : Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
-                                                            Kirigami.Theme.textColor.b, 0.55)
+                                    border.color: selected ? Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.75)
+                                                            : Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.30)
                                 }
                                 MouseArea {
                                     id: cardMouse
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     acceptedButtons: Qt.LeftButton | Qt.RightButton
-                                    onPressed: win.selectedKey = modelData.mountpoint
+                                    onPressed: {
+                                        win.selectedKey = modelData.mountpoint
+                                        keyHandler.forceActiveFocus()
+                                    }
                                     onDoubleClicked: function(mouse) {
                                         if (mouse.button !== Qt.LeftButton)
                                             return
@@ -3182,6 +3585,25 @@ QQC2.ApplicationWindow {
                                         visible: modelData.mounted === true || modelData.total > 0
                                         height: visible ? implicitHeight : 0
                                         onTriggered: win.showProps(modelData)
+                                    }
+                                    QQC2.MenuItem {
+                                        text: win.trad("Open in terminal")
+                                        icon.name: "utilities-terminal"
+                                        visible: modelData.mounted === true && modelData.mountpoint.charAt(0) === "/"
+                                        height: visible ? implicitHeight : 0
+                                        onTriggered: backend.openTerminal(modelData.mountpoint)
+                                    }
+                                    QQC2.MenuItem {
+                                        text: win.trad("Copy path")
+                                        icon.name: "edit-copy"
+                                        onTriggered: backend.copyPath(modelData.mountpoint)
+                                    }
+                                    QQC2.MenuItem {
+                                        text: win.trad("Disconnect")
+                                        icon.name: "network-disconnect"
+                                        visible: modelData.mounted === true && modelData.mountpoint.charAt(0) === "/"
+                                        height: visible ? implicitHeight : 0
+                                        onTriggered: backend.unmountNetwork(modelData.mountpoint)
                                     }
                                     QQC2.MenuItem {
                                         text: win.trad("Remove this location")
@@ -3345,6 +3767,7 @@ QQC2.ApplicationWindow {
                 anchors.fill: parent
                 onPressed: function(mouse) {
                     win.selectedKey = ""
+                    keyHandler.forceActiveFocus()
                     mouse.accepted = false
                 }
             }
@@ -3370,26 +3793,9 @@ QQC2.ApplicationWindow {
 """
 
 
-BAR_ICONS = ("folder-network", "folder-open", "document-properties", "view-refresh",
-             "preferences-system", "help-about")
-
-
-def bar_icons():
-    """Icônes de la barre de commandes : fichier du thème Fenestra s'il existe, sinon nom d'icône standard."""
-    res = {}
-    for name in BAR_ICONS:
-        res[name] = name
-        for base in (os.path.expanduser("~/.local/share/icons/windows-modern/places"),
-                     "/usr/share/icons/windows-modern/places"):
-            p = os.path.join(base, name + ".svg")
-            if os.path.isfile(p):
-                res[name] = "file://" + p
-                break
-    return res
-
-
-APP_VERSION = '1.1'
-APP_AUTEUR = 'naykkalak'
+APP_VERSION = '1.2.0-fork'
+APP_AUTEUR = """Original Copyright (C) 2026 naykkalak
+Modified and maintained by Christian (2026), with help from his son Leon"""
 APP_LICENCE = 'GPL-3.0-or-later'
 
 
@@ -3410,7 +3816,7 @@ def bar_icons_ruban():
     chemin = os.path.join(os.path.expanduser("~/.cache/fenestra"), "ce-pc-actualiser.svg")
     try:
         os.makedirs(os.path.dirname(chemin), exist_ok=True)
-        if not os.path.isfile(chemin) or open(chemin, encoding="utf-8").read() != svg:
+        if not os.path.isfile(chemin) or _lire_texte(chemin) != svg:
             with open(chemin, "w", encoding="utf-8") as f:
                 f.write(svg)
         actualiser = "file://" + chemin
@@ -3453,8 +3859,52 @@ def load_window_state():
     return etat
 
 
+def instance_existante(nom):
+    """True si Ce PC läuft schon (der Aufruf holt dessen Fenster nach vorn)."""
+    if QLocalSocket is None:
+        return False
+    sock = QLocalSocket()
+    sock.connectToServer(nom)
+    if sock.waitForConnected(300):
+        sock.write(b"raise\n")
+        sock.flush()
+        sock.waitForBytesWritten(300)
+        sock.disconnectFromServer()
+        return True
+    return False
+
+
+def serveur_instance(nom, backend):
+    """Lokaler Server : jeder weitere Start meldet sich hier und beendet sich dann."""
+    if QLocalServer is None:
+        return None
+    QLocalServer.removeServer(nom)   # alte Socket-Datei nach einem Absturz
+    srv = QLocalServer()
+    srv.setSocketOptions(QLocalServer.SocketOption.UserAccessOption)
+    if not srv.listen(nom):
+        return None
+
+    def nouveau():
+        while srv.hasPendingConnections():
+            c = srv.nextPendingConnection()
+            c.close()
+            c.deleteLater()
+            backend.raiseRequested.emit()
+
+    srv.newConnection.connect(nouveau)
+    return srv
+
+
 def main():
+    if "--dump-qml" in sys.argv:   # Oberfläche als .qml-Datei ausgeben (Bearbeitung mit Syntaxfarben)
+        sys.stdout.write(QML)
+        return 0
     app = QApplication(sys.argv)
+    app.setApplicationName("fenestra-ce-pc")
+    app.setDesktopFileName("fenestra-ce-pc")
+    nom_instance = "fenestra-ce-pc-%d" % os.getuid()
+    if not os.environ.get("CEPC_MULTI") and instance_existante(nom_instance):
+        return 0
     theme = get_icon_theme_name()
     QIcon.setThemeName(theme)
 
@@ -3468,11 +3918,19 @@ def main():
           {f["label"]: f["icon"] for f in folders})
 
     backend = Backend()
+    serveur = None if os.environ.get("CEPC_MULTI") else serveur_instance(nom_instance, backend)   # Referenz halten
+    qml = QML
+    chemin_qml = os.environ.get("CEPC_QML")   # Entwicklung: QML aus Datei laden (siehe --dump-qml)
+    if chemin_qml:
+        try:
+            with open(chemin_qml, encoding="utf-8") as f:
+                qml = f.read()
+        except OSError as e:
+            print("[ce_pc_plasma] CEPC_QML nicht lesbar :", e)
     engine = QQmlApplicationEngine()
     engine.rootContext().setContextProperty("foldersModel", folders)
     engine.rootContext().setContextProperty("backend", backend)
-    engine.rootContext().setContextProperty("barIcons", bar_icons())
-    engine.rootContext().setContextProperty("trTable", table_traductions(QML))
+    engine.rootContext().setContextProperty("trTable", table_traductions(qml))
     engine.rootContext().setContextProperty("trDecimal", DECIMAL)
     engine.rootContext().setContextProperty("barIconsRuban", bar_icons_ruban())
     engine.rootContext().setContextProperty("aboutInfo", about_info())
@@ -3480,11 +3938,13 @@ def main():
     engine.rootContext().setContextProperty("winInit", load_window_state())
     engine.rootContext().setContextProperty("badgeOffline", badge_offline())
     engine.rootContext().setContextProperty("badgeHealth", badge_health())
-    engine.loadData(QML.encode("utf-8"))
+    engine.loadData(qml.encode("utf-8"))
     if not engine.rootObjects():
         print("Échec du chargement QML")
         return 1
-    return app.exec()
+    code = app.exec()
+    del serveur
+    return code
 
 
 if __name__ == "__main__":
