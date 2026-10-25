@@ -81,6 +81,11 @@ Everything below is explained in plain words. You do **not** need to be a progra
   opens right away. Printers still open their properties on double-click.
 - **Ink levels at a glance.** A printer card now shows a small bar for each ink cartridge in its own colour, so you no
   longer need *Properties* to see how much is left. Hover it for the exact percentages.
+- **Quick access – pin your favourite folders.** A pane on the left (inspired by the Windows Explorer) keeps the
+  folders you use most. Right-click any folder or drive card and choose *Pin to Quick access*, press **+**, or just
+  drag a folder from Dolphin onto the pane. Click opens it, the little pin removes it again, right-click lets you
+  reorder. Below it, **This PC** shows your drives as a tree: click a drive or folder to unfold it, double-click to open it
+  in Dolphin, and pin any folder you find. You can hide the pane with the *Quick access* check box in the *Show* group.
 - **For tinkerers:** the user interface can be exported to a file and loaded from there, which makes it easy to edit
   with syntax colours (see [Developer notes](#developer-notes)).
 

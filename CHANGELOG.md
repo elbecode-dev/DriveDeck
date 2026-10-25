@@ -35,6 +35,27 @@ hidden and everything else works).
   stays visible on dark themes, and a red outline marks a cartridge below its low-level mark. The tooltip lists the
   exact percentages. No need to open *Properties* any more. Hidden while the printer is offline.
 
+- **Quick access sidebar with pinned folders** (like the navigation pane of the Windows Explorer). A left pane lists
+  your pinned folders with a pin symbol; click opens the folder in Dolphin, the pin symbol (or right-click → *Unpin*)
+  removes it, right-click also offers *Open in terminal*, *Copy path*, *Move up* and *Move down*. Pin folders from
+  the **right-click menu of the folder and drive cards** (*Pin to Quick access*), with the **+** button (folder
+  dialog) or by **dragging a folder from Dolphin** onto the pane. Pins of a USB stick are greyed out while it is not
+  plugged in. On the first start Desktop, Downloads, Documents and Pictures are pinned. The list is stored in
+  `~/.config/fenestra/ce-pc-epingles.json`; the pane can be hidden with the new check box *Quick access* in the
+  ribbon group *Show* (the state is remembered like the other sections). The list can be collapsed with its arrow.
+  The folder cards also got a right-click menu (*Open*, *Open in terminal*, *Copy path*, pin).
+- **Drive tree in the sidebar** (like the tree view of the Explorer): under *This PC* every mounted drive is listed;
+  a click on a drive or folder expands it, a click on the arrow or the node again collapses it, double-click opens it
+  in Dolphin. Sub-folders are read **only when a node is expanded**, in a background thread (`listDirs`, hidden folders
+  are skipped, at most 1000 entries per folder), with a small spinner while loading and thin guide lines per level.
+  The arrow only appears on folders that really have sub-folders: when a folder is listed, the thread also checks every
+  child with an early exit (`hat_unterordner`, 2 s time budget; unknown counts as "has sub-folders"), and drive roots are
+  read at start-up.
+  Every node can be pinned to Quick access with its pin symbol or the right-click menu. The system drive expands to
+  the home folder, exactly like opening its card.
+- `pin_normaliser`: pins are compared with `~` expanded and trailing slashes removed; symbolic links are **not** resolved
+  on purpose (a pin keeps the path you chose, a stick mounted at another path stays a separate entry); case counts.
+
 ### Visual changes
 
 - **Donut ring** instead of the pie chart in the *Properties* dialog (`QtQuick.Shapes`, GPU curve renderer): rounded

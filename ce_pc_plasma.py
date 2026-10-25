@@ -84,6 +84,15 @@ EXTRA_DE = {
     "Folder not found": "Ordner nicht gefunden",
     "Almost full": "Fast voll",
     "Open settings": "Einstellungen öffnen",
+    "Quick access": "Schnellzugriff",
+    "No subfolders": "Keine Unterordner",
+    "Quick access ({n})": "Schnellzugriff ({n})",
+    "Pin to Quick access": "An Schnellzugriff anheften",
+    "Unpin from Quick access": "Von Schnellzugriff lösen",
+    "Pin a folder…": "Ordner anheften…",
+    "Move up": "Nach oben",
+    "Move down": "Nach unten",
+    "Drag folders here to pin them": "Ordner hierher ziehen, um sie anzuheften",
 }
 
 
@@ -766,7 +775,7 @@ def badge_offline():
 
 
 SECT_CONFIG = os.path.join(CONFIG_DIR, "ce-pc-rubriques.json")   # rubriquesMemo (Ce PC 1.1)
-SECTIONS = ("folders", "disks", "net", "printers")
+SECTIONS = ("folders", "disks", "net", "printers", "quick")
 
 
 def load_sections():
@@ -781,6 +790,80 @@ def load_sections():
             res[k]["shown"] = bool(d.get("shown", True))
     except (OSError, ValueError, TypeError, AttributeError):
         pass
+    return res
+
+
+# schnellzugriff : angeheftete Ordner der linken Leiste (wie « Schnellzugriff » im Windows-Explorer)
+PINS_CONFIG = os.path.join(CONFIG_DIR, "ce-pc-epingles.json")
+PIN_STANDARD = ("DESKTOP", "DOWNLOAD", "DOCUMENTS", "PICTURES")   # beim ersten Start angeheftet (Reihenfolge wie unter Windows)
+
+
+def pin_normaliser(path):
+    """Einheitlicher Schlüssel eines Ordners : derselbe Ordner wird nicht doppelt angeheftet.
+    ~ wird expandiert, Endschrägstrich und « .. » entfallen. Symlinks werden bewusst NICHT aufgelöst : der Pin behält
+    den Pfad, den man selbst gewählt hat (~/Schreibtisch bleibt ~/Schreibtisch), und ein Stick, der später unter einem
+    anderen Pfad eingebunden wird, bleibt ein eigener Eintrag. Groß-/Kleinschreibung zählt (wie unter Linux)."""
+    return os.path.abspath(os.path.expanduser(path))
+
+
+def load_pins():
+    """Angeheftete Ordner : [{path, label, icon}]. Fehlt die Datei (erster Start), sind Desktop, Dokumente,
+    Downloads und Bilder angeheftet ; eine leere Liste bleibt leer."""
+    try:
+        with open(PINS_CONFIG, encoding="utf-8") as f:
+            data = json.load(f)
+        return [{"path": str(d["path"]), "label": str(d.get("label") or ""), "icon": str(d.get("icon") or "")}
+                for d in data if isinstance(d, dict) and d.get("path")]
+    except (OSError, ValueError, TypeError):
+        pass
+    name_zu_typ = {t: tr(l) for l, t, _, _ in USER_FOLDERS_SPEC}
+    vorhanden = {f["label"]: f for f in list_user_folders()}
+    return [{"path": vorhanden[name_zu_typ[t]]["path"], "label": name_zu_typ[t], "icon": vorhanden[name_zu_typ[t]]["icon"]}
+            for t in PIN_STANDARD if name_zu_typ.get(t) in vorhanden]
+
+
+def save_pins(pins):
+    try:
+        os.makedirs(CONFIG_DIR, exist_ok=True)
+        tmp = PINS_CONFIG + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(pins, f, ensure_ascii=False)
+        os.replace(tmp, PINS_CONFIG)
+    except OSError as e:
+        print("[ce_pc_plasma] schnellzugriff :", e)
+
+
+def hat_unterordner(pfad, max_eintraege=5000):
+    """Hat dieser Ordner mindestens einen (nicht versteckten) Unterordner? Bricht beim ersten Treffer ab.
+    None = unbekannt (Ordner zu groß oder nicht lesbar zu klären) ; der Aufrufer zeigt dann vorsichtshalber den Pfeil."""
+    gesehen = 0
+    try:
+        with os.scandir(pfad) as it:
+            for e in it:
+                gesehen += 1
+                if gesehen > max_eintraege:
+                    return None
+                if e.name.startswith("."):
+                    continue
+                try:
+                    if e.is_dir():
+                        return True
+                except OSError:
+                    pass
+    except PermissionError:
+        return False
+    except OSError:
+        return None
+    return False
+
+
+def pin_infos(pins):
+    """Für die Anzeige : Standard-Name und -Symbol ergänzen, 'exists' = Ordner gerade erreichbar (USB-Stick steckt?)."""
+    res = []
+    for p in pins:
+        path = p["path"]
+        res.append({"path": path, "label": p.get("label") or os.path.basename(path.rstrip("/")) or "/",
+                    "icon": p.get("icon") or "folder", "exists": os.path.isdir(path)})
     return res
 
 
@@ -1476,6 +1559,8 @@ class Backend(QObject):
     updateAvailable = pyqtSignal(str, str)   # miseAJour : (version, adresse de la page)
     printersChanged = pyqtSignal()
     ioChanged = pyqtSignal()
+    pinsChanged = pyqtSignal()
+    dirsListed = pyqtSignal(str, list)
     ioUpdated = pyqtSignal(dict)
     raiseRequested = pyqtSignal()   # ein zweiter Start soll das vorhandene Fenster nach vorn holen
 
@@ -1502,11 +1587,92 @@ class Backend(QObject):
         threading.Thread(target=self._printLoop, daemon=True).start()
         self._io = {}
         self.ioUpdated.connect(self._setIo)
+        self._pins = load_pins()
+        self._pinInfos = pin_infos(self._pins)
         threading.Thread(target=self._ioLoop, daemon=True).start()
 
     @pyqtProperty("QVariantList", notify=disksChanged)
     def disks(self):
         return self._disks
+
+    @pyqtProperty("QVariantList", notify=pinsChanged)
+    def pins(self):
+        return self._pinInfos
+
+    def _refreshPins(self):
+        neu = pin_infos(self._pins)
+        if neu != self._pinInfos:
+            self._pinInfos = neu
+            self.pinsChanged.emit()
+
+    def _setPins(self, pins):
+        self._pins = pins
+        save_pins(pins)
+        self._refreshPins()
+
+    @pyqtSlot(str, result=str)
+    def displayPath(self, path):
+        """Der Ordner, der sich beim Öffnen einer Karte tatsächlich öffnet (« / » -> persönlicher Ordner)."""
+        return chemin_affiche(path)
+
+    @pyqtSlot(str)
+    def listDirs(self, path):
+        """Unterordner von path im Hintergrund auflisten (Baum der Seitenleiste) ; Antwort kommt als dirsListed."""
+        threading.Thread(target=self._listDirs, args=(path,), daemon=True).start()
+
+    def _listDirs(self, path):
+        namen = []
+        try:
+            with os.scandir(path) as it:
+                for e in it:
+                    if e.name.startswith("."):
+                        continue
+                    try:
+                        if e.is_dir():
+                            namen.append(e.name)
+                    except OSError:
+                        pass
+        except OSError:
+            pass
+        namen.sort(key=str.casefold)
+        # Für jedes Kind gleich prüfen, ob es selbst Unterordner hat : der Pfeil erscheint nur bei echten Unterordnern.
+        # Zeitbudget, damit ein riesiger oder langsamer Ordner (Netzwerk) die Liste nicht aufhält ; Rest = unbekannt.
+        ende = time.monotonic() + 2.0
+        kinder = []
+        for n in namen[:1000]:
+            kind = os.path.join(path, n)
+            kinder.append({"name": n, "path": kind,
+                           "hasKids": hat_unterordner(kind) if time.monotonic() < ende else None})
+        self.dirsListed.emit(path, [{**k, "hasKids": k["hasKids"] is not False} for k in kinder])
+
+    @pyqtSlot(str, str, str)
+    def pinPath(self, path, label, icon):
+        """Ordner an den Schnellzugriff heften (auch file://-Adressen vom Ziehen aus Dolphin)."""
+        if path.startswith("file://"):
+            from urllib.parse import unquote, urlparse
+            path = unquote(urlparse(path).path)
+        if not path:
+            return
+        path = pin_normaliser(path)
+        if not os.path.isdir(path) or any(pin_normaliser(p["path"]) == path for p in self._pins):
+            return
+        self._setPins(self._pins + [{"path": path, "label": label, "icon": icon}])
+
+    @pyqtSlot(str)
+    def unpinPath(self, path):
+        key = pin_normaliser(path)
+        self._setPins([p for p in self._pins if pin_normaliser(p["path"]) != key])
+
+    @pyqtSlot(str, int)
+    def movePin(self, path, delta):
+        key = pin_normaliser(path)
+        pins = list(self._pins)
+        i = next((n for n, p in enumerate(pins) if pin_normaliser(p["path"]) == key), -1)
+        j = i + delta
+        if i < 0 or not 0 <= j < len(pins):
+            return
+        pins[i], pins[j] = pins[j], pins[i]
+        self._setPins(pins)
 
     @pyqtProperty("QVariantMap", notify=ioChanged)
     def ioStats(self):
@@ -1561,6 +1727,7 @@ class Backend(QObject):
         if self._signature_disques(new) != self._signature_disques(self._disks):
             self._disks = new
             self.disksChanged.emit()
+            self._refreshPins()   # ein Stick wurde ein-/ausgesteckt : Pins ausgrauen bzw. wieder aktivieren
 
     def _diskLoop(self):
         # lsblk, udevadm et busctl (santé SMART) bloquent : hors du fil de l'interface, comme le réseau.
@@ -2161,6 +2328,7 @@ import QtQuick
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import QtQuick.Shapes
+import QtQuick.Dialogs
 import org.kde.kirigami as Kirigami
 
 QQC2.ApplicationWindow {
@@ -2179,6 +2347,7 @@ QQC2.ApplicationWindow {
         if (winInit.max)
             win.showMaximized()
         keyHandler.forceActiveFocus()
+        probeRoots()
     }
     color: Kirigami.Theme.backgroundColor
 
@@ -2191,12 +2360,15 @@ QQC2.ApplicationWindow {
     property bool disksShown: sectInit.disks.shown
     property bool netShown: sectInit.net.shown
     property bool printersShown: sectInit.printers.shown
+    property bool quickCollapsed: sectInit.quick.collapsed   // schnellzugriff : linke Leiste mit angehefteten Ordnern
+    property bool quickShown: sectInit.quick.shown
     function saveSections() {
         backend.saveSections(JSON.stringify({
             folders: { collapsed: foldersCollapsed, shown: foldersShown },
             disks: { collapsed: disksCollapsed, shown: disksShown },
             net: { collapsed: netCollapsed, shown: netShown },
-            printers: { collapsed: printersCollapsed, shown: printersShown } }))
+            printers: { collapsed: printersCollapsed, shown: printersShown },
+            quick: { collapsed: quickCollapsed, shown: quickShown } }))
     }
     onFoldersCollapsedChanged: saveSections()
     onDisksCollapsedChanged: saveSections()
@@ -2206,6 +2378,8 @@ QQC2.ApplicationWindow {
     onDisksShownChanged: saveSections()
     onNetShownChanged: saveSections()
     onPrintersShownChanged: saveSections()
+    onQuickCollapsedChanged: saveSections()
+    onQuickShownChanged: saveSections()
     // Nom d'une rubrique sans son compteur « ({n}) » (cases à cocher du groupe « Afficher »)
     function sectName(s) {
         return s.replace("({n})", "").replace("（{n}）", "").trim()
@@ -2256,6 +2430,89 @@ QQC2.ApplicationWindow {
         if (d.indicator === true)
             return kindModule[d.kind] || ""
         return "kcm_printer_manager"
+    }
+    // seitenleiste : Baum « Dieser PC » (Laufwerke -> Ordner, Unterordner erst beim Aufklappen im Hintergrund geladen)
+    property bool pcCollapsed: false
+    property var treeOpen: ({})
+    property var treeKids: ({})
+    function toggleNode(path) {
+        var o = Object.assign({}, treeOpen)
+        if (o[path]) {
+            delete o[path]
+        } else {
+            o[path] = true
+            backend.listDirs(path)   // immer neu lesen ; bis die Antwort kommt, bleibt der alte Stand sichtbar
+        }
+        treeOpen = o
+    }
+    Connections {
+        target: backend
+        function onDirsListed(path, list) {
+            var k = Object.assign({}, win.treeKids)
+            k[path] = list
+            win.treeKids = k
+        }
+        function onDisksChanged() { win.probeRoots() }
+    }
+    // Eine flache Liste aller sichtbaren Zeilen (Kopf, Pin, Hinweis, Baumknoten) ; hängt an allem, was sie liest
+    readonly property var sidebarRows: {
+        var rows = []
+        rows.push({ type: "head", key: "quick", label: trad("Quick access"), icon: "starred-symbolic",
+                    collapsed: quickCollapsed, canAdd: true })
+        var ps = backend.pins
+        if (!quickCollapsed) {
+            for (var i = 0; i < ps.length; i++)
+                rows.push({ type: "pin", path: ps[i].path, label: ps[i].label, icon: ps[i].icon,
+                            exists: ps[i].exists, pinIndex: i, pinCount: ps.length })
+            if (ps.length === 0)
+                rows.push({ type: "hint" })
+        }
+        rows.push({ type: "head", key: "pc", label: trad("This PC"), icon: "computer", collapsed: pcCollapsed })
+        if (!pcCollapsed) {
+            var ds = backend.disks
+            for (var j = 0; j < ds.length; j++) {
+                var d = ds[j]
+                if (d.mountpoint.charAt(0) !== "/" || d.isUnmounted === true || d.isOptical === true)
+                    continue
+                addNode(rows, backend.displayPath(d.mountpoint), d.label, d.icon, 0, true)
+            }
+        }
+        return rows
+    }
+    // hasKids : Antwort der Vorabprüfung des Elternordners (true = hat Unterordner oder unbekannt). Ist der Ordner selbst
+    // schon gelesen, gilt dessen Liste ; so zeigt nur ein Ordner mit echten Unterordnern den Pfeil.
+    function addNode(rows, path, label, icon, depth, hasKids) {
+        var open = treeOpen[path] === true
+        var kids = treeKids[path]
+        rows.push({ type: "node", path: path, label: label, icon: icon, depth: depth, open: open,
+                    expandable: kids !== undefined ? kids.length > 0 : hasKids !== false,
+                    loading: open && kids === undefined })
+        if (open && kids !== undefined)
+            for (var i = 0; i < kids.length; i++)
+                addNode(rows, kids[i].path, kids[i].name, "folder", depth + 1, kids[i].hasKids)
+    }
+    // Laufwerks-Wurzeln gleich lesen, damit auch ein leerer Stick keinen unnötigen Pfeil zeigt
+    function probeRoots() {
+        var ds = backend.disks
+        for (var j = 0; j < ds.length; j++) {
+            var d = ds[j]
+            if (d.mountpoint.charAt(0) !== "/" || d.isUnmounted === true || d.isOptical === true)
+                continue
+            var pth = backend.displayPath(d.mountpoint)
+            if (treeKids[pth] === undefined)
+                backend.listDirs(pth)
+        }
+    }
+    // schnellzugriff : ist dieser Pfad angeheftet? (liest backend.pins, daher reagieren Menütexte sofort)
+    function isPinned(path) {
+        var k = path.length > 1 ? path.replace(/[/]+$/, "") : path
+        var ps = backend.pins
+        for (var i = 0; i < ps.length; i++) {
+            var q = ps[i].path
+            if ((q.length > 1 ? q.replace(/[/]+$/, "") : q) === k)
+                return true
+        }
+        return false
     }
     // rateText : Durchsatz lesbar (B/s … GB/s)
     function rateText(n) {
@@ -3090,7 +3347,8 @@ QQC2.ApplicationWindow {
                                         { t: win.trad("Folders ({n})"), k: "folders" },
                                         { t: win.trad("Devices and drives ({n})"), k: "disks" },
                                         { t: win.trad("Network locations ({n})"), k: "net" },
-                                        { t: win.trad("Printers and devices ({n})"), k: "printers" }
+                                        { t: win.trad("Printers and devices ({n})"), k: "printers" },
+                                        { t: win.trad("Quick access ({n})"), k: "quick" }
                                     ]
                                     delegate: QQC2.CheckBox {
                                         topPadding: 0
@@ -3165,9 +3423,225 @@ QQC2.ApplicationWindow {
             Kirigami.Theme.inherit: false
             color: Kirigami.Theme.backgroundColor
 
+            // seitenleiste : Schnellzugriff (angeheftete Ordner) und Baum « Dieser PC » wie im Windows-Explorer
+            Rectangle {
+                id: sidebar
+                visible: win.quickShown
+                anchors.left: parent.left
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                width: visible ? 240 : 0
+                color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.04)
+                Kirigami.Separator { anchors.right: parent.right; height: parent.height }
+
+                DropArea {   // Ordner aus Dolphin hineinziehen heftet sie an
+                    anchors.fill: parent
+                    keys: ["text/uri-list"]
+                    onDropped: function(drop) {
+                        for (var i = 0; i < drop.urls.length; i++)
+                            backend.pinPath(drop.urls[i].toString(), "", "")
+                    }
+                }
+                // Ein gemeinsames Rechtsklick-Menü für alle Zeilen (wirkt auf rowMenu.t)
+                QQC2.Menu {
+                    id: rowMenu
+                    property var t: ({})
+                    readonly property bool isPin: t.type === "pin"
+                    QQC2.MenuItem {
+                        text: win.trad("Open")
+                        icon.name: "folder-open"
+                        onTriggered: backend.openFolder(rowMenu.t.path)
+                    }
+                    QQC2.MenuItem {
+                        text: win.trad("Open in terminal")
+                        icon.name: "utilities-terminal"
+                        onTriggered: backend.openTerminal(rowMenu.t.path)
+                    }
+                    QQC2.MenuItem {
+                        text: win.trad("Copy path")
+                        icon.name: "edit-copy"
+                        onTriggered: backend.copyPath(rowMenu.t.path)
+                    }
+                    QQC2.MenuSeparator {}
+                    QQC2.MenuItem {
+                        text: win.trad("Move up")
+                        icon.name: "go-up"
+                        visible: rowMenu.isPin
+                        height: visible ? implicitHeight : 0
+                        enabled: rowMenu.t.pinIndex > 0
+                        onTriggered: backend.movePin(rowMenu.t.path, -1)
+                    }
+                    QQC2.MenuItem {
+                        text: win.trad("Move down")
+                        icon.name: "go-down"
+                        visible: rowMenu.isPin
+                        height: visible ? implicitHeight : 0
+                        enabled: rowMenu.t.pinIndex < rowMenu.t.pinCount - 1
+                        onTriggered: backend.movePin(rowMenu.t.path, 1)
+                    }
+                    QQC2.MenuItem {
+                        text: win.isPinned(rowMenu.t.path || "") ? win.trad("Unpin from Quick access")
+                                                                 : win.trad("Pin to Quick access")
+                        icon.name: win.isPinned(rowMenu.t.path || "") ? "window-unpin" : "window-pin"
+                        onTriggered: win.isPinned(rowMenu.t.path) ? backend.unpinPath(rowMenu.t.path)
+                                                                  : backend.pinPath(rowMenu.t.path, rowMenu.t.label, rowMenu.t.icon)
+                    }
+                }
+
+                ListView {
+                    id: sideList
+                    anchors.fill: parent
+                    anchors.rightMargin: 1
+                    clip: true
+                    model: win.sidebarRows
+                    spacing: 1
+                    QQC2.ScrollBar.vertical: QQC2.ScrollBar {}
+                    displaced: Transition { NumberAnimation { properties: "y"; duration: 160; easing.type: Easing.OutCubic } }
+                    delegate: Item {
+                        id: row
+                        readonly property var r: modelData
+                        readonly property bool isHead: r.type === "head"
+                        readonly property bool isNode: r.type === "node"
+                        readonly property bool isPinRow: r.type === "pin"
+                        readonly property bool pinned: (isNode || isPinRow) && win.isPinned(r.path)
+                        width: ListView.view.width
+                        height: isHead ? 38 : (r.type === "hint" ? 54 : 30)
+                        opacity: (isPinRow && r.exists === false) ? 0.5 : 1.0
+
+                        Rectangle {   // Hover
+                            anchors.fill: parent
+                            anchors.leftMargin: 6
+                            anchors.rightMargin: 6
+                            radius: 6
+                            visible: !row.isHead && r.type !== "hint"
+                            opacity: (rowMouse.containsMouse || rowMouse.pressed) ? 1 : 0
+                            Behavior on opacity { NumberAnimation { duration: 120 } }
+                            color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
+                                           Kirigami.Theme.highlightColor.b, rowMouse.pressed ? 0.26 : 0.14)
+                        }
+                        // Hierarchielinien : eine dünne senkrechte Linie je Ebene
+                        Repeater {
+                            model: row.isNode ? r.depth : 0
+                            delegate: Rectangle {
+                                x: 21 + index * 16
+                                width: 1
+                                height: row.height + 1
+                                color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.14)
+                            }
+                        }
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: row.isHead ? 12 : (row.isNode ? 14 + r.depth * 16 : 16)
+                            anchors.rightMargin: 12
+                            spacing: row.isHead ? 6 : 7
+                            visible: r.type !== "hint"
+                            Item {   // Auf-/Zuklapper (wie [+]/[−] im klassischen Baum)
+                                visible: row.isHead || row.isNode
+                                Layout.preferredWidth: 14; Layout.preferredHeight: 14
+                                Kirigami.Icon {
+                                    anchors.fill: parent
+                                    visible: row.isHead || (row.isNode && r.expandable)
+                                    source: (row.isHead ? r.collapsed : !r.open) ? "arrow-right" : "arrow-down"
+                                    opacity: 0.7
+                                    rotation: 0
+                                }
+                                QQC2.BusyIndicator {
+                                    anchors.fill: parent
+                                    running: row.isNode && r.loading
+                                    visible: running
+                                }
+                            }
+                            Kirigami.Icon {
+                                source: r.icon || "folder"
+                                Layout.preferredWidth: row.isHead ? 16 : 18
+                                Layout.preferredHeight: row.isHead ? 16 : 18
+                                color: (row.isHead && r.key === "quick") ? Kirigami.Theme.highlightColor : "transparent"
+                                isMask: row.isHead && r.key === "quick"
+                            }
+                            QQC2.Label {
+                                text: r.label || ""
+                                font.weight: row.isHead ? Font.DemiBold : Font.Normal
+                                Layout.fillWidth: true
+                                elide: Text.ElideRight
+                            }
+                            QQC2.ToolButton {   // « + » : Ordner per Dialog anheften
+                                visible: row.isHead && r.canAdd === true
+                                icon.name: "list-add"
+                                icon.width: 14; icon.height: 14
+                                implicitWidth: 26; implicitHeight: 26
+                                QQC2.ToolTip.visible: hovered
+                                QQC2.ToolTip.delay: 400
+                                QQC2.ToolTip.text: win.trad("Pin a folder…")
+                                onClicked: pinDialog.open()
+                            }
+                            Kirigami.Icon {   // Pin-Symbol : angeheftet = sichtbar, sonst nur beim Überfahren ; Klick schaltet um
+                                visible: row.isNode || row.isPinRow
+                                source: (row.pinned !== pinGlyphMouse.containsMouse) ? "window-pin" : "window-unpin"   // zeigt beim Überfahren das Ergebnis des Klicks
+                                Layout.preferredWidth: 13; Layout.preferredHeight: 13
+                                opacity: pinGlyphMouse.containsMouse ? 1.0
+                                       : (row.pinned ? 0.55 : (rowMouse.containsMouse ? 0.35 : 0.0))
+                                Behavior on opacity { NumberAnimation { duration: 120 } }
+                                MouseArea {
+                                    id: pinGlyphMouse
+                                    anchors.fill: parent
+                                    anchors.margins: -6
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: row.pinned ? backend.unpinPath(r.path) : backend.pinPath(r.path, r.label, r.icon)
+                                }
+                            }
+                        }
+                        QQC2.Label {   // leere Schnellzugriff-Liste : Hinweis
+                            anchors.centerIn: parent
+                            width: parent.width - 40
+                            visible: r.type === "hint"
+                            text: win.trad("Drag folders here to pin them")
+                            opacity: 0.55
+                            wrapMode: Text.Wrap
+                            horizontalAlignment: Text.AlignHCenter
+                        }
+                        MouseArea {
+                            id: rowMouse
+                            anchors.fill: parent
+                            z: -1
+                            hoverEnabled: true
+                            acceptedButtons: Qt.LeftButton | Qt.RightButton
+                            onClicked: function(mouse) {
+                                if (row.isHead) {
+                                    if (r.key === "quick") win.quickCollapsed = !win.quickCollapsed
+                                    else win.pcCollapsed = !win.pcCollapsed
+                                } else if (mouse.button === Qt.RightButton && r.path) {
+                                    rowMenu.t = r
+                                    rowMenu.popup()
+                                } else if (row.isNode) {
+                                    win.toggleNode(r.path)   // Klick klappt auf/zu
+                                } else if (row.isPinRow) {
+                                    backend.openFolder(r.path)
+                                }
+                            }
+                            onDoubleClicked: function(mouse) {
+                                if (row.isNode && mouse.button === Qt.LeftButton)
+                                    backend.openFolder(r.path)   // Doppelklick öffnet in Dolphin
+                            }
+                        }
+                        QQC2.ToolTip.visible: rowMouse.containsMouse && !!r.path
+                        QQC2.ToolTip.delay: 700
+                        QQC2.ToolTip.text: (isPinRow && r.exists === false) ? win.trad("Folder not found") : (r.path || "")
+                    }
+                }
+            }
+            FolderDialog {
+                id: pinDialog
+                title: win.trad("Pin a folder…")
+                onAccepted: backend.pinPath(selectedFolder.toString(), "", "")
+            }
+
             QQC2.ScrollView {
                 id: scroll
-                anchors.fill: parent
+                anchors.left: sidebar.right
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
                 contentWidth: availableWidth
 
                 ColumnLayout {
@@ -3284,8 +3758,39 @@ QQC2.ApplicationWindow {
                                     anchors.bottom: parent.bottom
                                     width: Math.min(parent.width, folderGrid.frameWidth)
                                     hoverEnabled: true
+                                    acceptedButtons: Qt.LeftButton | Qt.RightButton
                                     onPressed: win.selectedKey = ""
                                     onDoubleClicked: backend.openFolder(modelData.path)
+                                    onClicked: function(mouse) {
+                                        if (mouse.button === Qt.RightButton)
+                                            folderMenu.popup()
+                                    }
+                                }
+                                QQC2.Menu {
+                                    id: folderMenu
+                                    QQC2.MenuItem {
+                                        text: win.trad("Open")
+                                        icon.name: "folder-open"
+                                        onTriggered: backend.openFolder(modelData.path)
+                                    }
+                                    QQC2.MenuItem {
+                                        text: win.trad("Open in terminal")
+                                        icon.name: "utilities-terminal"
+                                        onTriggered: backend.openTerminal(modelData.path)
+                                    }
+                                    QQC2.MenuItem {
+                                        text: win.trad("Copy path")
+                                        icon.name: "edit-copy"
+                                        onTriggered: backend.copyPath(modelData.path)
+                                    }
+                                    QQC2.MenuSeparator {}
+                                    QQC2.MenuItem {
+                                        text: win.isPinned(modelData.path) ? win.trad("Unpin from Quick access")
+                                                                           : win.trad("Pin to Quick access")
+                                        icon.name: win.isPinned(modelData.path) ? "window-unpin" : "window-pin"
+                                        onTriggered: win.isPinned(modelData.path) ? backend.unpinPath(modelData.path)
+                                                                                  : backend.pinPath(modelData.path, modelData.label, modelData.icon)
+                                    }
                                 }
                             }
                         }
@@ -3576,6 +4081,15 @@ QQC2.ApplicationWindow {
                                         onTriggered: backend.copyPath(modelData.mountpoint)
                                     }
                                     QQC2.MenuItem {
+                                        visible: modelData.mountpoint.charAt(0) === "/"
+                                        height: visible ? implicitHeight : 0
+                                        text: win.isPinned(modelData.mountpoint) ? win.trad("Unpin from Quick access")
+                                                                                 : win.trad("Pin to Quick access")
+                                        icon.name: win.isPinned(modelData.mountpoint) ? "window-unpin" : "window-pin"
+                                        onTriggered: win.isPinned(modelData.mountpoint) ? backend.unpinPath(modelData.mountpoint)
+                                                                                        : backend.pinPath(modelData.mountpoint, modelData.label, "drive-harddisk")
+                                    }
+                                    QQC2.MenuItem {
                                         text: win.trad("Safely remove")
                                         icon.name: "media-eject"
                                         visible: modelData.isUsb && modelData.isUnmounted !== true
@@ -3847,6 +4361,15 @@ QQC2.ApplicationWindow {
                                         text: win.trad("Copy path")
                                         icon.name: "edit-copy"
                                         onTriggered: backend.copyPath(modelData.mountpoint)
+                                    }
+                                    QQC2.MenuItem {
+                                        visible: modelData.mountpoint.charAt(0) === "/"
+                                        height: visible ? implicitHeight : 0
+                                        text: win.isPinned(modelData.mountpoint) ? win.trad("Unpin from Quick access")
+                                                                                 : win.trad("Pin to Quick access")
+                                        icon.name: win.isPinned(modelData.mountpoint) ? "window-unpin" : "window-pin"
+                                        onTriggered: win.isPinned(modelData.mountpoint) ? backend.unpinPath(modelData.mountpoint)
+                                                                                        : backend.pinPath(modelData.mountpoint, modelData.label, "drive-harddisk")
                                     }
                                     QQC2.MenuItem {
                                         text: win.trad("Disconnect")
