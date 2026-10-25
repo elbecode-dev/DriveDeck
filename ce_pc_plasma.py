@@ -2433,6 +2433,11 @@ QQC2.ApplicationWindow {
     }
     // seitenleiste : Baum « Dieser PC » (Laufwerke -> Ordner, Unterordner erst beim Aufklappen im Hintergrund geladen)
     property bool pcCollapsed: false
+    // Breite der Seitenleiste : ihre rechte Kante (1 px Rahmen) liegt exakt auf der ersten Ribbon-Trennlinie,
+    // auch bei anderer Sprache oder Schriftgröße (die Gruppe « Standort » wird dann breiter oder schmaler)
+    property var firstGrp: null
+    property var firstSep: null
+    readonly property real sideWidth: (firstGrp && firstSep) ? Math.max(180, Math.round(ribbonRow.x + firstGrp.x + firstSep.x + 1)) : 240
     property string sideSelKey: ""   // zuletzt angeklickte Zeile der Seitenleiste (bleibt, bis eine andere angeklickt wird)
     property var treeOpen: ({})
     property var treeKids: ({})
@@ -3344,6 +3349,7 @@ QQC2.ApplicationWindow {
                             }
 
                             Rectangle {
+                                id: grpSep
                                 Layout.preferredWidth: 1
                                 Layout.fillHeight: true
                                 Layout.topMargin: 6
@@ -3352,6 +3358,8 @@ QQC2.ApplicationWindow {
                                 Layout.rightMargin: 8
                                 color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
                                                Kirigami.Theme.textColor.b, 0.2)
+                                // Die Seitenleiste endet genau auf der ersten Trennlinie (neben « Aktualisieren »)
+                                Component.onCompleted: if (index === 0) { win.firstGrp = grp; win.firstSep = grpSep }
                             }
                         }
                     }
@@ -3462,7 +3470,7 @@ QQC2.ApplicationWindow {
                 anchors.left: parent.left
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
-                width: visible ? 240 : 0
+                width: visible ? win.sideWidth : 0
                 color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.04)
                 Kirigami.Separator { anchors.right: parent.right; height: parent.height }
 

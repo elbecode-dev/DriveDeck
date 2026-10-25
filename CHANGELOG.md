@@ -54,6 +54,8 @@ hidden and everything else works).
   The clicked row stays highlighted (accent tint and outline) until another one is clicked; the hover highlight covers the
   whole row, not only the icon (a label swallows hover events, so the row uses a `HoverHandler` instead of a `MouseArea`).
   Expanding or collapsing keeps the scroll position of the list.
+  The right edge of the pane lies exactly on the first vertical line of the ribbon (next to *Refresh*), so both form one
+  continuous line; the width follows the ribbon (`sideWidth`), also with another language or font size.
   Every node can be pinned to Quick access with its pin symbol or the right-click menu. The system drive expands to
   the home folder, exactly like opening its card.
 - `pin_normaliser`: pins are compared with `~` expanded and trailing slashes removed; symbolic links are **not** resolved
