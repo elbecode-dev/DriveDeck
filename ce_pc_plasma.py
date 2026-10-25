@@ -85,6 +85,8 @@ EXTRA_DE = {
     "Almost full": "Fast voll",
     "Open settings": "Einstellungen öffnen",
     "Quick access": "Schnellzugriff",
+    "Temperature": "Temperatur",
+    "Temperature:": "Temperatur:",
     "No subfolders": "Keine Unterordner",
     "Quick access ({n})": "Schnellzugriff ({n})",
     "Pin to Quick access": "An Schnellzugriff anheften",
@@ -857,6 +859,61 @@ def hat_unterordner(pfad, max_eintraege=5000):
     return False
 
 
+def basis_platte(name):
+    """Kernelname der ganzen Platte zu einem Blockgerät : Partition -> Platte, dm/LUKS/LVM -> darunterliegende Platte."""
+    import glob
+    for _ in range(8):
+        slaves = glob.glob("/sys/class/block/%s/slaves/*" % name)
+        if slaves:
+            name = os.path.basename(slaves[0])
+            continue
+        pfad = os.path.realpath("/sys/class/block/" + name)
+        if os.path.exists(os.path.join(pfad, "partition")):
+            name = os.path.basename(os.path.dirname(pfad))
+            continue
+        break
+    return name
+
+
+_TEMP_UDISKS = {}   # Platte -> (Zeitpunkt, °C oder None) : udisks-Rückfall, höchstens einmal pro Minute
+
+
+def platten_temperatur(platte):
+    """Temperatur der ganzen Platte in °C oder None. Zuerst der Kernel-Sensor (hwmon : NVMe, SATA mit dem Modul
+    drivetemp) – nur eine Datei lesen. Sonst udisks (SMART, in Kelvin) mit Zwischenspeicher."""
+    import glob
+    for datei in sorted(glob.glob("/sys/block/%s/device/hwmon*/temp1_input" % platte)):
+        try:
+            with open(datei) as f:
+                return int(f.read().strip()) / 1000
+        except (OSError, ValueError):
+            continue
+    lu = _TEMP_UDISKS.get(platte)
+    if lu and time.time() - lu[0] < 60:
+        return lu[1]
+    wert = None
+    drive = _udisks_prop("/org/freedesktop/UDisks2/block_devices/" + platte, _UDISKS + ".Block", "Drive")
+    if drive and drive != "/":
+        for iface, prop in ((_UDISKS + ".Drive.Ata", "SmartTemperature"), (_UDISKS + ".NVMe.Controller", "SmartTemperature")):
+            kelvin = _udisks_prop(drive, iface, prop)
+            if isinstance(kelvin, (int, float)) and kelvin > 0:
+                wert = round(kelvin - 273.15, 1)
+                break
+    _TEMP_UDISKS[platte] = (time.time(), wert)
+    return wert
+
+
+def temperatur_stufe(platte, grad):
+    """ok / warn / hot : Festplatten (drehend) vertragen weniger als SSDs und NVMe."""
+    try:
+        with open("/sys/block/%s/queue/rotational" % platte) as f:
+            dreht = f.read().strip() == "1"
+    except OSError:
+        dreht = False
+    warn, heiss = (45, 55) if dreht else (65, 75)
+    return "hot" if grad >= heiss else ("warn" if grad >= warn else "ok")
+
+
 def pin_infos(pins):
     """Für die Anzeige : Standard-Name und -Symbol ergänzen, 'exists' = Ordner gerade erreichbar (USB-Stick steckt?)."""
     res = []
@@ -1560,6 +1617,8 @@ class Backend(QObject):
     printersChanged = pyqtSignal()
     ioChanged = pyqtSignal()
     pinsChanged = pyqtSignal()
+    tempChanged = pyqtSignal()
+    tempUpdated = pyqtSignal(dict)
     dirsListed = pyqtSignal(str, list)
     ioUpdated = pyqtSignal(dict)
     raiseRequested = pyqtSignal()   # ein zweiter Start soll das vorhandene Fenster nach vorn holen
@@ -1587,6 +1646,9 @@ class Backend(QObject):
         threading.Thread(target=self._printLoop, daemon=True).start()
         self._io = {}
         self.ioUpdated.connect(self._setIo)
+        self._temps = {}
+        self.tempUpdated.connect(self._setTemps)
+        threading.Thread(target=self._tempLoop, daemon=True).start()
         self._pins = load_pins()
         self._pinInfos = pin_infos(self._pins)
         threading.Thread(target=self._ioLoop, daemon=True).start()
@@ -1594,6 +1656,32 @@ class Backend(QObject):
     @pyqtProperty("QVariantList", notify=disksChanged)
     def disks(self):
         return self._disks
+
+    @pyqtProperty("QVariantMap", notify=tempChanged)
+    def temps(self):
+        return self._temps
+
+    def _setTemps(self, neu):
+        if neu != self._temps:
+            self._temps = neu
+            self.tempChanged.emit()
+
+    def _tempLoop(self):
+        # festplattenTemperatur : alle 5 s ; nur ein Signal, wenn sich ein (gerundeter) Wert oder eine Stufe ändert
+        while True:
+            res = {}
+            for d in list(self._disks):
+                if d.get("isOptical"):
+                    continue
+                try:
+                    platte = basis_platte(os.path.basename(os.path.realpath(d["device"])))
+                    grad = platten_temperatur(platte)
+                except Exception:
+                    grad = None
+                if grad is not None:
+                    res[d["device"]] = {"c": grad, "level": temperatur_stufe(platte, grad)}
+            self.tempUpdated.emit(res)
+            time.sleep(5)
 
     @pyqtProperty("QVariantList", notify=pinsChanged)
     def pins(self):
@@ -2691,6 +2779,16 @@ QQC2.ApplicationWindow {
                 }
                 QQC2.Label { text: win.trad("Device:"); opacity: 0.75 }
                 QQC2.Label { text: win.propsDisk.device || ""; Layout.fillWidth: true }
+                QQC2.Label {
+                    visible: backend.temps[win.propsDisk.device || ""] !== undefined
+                    text: win.trad("Temperature:")
+                    opacity: 0.75
+                }
+                QQC2.Label {
+                    visible: backend.temps[win.propsDisk.device || ""] !== undefined
+                    text: visible ? backend.temps[win.propsDisk.device].c.toFixed(1).replace(".", trDecimal) + " °C" : ""
+                    Layout.fillWidth: true
+                }
             }
 
             Kirigami.Separator { Layout.fillWidth: true }
@@ -3944,7 +4042,39 @@ QQC2.ApplicationWindow {
                                         Layout.alignment: Qt.AlignVCenter
                                         spacing: 5
 
-                                        QQC2.Label { text: modelData.label; Layout.bottomMargin: 2; Layout.fillWidth: true }   // texteLecteur
+                                        RowLayout {   // texteLecteur : Name und Temperatur-Chip
+                                            Layout.fillWidth: true
+                                            Layout.bottomMargin: 2
+                                            spacing: 6
+                                            QQC2.Label { text: modelData.label; Layout.fillWidth: true; elide: Text.ElideRight }
+                                            // festplattenTemperatur : Chip, nur wenn ein Sensor einen Wert liefert (NVMe, SATA mit drivetemp, SMART über udisks)
+                                            Rectangle {
+                                                id: tempChip
+                                                readonly property var t: backend.temps[modelData.device]
+                                                readonly property color tone: t === undefined ? "transparent"
+                                                        : (t.level === "hot" ? win.gaugeRed : (t.level === "warn" ? Kirigami.Theme.neutralTextColor : Kirigami.Theme.textColor))
+                                                visible: t !== undefined
+                                                radius: height / 2
+                                                implicitHeight: tempText.implicitHeight + 2
+                                                implicitWidth: tempText.implicitWidth + 12
+                                                color: Qt.rgba(tone.r, tone.g, tone.b, t !== undefined && t.level !== "ok" ? 0.16 : 0.08)
+                                                border.width: 1
+                                                border.color: Qt.rgba(tone.r, tone.g, tone.b, t !== undefined && t.level !== "ok" ? 0.55 : 0.25)
+                                                Behavior on color { ColorAnimation { duration: 300 } }
+                                                QQC2.Label {
+                                                    id: tempText
+                                                    anchors.centerIn: parent
+                                                    text: tempChip.t !== undefined ? Math.round(tempChip.t.c) + " °C" : ""
+                                                    font.pointSize: Kirigami.Theme.smallFont.pointSize
+                                                    font.weight: Font.DemiBold
+                                                    color: tempChip.tone
+                                                }
+                                                HoverHandler { id: tempHover }
+                                                QQC2.ToolTip.visible: tempHover.hovered
+                                                QQC2.ToolTip.delay: 300
+                                                QQC2.ToolTip.text: tempChip.t !== undefined ? win.trad("Temperature") + ": " + tempChip.t.c.toFixed(1).replace(".", trDecimal) + " °C" : ""
+                                            }
+                                        }
 
                                         Rectangle {
                                             Layout.fillWidth: true

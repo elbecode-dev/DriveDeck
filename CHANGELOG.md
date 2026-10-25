@@ -24,6 +24,12 @@ hidden and everything else works).
   the card shows a badge such as "⚠ 90 %" with the tooltip "Almost full". German text included. (A ribbon button with a
   slider to change the level was built and removed again: it did not fit the design.)
 
+- **Disk temperature.** A small chip with the current temperature (e.g. "46 °C") sits next to the name on the drive
+  cards, and the *Properties* window shows it with one decimal. A background thread reads it every 5 seconds from the
+  kernel sensor (`/sys/block/<disk>/device/hwmon*/temp1_input`: NVMe, and SATA drives with the `drivetemp` module);
+  without such a sensor it asks udisks for the SMART value (cached for a minute). Partitions, LUKS/LVM volumes and
+  unmounted volumes are mapped to the physical disk. The chip turns amber and red from 45 / 55 °C for spinning disks
+  and from 65 / 75 °C for SSDs and NVMe drives. Drives without any sensor (many USB enclosures) simply show no chip.
 - **Jump to the matching System Settings page.** Double-click (or right-click → *Open settings*) on a device card in
   *Printers and devices* opens System Settings directly at the right module: game controller → `kcm_gamecontroller`,
   keyboard → `kcm_keyboard`, mouse → `kcm_mouse`, touchpad → `kcm_touchpad`, graphics tablet → `kcm_tablet`. Printers keep
