@@ -119,6 +119,11 @@ EXTRA_DE = {
     "Move up": "Nach oben",
     "Move down": "Nach unten",
     "Drag folders here to pin them": "Ordner hierher ziehen, um sie anzuheften",
+    "Tools": "Werkzeuge",
+    "Terminal": "Terminal",
+    "System monitor": "Systemmonitor",
+    "Analyze storage": "Speicher analysieren",
+    "Cannot start tool": "Programm lässt sich nicht starten",
 }
 
 
@@ -1638,6 +1643,25 @@ def lire_derniere_version():
         return None
 
 
+# werkzeuge : externe Programme der Ribbon-Gruppe « Tools » ; je Aufgabe das erste vorhandene (GUI vor Terminal).
+# (Programm, läuft im Terminal?, Argumente vor dem Pfad)
+WERKZEUGE = {
+    "monitor": (("plasma-systemmonitor", False, []), ("btop", True, []), ("htop", True, [])),
+    "analyze": (("filelight", False, []), ("baobab", False, []), ("ncdu", True, ["-x"])),   # -x : nur dieses Laufwerk
+}
+
+
+def werkzeug_waehlen(art):
+    """Erstes installiertes Programm für diese Aufgabe : (Name, im Terminal?, Argumente) oder None."""
+    return next((w for w in WERKZEUGE.get(art, ()) if shutil.which(w[0])), None)
+
+
+def terminal_befehle(argv, cwd):
+    """Mögliche Aufrufe, um argv in einem Terminalfenster zu starten (Konsole zuerst)."""
+    return (["konsole", "--workdir", cwd, "-e", *argv], ["xdg-terminal-exec", *argv],
+            ["x-terminal-emulator", "-e", *argv])
+
+
 IO_FENSTER = 60   # ioVerlauf : Sekunden an Verlauf pro Laufwerk
 SECTEUR = 512     # /proc/diskstats zählt immer in Sektoren zu 512 Bytes
 
@@ -1762,6 +1786,45 @@ class Backend(QObject):
     @pyqtProperty("QVariantList", notify=disksChanged)
     def disks(self):
         return self._disks
+
+    @pyqtProperty("QVariantMap", constant=True)
+    def tools(self):
+        """Welche Werkzeug-Schaltflächen es gibt : nur Programme, die auf diesem Rechner installiert sind."""
+        return {"terminal": any(shutil.which(c) for c in ("konsole", "xdg-terminal-exec", "x-terminal-emulator")),
+                "monitor": werkzeug_waehlen("monitor") is not None,
+                "analyze": werkzeug_waehlen("analyze") is not None}
+
+    @pyqtSlot(str, str)
+    def launchTool(self, art, path):
+        """Startet ein Werkzeug : Terminal, Systemmonitor oder Speicheranalyse (für path, sonst der persönliche Ordner)."""
+        titre = tr("Cannot start tool")
+        if art == "terminal":
+            self.openTerminal(path or os.path.expanduser("~"))
+            return
+        w = werkzeug_waehlen(art)
+        if w is None:
+            self.messageRequested.emit(titre, tr("Program not found"))
+            return
+        prog, im_terminal, optionen = w
+        argv = [prog, *optionen]
+        cwd = os.path.expanduser("~")
+        if art == "analyze":
+            ziel = path or cwd   # bewusst ohne chemin_affiche : « / » soll wirklich « / » untersuchen
+            if not os.path.isdir(ziel):
+                self.messageRequested.emit(titre, tr("Folder not found"))
+                return
+            argv.append(ziel)
+            cwd = ziel
+        for cmd in (terminal_befehle(argv, cwd) if im_terminal else [argv]):
+            try:
+                lancer(cmd, cwd=cwd)
+                return
+            except FileNotFoundError:
+                continue
+            except OSError as e:
+                self.messageRequested.emit(titre, str(e))
+                return
+        self.messageRequested.emit(titre, tr("No terminal program found"))
 
     @pyqtProperty("QVariantMap", notify=tempChanged)
     def temps(self):
@@ -3678,6 +3741,11 @@ QQC2.ApplicationWindow {
                     backend.launchApp("kinfocenter")
                 else if (a === "about")
                     aboutDialog.open()
+                else if (a === "terminal" || a === "monitor")
+                    backend.launchTool(a, "")
+                else if (a === "analyze")   // gewähltes lokales Laufwerk, sonst der persönliche Ordner
+                    backend.launchTool("analyze", (sel !== null && sel.isUnmounted !== true
+                                                   && sel.mountpoint.charAt(0) === "/") ? sel.mountpoint : "")
             }
             Rectangle {
                 anchors.fill: parent
@@ -3708,11 +3776,18 @@ QQC2.ApplicationWindow {
                                 { t: win.trad("Refresh"), i: "refresh", a: "refresh", w: 84 } ] },
                             { g: win.trad("Network"), items: [
                                 { t: win.trad("Add a network location"), i: "add", a: "add", w: 112 } ] },
+                            { g: win.trad("Tools"), items: [
+                                { t: win.trad("Terminal"), i: "utilities-terminal", a: "terminal", w: 72 },
+                                { t: win.trad("System monitor"), i: "utilities-system-monitor", a: "monitor", w: 104 },
+                                { t: win.trad("Analyze storage"), i: "filelight", a: "analyze", w: 90 } ] },
                             { g: win.trad("System"), items: [
                                 { t: win.trad("System Settings"), i: "settings", a: "settings", w: 100 },
                                 { t: win.trad("System information"), i: "info", a: "info", w: 100 },
                                 { t: win.trad("About"), i: "about", a: "about", w: 84 } ] }
-                        ]
+                        // Schaltflächen nur für installierte Programme ; Gruppen ohne Schaltfläche entfallen
+                        ].map(function(g) {
+                            return { g: g.g, items: g.items.filter(function(x) { return backend.tools[x.a] !== false }) }
+                        }).filter(function(g) { return g.items.length > 0 })
                         delegate: RowLayout {
                             id: grp
                             Layout.fillHeight: true
@@ -3952,6 +4027,13 @@ QQC2.ApplicationWindow {
                         text: win.trad("Open in terminal")
                         icon.name: "utilities-terminal"
                         onTriggered: backend.openTerminal(rowMenu.t.path)
+                    }
+                    QQC2.MenuItem {
+                        text: win.trad("Analyze storage")
+                        icon.name: "filelight"
+                        visible: backend.tools.analyze
+                        height: visible ? implicitHeight : 0
+                        onTriggered: backend.launchTool("analyze", rowMenu.t.path)
                     }
                     QQC2.MenuItem {
                         text: win.trad("Copy path")
@@ -4297,6 +4379,13 @@ QQC2.ApplicationWindow {
                                         onTriggered: backend.openTerminal(modelData.path)
                                     }
                                     QQC2.MenuItem {
+                                        text: win.trad("Analyze storage")
+                                        icon.name: "filelight"
+                                        visible: backend.tools.analyze
+                                        height: visible ? implicitHeight : 0
+                                        onTriggered: backend.launchTool("analyze", modelData.path)
+                                    }
+                                    QQC2.MenuItem {
                                         text: win.trad("Copy path")
                                         icon.name: "edit-copy"
                                         onTriggered: backend.copyPath(modelData.path)
@@ -4625,6 +4714,13 @@ QQC2.ApplicationWindow {
                                         visible: modelData.mountpoint.charAt(0) === "/"
                                         height: visible ? implicitHeight : 0
                                         onTriggered: backend.openTerminal(modelData.mountpoint)
+                                    }
+                                    QQC2.MenuItem {
+                                        text: win.trad("Analyze storage")
+                                        icon.name: "filelight"
+                                        visible: backend.tools.analyze && modelData.mountpoint.charAt(0) === "/"
+                                        height: visible ? implicitHeight : 0
+                                        onTriggered: backend.launchTool("analyze", modelData.mountpoint)
                                     }
                                     QQC2.MenuItem {
                                         text: win.trad("Copy path")

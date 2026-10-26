@@ -32,6 +32,11 @@ hidden and everything else works).
 
 ### New features
 
+- **Tools group in the ribbon.** *Terminal*, *System monitor* (`plasma-systemmonitor`, else `btop`/`htop` in a terminal)
+  and *Analyze storage* (`filelight`, else `baobab`, else `ncdu -x` in a terminal). Buttons only appear for installed
+  programs (`backend.tools`); programs are started through a fixed table (`WERKZEUGE`) via `launchTool`, never from
+  free text. *Analyze storage* is also in the right-click menu of drives, folder cards and the Quick access pane and
+  analyses exactly that path (`/` really means `/`). The ribbon, and with it the minimum window width, is wider now.
 - **Live I/O graph per drive.** A small sparkline on every mounted drive card shows read (green) and write (yellow)
   throughput of the last 60 seconds; the tooltip shows the current values (▼ read, ▲ write). A background thread
   (`_ioLoop`) reads `/proc/diskstats` once per second, turns the counter differences into bytes per second with NumPy and

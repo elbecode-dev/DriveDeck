@@ -67,8 +67,12 @@ Everything below is explained in plain words. You do **not** need to be a progra
   automatically shows up as a card marked "Not mounted". **Double-click it** (or right-click → *Mount*) and it is
   connected and opened. Tiny system partitions (boot, recovery, swap, encrypted) are hidden on purpose.
 - **More right-click options**
-  - On drives: *Mount*, *Open in terminal*, *Copy path*
+  - On drives: *Mount*, *Open in terminal*, *Analyze storage*, *Copy path* (folder cards and the Quick access pane
+    also offer *Analyze storage*)
   - On network locations: *Disconnect*, *Open in terminal*, *Copy path*
+- **Tools group.** A ribbon group with **Terminal**, **System monitor** (Plasma System Monitor, otherwise btop or htop)
+  and **Analyze storage** (Filelight, otherwise Baobab or ncdu) to find what eats your space. The analysis runs on the
+  selected local drive, or on your home folder. Buttons for programs that are not installed are hidden.
 - **Use it with the keyboard.** The arrow keys move through **everything**: folders, drives, network locations,
   printers and devices, and the sidebar. **Left** in the first column jumps into the sidebar, **Right** on a pinned folder (or
   **Tab**) comes back. In the sidebar **Right** unfolds a folder and then goes to its first sub-folder, **Left** folds it
@@ -130,7 +134,9 @@ Optional tools switch on extra features:
 | `smbclient` | Finding and adding network shares |
 | `udisksctl` | Mounting, unmounting and safely removing drives |
 | `lpstat`, `ipptool`, `avahi-browse` | Printer status and ink levels |
-| `konsole` | "Open in terminal" |
+| `konsole` | "Open in terminal", Terminal button |
+| `plasma-systemmonitor` / `btop` / `htop` | System monitor button |
+| `filelight` / `baobab` / `ncdu` | "Analyze storage" |
 | NumPy (`python-numpy`) | Live read/write graph on the drive cards |
 
 ---
