@@ -4826,8 +4826,6 @@ QQC2.ApplicationWindow {
                     backend.refreshAll()
                 else if (a === "settings")
                     backend.launchApp("systemsettings")
-                else if (a === "info")
-                    backend.launchApp("kinfocenter")
                 else if (a === "about")
                     aboutDialog.open()
                 else if (a === "specs")
@@ -4873,8 +4871,7 @@ QQC2.ApplicationWindow {
                                 { t: win.trad("Analyze storage"), i: "filelight", a: "analyze", w: 90 } ] },
                             { g: win.trad("System"), items: [
                                 { t: win.trad("System Settings"), i: "settings", a: "settings", w: 100 },
-                                { t: win.trad("System information"), i: "info", a: "info", w: 100 },
-                                { t: win.trad("System specs"), i: "specs", a: "specs", w: 84 },
+                                { t: win.trad("System information"), i: "info", a: "specs", w: 100 },
                                 { t: win.trad("About"), i: "about", a: "about", w: 84 } ] }
                         // Schaltflächen nur für installierte Programme ; Gruppen ohne Schaltfläche entfallen
                         ].map(function(g) {

@@ -32,7 +32,7 @@ hidden and everything else works).
 
 ### New features
 
-- **System specs window.** A *System specs* button in the *System* group opens a window with six tabs (*Overview*, *CPU &
+- **System specs window.** The *System information* button in the *System* group opens a window with six tabs (*Overview*, *CPU &
   Board*, *GPU & Display*, *Memory*, *System & Drivers*, *Network*). Sources: `/proc`, `/sys`, `lspci -vmmk`, `lscpu`,
   `nvidia-smi`, `glxinfo`, `vulkaninfo`, `pactl`, `pw-cli`. The sections are collected in parallel by `lade_bericht()` in a
   background thread, shown with a busy indicator and cached for the session; a missing program only removes its rows.

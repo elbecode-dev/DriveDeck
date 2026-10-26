@@ -78,7 +78,7 @@ Everything below is explained in plain words. You do **not** need to be a progra
   (about 1430 px or less); they pause while the window is minimised.
 - **Unmount.** *Unmount* in a drive's right-click menu only logs the drive out and leaves it powered on, unlike
   *Safely remove*. It is not offered for system folders (`/`, `/boot`, `/home` …) or optical drives.
-- **System specs (HWiNFO-style).** The *System specs* button opens a window with six tabs: *Overview*, *CPU & Board*
+- **System specs (HWiNFO-style).** The *System information* button opens a window with six tabs: *Overview*, *CPU & Board*
   (model, family/model/stepping, microcode, caches, governor, board, chipset, BIOS), *GPU & Display* (VRAM, driver and
   version, PCIe link, Wayland/X11, KWin, OpenGL, Vulkan), *Memory*, *System & Drivers* (kernel, key modules with versions,
   PipeWire/ALSA) and *Network* (adapters and drivers). Everything is read in the background and cached for the session.
