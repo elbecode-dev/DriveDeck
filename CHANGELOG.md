@@ -10,7 +10,7 @@ hidden and everything else works).
 
 ---
 
-## Unreleased – 2026-10-26 (DriveDeck: new name, modern look and monitoring)
+## 2.0.0-beta.1 – 2026-10-26 (DriveDeck: new name, modern look and monitoring)
 
 ### Renamed to DriveDeck
 
@@ -216,7 +216,8 @@ and the duplicate user checks in `addNetwork`.
 
 ## Suggested for the first release
 
-- Set `APP_VERSION` (e.g. `'1.2'`) and tag the release.
+- `APP_VERSION` is `'2.0.0-beta.1'` (DriveDeck is a new major version after Fenestra This PC 1.x). For the final release set
+  `'2.0.0'` and tag `v2.0.0`.
 - Keep the licence file `COPYING` (GPL-3.0) from upstream in the repository.
 - Add this file as `CHANGELOG.md` and mention in the README that the project is a fork of
   `naykkalak/fenestra-ce-pc`.

@@ -1599,9 +1599,14 @@ MAJ_INTERVALLE = 7 * 24 * 3600
 
 
 def _version_tuple(v):
-    """(1, 1) et (1, 1, 0) sont la même version : on complète par des zéros avant de comparer."""
-    t = [int(x) for x in re.findall(r"\d+", v or "")[:4]]
-    return tuple(t + [0] * (4 - len(t))) if t else ()
+    """(1, 1) et (1, 1, 0) sont la même version : on complète par des zéros avant de comparer.
+    Eine Vorabversion (2.0.0-beta.1) ist älter als 2.0.0 : (2, 0, 0, 0, 1) < (2, 0, 0, 1, 0)."""
+    kern, _, vor = (v or "").partition("-")
+    t = [int(x) for x in re.findall(r"\d+", kern)[:3]]
+    if not t:
+        return ()
+    nummer = re.findall(r"\d+", vor)
+    return tuple(t + [0] * (3 - len(t))) + ((0, int(nummer[0]) if nummer else 0) if vor else (1, 0))
 
 
 def charger_maj():
@@ -5517,7 +5522,7 @@ QQC2.ApplicationWindow {
 """
 
 
-APP_VERSION = '1.2.0-fork'
+APP_VERSION = '2.0.0-beta.1'
 APP_AUTEUR = """Original Copyright (C) 2026 naykkalak
 Modified and maintained by Christian (2026), with help from his son Leon"""
 APP_LICENCE = 'GPL-3.0-or-later'
