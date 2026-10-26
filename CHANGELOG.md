@@ -32,6 +32,14 @@ hidden and everything else works).
 
 ### New features
 
+- **System specs window.** A *System specs* button in the *System* group opens a window with six tabs (*Overview*, *CPU &
+  Board*, *GPU & Display*, *Memory*, *System & Drivers*, *Network*). Sources: `/proc`, `/sys`, `lspci -vmmk`, `lscpu`,
+  `nvidia-smi`, `glxinfo`, `vulkaninfo`, `pactl`, `pw-cli`. The sections are collected in parallel by `lade_bericht()` in a
+  background thread, shown with a busy indicator and cached for the session; a missing program only removes its rows.
+  *Copy specs* copies a compact English summary, *Export full report…* writes text or JSON (with all loaded kernel
+  modules). The RAM type, speed, slots, manufacturers and the CPU socket come from SMBIOS and need root: the button
+  *Read slot details (administrator)* runs `pkexec dmidecode` (once at a time; cancelling is silent). The VRAM type is
+  not exposed by drivers; for GDDR6X cards it is derived from the model name and labelled as such.
 - **System summary chips.** Four compact telemetry chips (CPU %, RAM used/total, Storage used/total of all mounted
   local drives, network ▲/▼ rates) in the free space right of the *Show* group. A `_statsLoop` thread reads
   `/proc/stat`, `/proc/meminfo` and `/proc/net/dev` once per second (no process is started; rates are counter
@@ -112,6 +120,11 @@ hidden and everything else works).
 
 ### Performance and robustness (review pass)
 
+- Review of the new code: invalid UTF-8 in DMI/`/proc` text no longer empties the overview (`errors="replace"`); an
+  `Unknown` RAM speed, an empty EFI variable and cache entries without `device` no longer abort a section or stall the
+  live summary; a failed read shows an error card instead of an endless spinner; only one `pkexec` prompt at a time;
+  `backend.tools` is computed once; module versions come from sysfs without a `modinfo` process per module; icon names for
+  the hardware tabs are resolved in the GUI thread; the unmount thread reports every `OSError`; CPU load is clamped to 0–100 %.
 - Background polling (drives, network, printers, temperatures, live I/O) now sleeps while the window is minimised or
   hidden and refreshes immediately when it is shown again.
 - A dead NFS/SMB mount can no longer freeze the network list: `statvfs` is limited to 4 s and never stacked.

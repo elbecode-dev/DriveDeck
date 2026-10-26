@@ -10,6 +10,8 @@ locations, printers and devices in one clean window, and it follows your Plasma 
 > faster and adds many new features under its own name. See [what is different](#whats-different-in-this-fork) below, or
 > the detailed [CHANGELOG](CHANGELOG.md).
 
+<p align="center"><img src="preview.png" alt="DriveDeck main window"></p>
+
 ---
 
 ## What the program does
@@ -76,6 +78,16 @@ Everything below is explained in plain words. You do **not** need to be a progra
   (about 1430 px or less); they pause while the window is minimised.
 - **Unmount.** *Unmount* in a drive's right-click menu only logs the drive out and leaves it powered on, unlike
   *Safely remove*. It is not offered for system folders (`/`, `/boot`, `/home` …) or optical drives.
+- **System specs (HWiNFO-style).** The *System specs* button opens a window with six tabs: *Overview*, *CPU & Board*
+  (model, family/model/stepping, microcode, caches, governor, board, chipset, BIOS), *GPU & Display* (VRAM, driver and
+  version, PCIe link, Wayland/X11, KWin, OpenGL, Vulkan), *Memory*, *System & Drivers* (kernel, key modules with versions,
+  PipeWire/ALSA) and *Network* (adapters and drivers). Everything is read in the background and cached for the session.
+  *Copy specs* copies a short summary for a forum post; *Export full report…* saves everything as text or JSON. RAM
+  slots and the CPU socket need root: the button *Read slot details (administrator)* runs `dmidecode` through `pkexec`
+  after Plasma asks for your password.
+
+<p align="center"><img src="preview-specs.png" alt="System specs window" width="640"></p>
+
 - **Tools group.** A ribbon group with **Terminal**, **System monitor** (Plasma System Monitor, otherwise btop or htop)
   and **Analyze storage** (Filelight, otherwise Baobab or ncdu) to find what eats your space. The analysis runs on the
   selected local drive, or on your home folder. Buttons for programs that are not installed are hidden.
@@ -143,6 +155,8 @@ Optional tools switch on extra features:
 | `konsole` | "Open in terminal", Terminal button |
 | `plasma-systemmonitor` / `btop` / `htop` | System monitor button |
 | `filelight` / `baobab` / `ncdu` | "Analyze storage" |
+| `lspci`, `lscpu`, `nvidia-smi`, `glxinfo`, `vulkaninfo`, `pactl` | Details in *System specs* |
+| `dmidecode` + `pkexec` | RAM slots and CPU socket in *System specs* |
 | NumPy (`python-numpy`) | Live read/write graph on the drive cards |
 
 ---

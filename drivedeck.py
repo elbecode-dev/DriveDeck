@@ -37,6 +37,7 @@ except ImportError:   # ohne QtNetwork läuft alles, nur ohne Einzelinstanz
 
 # fenestraLangues : traductions au format gettext (un dossier par langue), l'anglais sert de repli
 import gettext
+import glob
 
 # drivedeckPfade : eigener Namensraum. Die alten Orte (~/.config/fenestra, …) werden nur noch gelesen, um beim ersten
 # Start Einstellungen zu übernehmen (siehe migrer_ancienne_config) ; sie bleiben als Sicherung unverändert liegen.
@@ -121,6 +122,32 @@ EXTRA_DE = {
     "Drag folders here to pin them": "Ordner hierher ziehen, um sie anzuheften",
     "Tools": "Werkzeuge",
     "Unmount": "Aushängen",
+    "System specs": "Systemdaten",
+    "Overview": "Übersicht",
+    "CPU & Board": "CPU & Mainboard",
+    "GPU & Display": "Grafik & Anzeige",
+    "System & Drivers": "System & Treiber",
+    "Network": "Netzwerk",
+    "Export full report…": "Vollständigen Bericht exportieren…",
+    "Text report": "Textbericht",
+    "JSON report": "JSON-Bericht",
+    "Read slot details (administrator)": "Speicherbänke lesen (Administrator)",
+    "needs administrator rights": "braucht Administratorrechte",
+    "needs administrator rights – use the button below": "braucht Administratorrechte – Schaltfläche unten benutzen",
+    "Report saved": "Bericht gespeichert",
+    "Cannot save report": "Bericht lässt sich nicht speichern",
+    "Cannot read hardware details": "Hardware-Details lassen sich nicht lesen",
+    "Copy specs": "Daten kopieren",
+    "Copied to clipboard": "In die Zwischenablage kopiert",
+    "Reading hardware…": "Hardware wird gelesen…",
+    "Processor": "Prozessor",
+    "Graphics": "Grafik",
+    "Mainboard": "Hauptplatine",
+    "Memory": "Arbeitsspeicher",
+    "Sound": "Sound",
+    "{cores} cores / {threads} threads": "{cores} Kerne / {threads} Threads",
+    "{used} in use ({pct} %)": "{used} belegt ({pct} %)",
+    "driver {name}": "Treiber {name}",
     "Cannot unmount": "Aushängen nicht möglich",
     "System summary": "Systemübersicht",
     "Terminal": "Terminal",
@@ -788,7 +815,7 @@ def net_espace(loc):
 
 def _lire_texte(chemin):
     try:
-        with open(chemin, encoding="utf-8") as f:
+        with open(chemin, encoding="utf-8", errors="replace") as f:   # DMI-Texte enthalten manchmal ungültige Bytes
             return f.read()
     except OSError:
         return None
@@ -1756,12 +1783,574 @@ def speicher_summe(disks):
     """(belegt, gesamt) in Bytes über alle eingebundenen lokalen Laufwerke ; jedes Gerät nur einmal (Btrfs-Subvolumes)."""
     gesehen, belegt, gesamt = set(), 0, 0
     for d in disks:
-        if d.get("isOptical") or d.get("isUnmounted") or d["device"] in gesehen:
+        if d.get("isOptical") or d.get("isUnmounted") or d.get("device") in gesehen:
             continue
-        gesehen.add(d["device"])
+        gesehen.add(d.get("device"))
         belegt += d.get("used", 0)
         gesamt += d.get("total", 0)
     return belegt, gesamt
+
+
+def _dmi(name):
+    """Eine Zeile aus /sys/class/dmi/id (ohne Root lesbar : Mainboard und BIOS ; Seriennummern bewusst nicht)."""
+    t = _lire_texte("/sys/class/dmi/id/" + name)
+    t = (t or "").strip()
+    return "" if t.lower() in ("", "default string", "to be filled by o.e.m.", "not specified", "none") else t
+
+
+def _hersteller(v):
+    """« Advanced Micro Devices, Inc. [AMD] » -> AMD ; « NVIDIA Corporation » -> NVIDIA."""
+    k = re.search(r"\[([^\]]+)\]\s*$", v)
+    if k:
+        return k.group(1)
+    return re.sub(r"[ ,]+(Inc\.?|Corporation|Corp\.?|Co\.?,? Ltd\.?|Ltd\.?|GmbH)$", "", v.strip(), flags=re.I)
+
+
+def pci_geraete(klassen):
+    """[(Hersteller, Gerät, Treiber)] der PCI-Geräte dieser Klassen, aus « lspci -vmmk » (Klartextnamen der pci.ids)."""
+    try:
+        out = subprocess.run(["lspci", "-vmmk"], capture_output=True, text=True, timeout=5,
+                             env=dict(os.environ, LC_ALL="C")).stdout
+    except (OSError, subprocess.SubprocessError):
+        return []
+    res = []
+    for block in out.split("\n\n"):
+        f = {}
+        for ligne in block.splitlines():
+            k, _, v = ligne.partition(":\t")
+            f.setdefault(k, v.strip())
+        if f.get("Class") in klassen:
+            geraet = f.get("Device", "")
+            k = re.search(r"\[([^\]]{4,})\]\s*$", geraet)   # « AD103 [GeForce RTX 4080 SUPER] » -> der Handelsname
+            res.append((_hersteller(f.get("Vendor", "")), k.group(1) if k else geraet, f.get("Driver", "")))
+    return res
+
+
+def _cpu_info():
+    """(Modell, Kerne, Threads, max. GHz) aus /proc/cpuinfo und cpufreq."""
+    modell, threads, kerne = "", 0, set()
+    phys = kern = None
+    try:
+        with open("/proc/cpuinfo", encoding="utf-8", errors="replace") as f:
+            for ligne in f:
+                k, _, v = ligne.partition(":")
+                k, v = k.strip(), v.strip()
+                if k == "model name" and not modell:
+                    modell = re.sub(r"\s+", " ", v)
+                elif k == "processor":
+                    threads += 1
+                elif k == "physical id":
+                    phys = v
+                elif k == "core id":
+                    kern = v
+                    kerne.add((phys, kern))
+    except OSError:
+        pass
+    ghz = 0.0
+    try:
+        ghz = int(_lire_texte("/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq") or 0) / 1e6
+    except ValueError:
+        pass
+    return modell or platform_cpu(), len(kerne) or threads or (os.cpu_count() or 0), threads or (os.cpu_count() or 0), ghz
+
+
+def platform_cpu():
+    import platform
+    return platform.processor() or platform.machine()
+
+
+def _os_name():
+    for ligne in (_lire_texte("/etc/os-release") or "").splitlines():
+        if ligne.startswith("PRETTY_NAME="):
+            return ligne.split("=", 1)[1].strip().strip('"')
+    return "Linux"
+
+
+_SPECS_FEST = []   # CPU, Grafik, Mainboard, Sound, System ändern sich im Betrieb nicht : nur einmal lesen
+
+
+def lire_specs():
+    """Hardware-Übersicht als Liste von Zeilen {key, en, title, icon, lines}. Der Arbeitsspeicher wird bei jedem Aufruf
+    frisch gelesen, alles andere nur beim ersten Mal. Läuft im Hintergrund : lspci braucht einige Millisekunden."""
+    if not _SPECS_FEST:
+        modell, kerne, threads, ghz = _cpu_info()
+        cpu = [modell, tr("{cores} cores / {threads} threads").format(cores=kerne, threads=threads)
+               + ((" · %.2f GHz" % ghz).replace(".", DECIMAL) if ghz else "")]
+        gpus = [" ".join(x for x in (h, g) if x) + ((" · " + tr("driver {name}").format(name=d)) if d else "")
+                for h, g, d in pci_geraete(("VGA compatible controller", "3D controller", "Display controller"))]
+        if not gpus and shutil.which("nvidia-smi"):   # Rückfall ohne lspci
+            try:
+                out = subprocess.run(["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
+                                     capture_output=True, text=True, timeout=5).stdout
+                gpus = ["NVIDIA " + n.strip().removeprefix("NVIDIA ") for n in out.splitlines() if n.strip()]
+            except (OSError, subprocess.SubprocessError):
+                pass
+        board = " ".join(x for x in (_hersteller(_dmi("board_vendor")), _dmi("board_name")) if x)
+        bios = " · ".join(x for x in (("BIOS " + _dmi("bios_version")) if _dmi("bios_version") else "", _dmi("bios_date")) if x)
+        audio = [" ".join(x for x in (h, g) if x)
+                 for h, g, _d in pci_geraete(("Audio device", "Multimedia audio controller"))]
+        if not audio:   # Rückfall : die Karten, die ALSA kennt
+            audio = [m.group(1).strip() for m in re.finditer(r"^\s*\d+ \[[^\]]*\]: .+? - (.+)$",
+                                                         _lire_texte("/proc/asound/cards") or "", re.M)]
+        u = os.uname()
+        sitzung = {"wayland": "Wayland", "x11": "X11"}.get(os.environ.get("XDG_SESSION_TYPE", "").lower(),
+                                                           os.environ.get("XDG_SESSION_TYPE", ""))
+        system = [_os_name(), " · ".join(x for x in ("Kernel " + u.release, u.machine, sitzung,
+                                                      os.environ.get("XDG_CURRENT_DESKTOP", "")) if x)]
+        _SPECS_FEST.extend([
+            {"key": "cpu", "en": "CPU", "title": tr("Processor"), "icon": disk_icon(["cpu", "computer"]), "lines": cpu},
+            {"key": "gpu", "en": "GPU", "title": tr("Graphics"), "icon": disk_icon(["video-card", "video-display", "computer"]),
+             "lines": gpus or ["–"]},
+            {"key": "board", "en": "Mainboard", "title": tr("Mainboard"), "icon": disk_icon(["cpu", "computer"]),
+             "lines": [x for x in (board, bios) if x] or ["–"]},
+            None,   # Platz für den Arbeitsspeicher
+            {"key": "audio", "en": "Sound", "title": tr("Sound"), "icon": disk_icon(["audio-card", "audio-speakers", "computer"]),
+             "lines": audio or ["–"]},
+            {"key": "os", "en": "OS", "title": tr("System"), "icon": disk_icon(["computer", "preferences-system"]),
+             "lines": system}])
+    try:
+        gesamt, frei = lire_ram()
+        ram = {"key": "ram", "en": "RAM", "title": tr("Memory"), "icon": disk_icon(["memory", "drive-harddisk", "computer"]),
+               "lines": [taille(gesamt), tr("{used} in use ({pct} %)").format(used=taille(gesamt - frei),
+                                                                              pct=round(100 * (gesamt - frei) / gesamt))]}
+    except (OSError, KeyError, ZeroDivisionError):
+        ram = {"key": "ram", "en": "RAM", "title": tr("Memory"), "icon": "computer", "lines": ["–"]}
+    return [ram if z is None else z for z in _SPECS_FEST]
+
+
+# ---- hwinfo : ausführliche Hardware-Übersicht (Reiter im Systemdaten-Dialog) -------------------------------------------
+# Alles läuft in Hintergrund-Threads. Quellen : /proc, /sys, lspci, lscpu, nvidia-smi, glxinfo, vulkaninfo, pactl …
+# Fehlt ein Programm oder ein Wert, entfällt die Zeile. Der Bericht wird einmal pro Sitzung erstellt und zwischengespeichert.
+ENV_C = dict(os.environ, LC_ALL="C", LANG="C", LANGUAGE="C")
+
+
+def _ausgabe(cmd, timeout=6, env=ENV_C):
+    """Standardausgabe eines Programms oder « » (fehlt, Zeitüberschreitung, Fehler). Wirft nie."""
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env=env).stdout or ""
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def _gruppe(titel, *paare):
+    """{title, items:[{k, v}]} ohne leere Werte ; None, wenn nichts übrig bleibt."""
+    items = [{"k": k, "v": str(v).strip()} for k, v in paare if v is not None and str(v).strip() != ""]
+    return {"title": titel, "items": items} if items else None
+
+
+def _lese(pfad):
+    return (_lire_texte(pfad) or "").strip()
+
+
+_PCIE_GEN = {"2.5": "1.0", "5.0": "2.0", "8.0": "3.0", "16.0": "4.0", "32.0": "5.0", "64.0": "6.0"}
+
+
+def pcie_info(slot):
+    """(maximal, aktuell) als Text, z. B. ('PCIe 4.0 x16', 'PCIe 1.0 x16') ; ('', '') ohne sysfs-Angaben."""
+    basis = "/sys/bus/pci/devices/" + (slot if slot.count(":") == 2 else "0000:" + slot) + "/"
+
+    def gen(speed, breite):
+        m = re.match(r"([\d.]+) GT/s", speed)
+        return ("PCIe %s x%s" % (_PCIE_GEN.get(m.group(1), "?"), breite)) if m and breite else ""
+    return (gen(_lese(basis + "max_link_speed"), _lese(basis + "max_link_width")),
+            gen(_lese(basis + "current_link_speed"), _lese(basis + "current_link_width")))
+
+
+def modul_version(name, tief=True):
+    """Version eines Kernelmoduls (sysfs, mit tief=True sonst modinfo) oder « »."""
+    v = _lese("/sys/module/%s/version" % name)
+    if not v and tief and os.path.isdir("/sys/module/" + name):
+        v = _ausgabe(["modinfo", "-F", "version", name], timeout=3).strip()
+    return v
+
+
+def pci_karten(klassen):
+    """Ausführliche PCI-Einträge dieser Klassen aus « lspci -vmmk » : Liste von Dictionaries."""
+    res = []
+    for block in _ausgabe(["lspci", "-vmmk"], timeout=5).split("\n\n"):
+        f, module = {}, []
+        for ligne in block.splitlines():
+            k, _, v = ligne.partition(":\t")
+            if k == "Module":
+                module.append(v.strip())
+            else:
+                f.setdefault(k, v.strip())
+        if f.get("Class") in klassen:
+            geraet = f.get("Device", "")
+            k = re.search(r"\[([^\]]{4,})\]\s*$", geraet)
+            res.append({"slot": f.get("Slot", ""), "hersteller": _hersteller(f.get("Vendor", "")),
+                        "modell": k.group(1) if k else geraet, "roh": geraet,
+                        "unter": " ".join(x for x in (_hersteller(f.get("SVendor", "")), f.get("SDevice", "")) if x),
+                        "treiber": f.get("Driver", ""), "module": module})
+    return res
+
+
+_FAEHIGKEITEN = (("sse4_2", "SSE4.2"), ("avx", "AVX"), ("avx2", "AVX2"), ("avx512f", "AVX-512"), ("aes", "AES-NI"),
+                 ("fma", "FMA3"), ("sha_ni", "SHA"), ("svm", "AMD-V"), ("vmx", "Intel VT-x"), ("amx_tile", "AMX"))
+
+
+def _chipsatz(board):
+    """Chipsatz aus dem Boardnamen geraten (« MPG X570 GAMING … » -> X570) ; Linux liest ihn nicht direkt aus."""
+    m = re.search(r"\b((?:[ABHQWXZ]\d{2,3}[A-Z]?)|TRX40|WRX80|X\d{3}E?|B\d{3}E?|Z\d{3}|H\d{3}|Q\d{3}|W\d{3})\b", board or "")
+    return m.group(1) if m else ""
+
+
+def _agesa():
+    m = re.search(r"AGESA[^\n]{0,60}", _ausgabe(["dmesg"], timeout=4))
+    return m.group(0).strip() if m else ""
+
+
+def _secure_boot():
+    if not os.path.isdir("/sys/firmware/efi"):
+        return "Legacy BIOS"
+    try:
+        with open("/sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d2-aa0d-00e098032b8c", "rb") as f:
+            return "UEFI · Secure Boot " + ("on" if f.read()[-1] == 1 else "off")
+    except (OSError, IndexError):
+        return "UEFI"
+
+
+def parse_dmidecode(text):
+    """dmidecode-Ausgabe -> {memory:[Slots], array:{…}, processor:{…}} (nur die Felder, die wir anzeigen)."""
+    res = {"memory": [], "array": {}, "processor": {}}
+    for block in text.split("\n\n"):
+        zeilen = block.strip().splitlines()
+        if zeilen and zeilen[0].startswith("Handle "):   # echte Ausgabe : « Handle 0x0041, DMI type 17, 92 bytes » vor dem Titel
+            zeilen = zeilen[1:]
+        if not zeilen:
+            continue
+        f = {}
+        for ligne in zeilen[1:]:
+            k, _, v = ligne.strip().partition(":")
+            if v:
+                f.setdefault(k.strip(), v.strip())
+        if zeilen[0].startswith("Memory Device"):
+            res["memory"].append(f)
+        elif zeilen[0].startswith("Physical Memory Array"):
+            res["array"] = f
+        elif zeilen[0].startswith("Processor Information") and not res["processor"]:
+            res["processor"] = f
+    return res
+
+
+_DMI = {"daten": None}   # dmidecode-Ergebnis : ohne Root nicht lesbar ; erst nach « mit Administratorrechten lesen »
+
+
+def _dmi_ohne_root():
+    if shutil.which("dmidecode"):
+        d = parse_dmidecode(_ausgabe(["dmidecode", "-t", "4", "-t", "16", "-t", "17"], timeout=5))
+        if d["memory"]:
+            _DMI["daten"] = d
+
+
+def sammle_cpu():
+    lc = {}
+    for ligne in _ausgabe(["lscpu"]).splitlines():
+        k, _, v = ligne.partition(":")
+        lc.setdefault(k.strip(), v.strip())
+    ci, flags = {}, set()
+    for ligne in (_lire_texte("/proc/cpuinfo") or "").split("\n\n")[0].splitlines():
+        k, _, v = ligne.partition(":")
+        ci[k.strip()] = v.strip()
+    flags = set(ci.get("flags", "").split())
+    fam, mod, step = ci.get("cpu family", ""), ci.get("model", ""), ci.get("stepping", "")
+    fms = ""
+    if fam.isdigit() and mod.isdigit():
+        fms = "Family %s (0x%X) · Model %s (0x%X) · Stepping %s" % (fam, int(fam), mod, int(mod), step)
+    cpu = "/sys/devices/system/cpu/cpu0/cpufreq/"
+    mhz = lambda t: ("%.2f GHz" % (float(t) / 1000)).replace(".", DECIMAL) if re.match(r"^[\d.]+$", t or "") else ""
+    dmi = (_DMI["daten"] or {}).get("processor", {})
+    socket_ = dmi.get("Upgrade") or dmi.get("Socket Designation") or (tr("needs administrator rights") if not _DMI["daten"] else "")
+    boost = _lese("/sys/devices/system/cpu/cpufreq/boost")
+    khz = lambda p: ("%.2f GHz" % (int(_lese(p)) / 1e6)).replace(".", DECIMAL) if _lese(p).isdigit() else ""
+    return [
+        _gruppe("Processor", ("Model", ci.get("model name")), ("Vendor", lc.get("Vendor ID")),
+                ("Architecture", lc.get("Architecture")), ("Family / Model / Stepping", fms),
+                ("Microcode", ci.get("microcode")), ("Socket", socket_),
+                ("Sockets · cores per socket · threads per core",
+                 " · ".join(x for x in (lc.get("Socket(s)"), lc.get("Core(s) per socket"), lc.get("Thread(s) per core")) if x)),
+                ("Logical CPUs", lc.get("CPU(s)")), ("Max. clock", mhz(lc.get("CPU max MHz"))),
+                ("Min. clock", mhz(lc.get("CPU min MHz"))),
+                ("Instruction sets", ", ".join(n for k, n in _FAEHIGKEITEN if k in flags)),
+                ("Virtualization", lc.get("Virtualization"))),
+        _gruppe("Cache", ("L1 data", lc.get("L1d cache")), ("L1 instruction", lc.get("L1i cache")),
+                ("L2", lc.get("L2 cache")), ("L3", lc.get("L3 cache"))),
+        _gruppe("Power management", ("Scaling driver", _lese(cpu + "scaling_driver")),
+                ("Governor", _lese(cpu + "scaling_governor")),
+                ("Energy performance preference", _lese(cpu + "energy_performance_preference")),
+                ("Available governors", _lese(cpu + "scaling_available_governors").replace(" ", ", ")),
+                ("Scaling range", " – ".join(x for x in (khz(cpu + "scaling_min_freq"), khz(cpu + "scaling_max_freq")) if x)),
+                ("Boost", {"1": "enabled", "0": "disabled"}.get(boost, ""))),
+    ]
+
+
+def sammle_board():
+    vendor, name = _dmi("board_vendor"), _dmi("board_name")
+    return [
+        _gruppe("Mainboard", ("Manufacturer", vendor), ("Model", name), ("Version", _dmi("board_version")),
+                ("Chipset (from the model name)", _chipsatz(name))),
+        _gruppe("BIOS / UEFI", ("Vendor", _dmi("bios_vendor")), ("Version", _dmi("bios_version")),
+                ("Date", _dmi("bios_date")), ("Release", _dmi("bios_release")), ("Boot mode", _secure_boot()),
+                ("AGESA / firmware", _agesa() or "not exposed by the kernel")),
+        _gruppe("System", ("Manufacturer", _dmi("sys_vendor")), ("Product", _dmi("product_name")),
+                ("Family", _dmi("product_family")), ("Chassis type", _dmi("chassis_type"))),
+    ]
+
+
+_VRAM_GDDR6X = re.compile(r"RTX (3070 Ti|3080|3090|4070|4080|4090)")
+
+
+def sammle_gpu():
+    karten = pci_karten(("VGA compatible controller", "3D controller", "Display controller"))
+    smi = []   # NVIDIA : eine Zeile je Karte, in PCI-Reihenfolge
+    if shutil.which("nvidia-smi"):
+        for z in _ausgabe(["nvidia-smi", "--query-gpu=driver_version,memory.total,vbios_version,power.limit,"
+                           "clocks.max.graphics,clocks.max.memory", "--format=csv,noheader,nounits"]).splitlines():
+            smi.append([x.strip() for x in z.split(",")])
+    nvidia_runde = 0
+    res = []
+    nv_version = _lese("/proc/driver/nvidia/version").splitlines()[:1]
+    for k in karten:
+        titel = "GPU " + k["slot"]
+        hersteller = k["hersteller"]
+        vram = vram_typ = ""
+        treiber_v = modul_version(k["treiber"]) if k["treiber"] else ""
+        mehr = []
+        if "nvidia" in k["treiber"].lower() and nvidia_runde < len(smi) and len(smi[nvidia_runde]) >= 6:
+            drv, mem, vbios, watt, mclk, memclk = smi[nvidia_runde]
+            nvidia_runde += 1
+            treiber_v = drv or treiber_v
+            vram = ("%s GB (%s MiB)" % (round(int(mem) / 1024, 1), mem)) if mem.isdigit() else ""
+            mehr = [("VBIOS", vbios), ("Power limit", (watt.split(".")[0] + " W") if watt not in ("", "[N/A]") else ""),
+                    ("Max. GPU clock", (mclk + " MHz") if mclk.isdigit() else ""),
+                    ("Max. memory clock", (memclk + " MHz") if memclk.isdigit() else "")]
+            if nv_version:
+                mehr.append(("Kernel module", re.sub(r"\s+", " ", nv_version[0]).replace("NVRM version: ", "")))
+        else:   # amdgpu u. a. : der Treiber meldet den Videospeicher in sysfs
+            vt = _lese("/sys/bus/pci/devices/0000:%s/mem_info_vram_total" % k["slot"]) if k["slot"].count(":") == 1 else ""
+            vram = ("%s GB" % round(int(vt) / 2 ** 30, 1)) if vt.isdigit() else ""
+        if _VRAM_GDDR6X.search(k["modell"]):
+            vram_typ = "GDDR6X (from the model name)"
+        pmax, paktuell = pcie_info(k["slot"])
+        res.append(_gruppe(titel, ("Model", (hersteller + " " + k["modell"]).strip()), ("Subsystem", k["unter"]),
+                           ("VRAM", vram), ("VRAM type", vram_typ or "not exposed by the driver"),
+                           ("Kernel driver", (k["treiber"] + (" " + treiber_v if treiber_v else "")).strip()),
+                           ("Available modules", ", ".join(k["module"])), *mehr,
+                           ("PCIe link (max.)", pmax), ("PCIe link (now)", paktuell + (" – idle power state may lower it" if paktuell and paktuell != pmax else ""))))
+    return res
+
+
+def sammle_display():
+    sitzung = {"wayland": "Wayland", "x11": "X11"}.get(os.environ.get("XDG_SESSION_TYPE", "").lower(),
+                                                       os.environ.get("XDG_SESSION_TYPE", ""))
+    desktop = os.environ.get("XDG_CURRENT_DESKTOP", "")
+    kwin = plasma = ""
+    if "KDE" in desktop:
+        for prog in ("kwin_wayland" if sitzung == "Wayland" else "kwin_x11", "kwin_wayland", "kwin_x11"):
+            m = re.search(r"(\d+\.\d+[\d.]*)", _ausgabe([prog, "--version"], timeout=4)) if shutil.which(prog) else None
+            if m:
+                kwin = "KWin " + m.group(1) + " (" + prog + ")"
+                break
+        m = re.search(r"(\d+\.\d+[\d.]*)", _ausgabe(["plasmashell", "--version"], timeout=4)) if shutil.which("plasmashell") else None
+        plasma = "Plasma " + m.group(1) if m else ""
+    gl, vk = {}, ""
+    if shutil.which("glxinfo"):
+        for ligne in _ausgabe(["glxinfo", "-B"], timeout=8, env=dict(os.environ, LC_ALL="C")).splitlines():
+            k, _, v = ligne.partition(": ")
+            if k.startswith("OpenGL"):
+                gl.setdefault(k.strip(), v.strip())
+    vulkan = []
+    if shutil.which("vulkaninfo"):
+        out = _ausgabe(["vulkaninfo", "--summary"], timeout=10)
+        m = re.search(r"Vulkan Instance Version:\s*(\S+)", out)
+        vk = m.group(1) if m else ""
+        for b in re.split(r"\nGPU\d+:", out)[1:]:
+            def feld(n, b=b):
+                mm = re.search(r"^\s*%s\s*=\s*(.+)$" % n, b, re.M)
+                return mm.group(1).strip() if mm else ""
+            vulkan.append((feld("deviceName"), "API %s · %s %s" % (feld("apiVersion"), feld("driverName"), feld("driverInfo"))))
+    ausgaenge = []
+    for d in sorted(glob.glob("/sys/class/drm/card*-*")):
+        if _lese(d + "/status") == "connected":
+            modes = (_lire_texte(d + "/modes") or "").split("\n")[0].strip()
+            ausgaenge.append((os.path.basename(d).split("-", 1)[1], (modes + " (preferred mode)") if modes else "connected"))
+    return [
+        _gruppe("Display server", ("Session type", sitzung), ("Desktop", desktop), ("Compositor", kwin), ("Plasma", plasma)),
+        _gruppe("OpenGL", ("Renderer", gl.get("OpenGL renderer string")), ("Vendor", gl.get("OpenGL vendor string")),
+                ("Core profile", gl.get("OpenGL core profile version string")),
+                ("Compatibility", gl.get("OpenGL version string")), ("OpenGL ES", gl.get("OpenGL ES profile version string"))),
+        _gruppe("Vulkan", ("Instance version", vk), *vulkan),
+        _gruppe("Outputs", *ausgaenge),
+    ]
+
+
+def sammle_ram():
+    gesamt, frei = lire_ram()
+    swap = 0
+    for ligne in (_lire_texte("/proc/meminfo") or "").splitlines():
+        if ligne.startswith("SwapTotal:"):
+            swap = int(ligne.split()[1]) * 1024
+    zram = "zram" in (_lire_texte("/proc/swaps") or "")
+    gruppen = [_gruppe("Memory", ("Installed (usable)", taille(gesamt)), ("Swap", (taille(swap) + (" (zram)" if zram else "")) if swap else "none"))]
+    d = _DMI["daten"]
+    if d:
+        slots = []
+        erste = next((m for m in d["memory"] if m.get("Size", "").lower() not in ("no module installed", "")), {})
+        for m in d["memory"]:
+            groesse = m.get("Size", "")
+            if groesse.lower() in ("no module installed", ""):
+                slots.append((m.get("Locator", "?"), "empty"))
+                continue
+            zahl = re.search(r"(\d+)", m.get("Configured Memory Speed", m.get("Configured Clock Speed", "")))   # « Unknown » -> None
+            gk = "%s MT/s" % (zahl.group(1) if zahl else "0")
+            slots.append((m.get("Locator", "?") + (" (%s)" % m["Bank Locator"] if m.get("Bank Locator") else ""),
+                          " · ".join(x for x in (groesse, m.get("Type"), m.get("Speed", "") + (" (running " + gk + ")" if gk != "0 MT/s" else ""),
+                                                 m.get("Manufacturer"), m.get("Part Number", "").strip(), m.get("Form Factor"),
+                                                 ("rank " + m["Rank"]) if m.get("Rank") else "") if x and x not in ("Unknown",))))
+        a = d["array"]
+        gruppen.append(_gruppe("Memory controller", ("Type", erste.get("Type")), ("Speed", erste.get("Speed")),
+                               ("Running at", erste.get("Configured Memory Speed", erste.get("Configured Clock Speed"))),
+                               ("Slots", a.get("Number Of Devices")), ("Max. capacity", a.get("Maximum Capacity")),
+                               ("Error correction", a.get("Error Correction Type"))))
+        gruppen.append(_gruppe("Memory modules", *slots))
+    else:
+        gruppen.append(_gruppe("Memory modules", ("Slots, type, speed, manufacturer",
+                                                  tr("needs administrator rights – use the button below"))))
+    return gruppen
+
+
+_MODUL_GRUPPEN = (
+    ("Graphics", ("nvidia", "nvidia_drm", "nvidia_modeset", "nvidia_uvm", "amdgpu", "radeon", "i915", "xe", "nouveau")),
+    ("Storage and filesystems", ("nvme", "nvme_core", "ahci", "drivetemp", "btrfs", "ext4", "xfs", "f2fs", "ntfs3", "vfat",
+                                 "exfat", "zfs", "dm_crypt", "usb_storage", "uas")),
+    ("Audio, input and USB", ("snd_hda_intel", "snd_usb_audio", "snd_sof", "xhci_hcd", "btusb", "hid_generic", "usbhid")),
+    ("Virtualization", ("kvm", "kvm_amd", "kvm_intel", "vhost", "vboxdrv", "vfio_pci")),
+)
+
+
+def modul_liste():
+    """{Name: (Größe in Bytes, abhängige Module)} aller geladenen Kernelmodule aus /proc/modules."""
+    res = {}
+    for ligne in (_lire_texte("/proc/modules") or "").splitlines():
+        c = ligne.split()
+        if len(c) >= 3:
+            res[c[0]] = (int(c[1]), c[3].rstrip(",") if len(c) > 3 and c[3] != "-" else "")
+    return res
+
+
+def sammle_system():
+    u = os.uname()
+    ver = _lese("/proc/version")
+    comp = re.search(r"\(((?:gcc|clang)[^)]*)\)", ver)
+    bau = re.search(r"#\d+\s+(.*)$", ver)
+    module = modul_liste()
+    gruppen = [
+        _gruppe("Operating system", ("Distribution", _os_name()), ("Init", (_ausgabe(["systemctl", "--version"]).splitlines() or [""])[0])),
+        _gruppe("Kernel", ("Release", u.release), ("Architecture", u.machine), ("Compiler", comp.group(1) if comp else ""),
+                ("Build", bau.group(1) if bau else ""), ("Loaded modules", len(module))),
+    ]
+    for titel, namen in _MODUL_GRUPPEN:
+        zeilen = []
+        for n in namen:
+            if n in module:
+                v = modul_version(n, tief=False)   # ein modinfo-Prozess pro Modul wäre hier zu teuer
+                zeilen.append((n, " · ".join(x for x in (("version " + v) if v else "", "%d KB" % (module[n][0] // 1024),
+                                                         ("used by " + module[n][1].replace(",", ", ")) if module[n][1] else "") if x)))
+            elif os.path.isdir("/sys/module/" + n):
+                zeilen.append((n, "built into the kernel"))
+        gruppen.append(_gruppe(titel + " (modules)", *zeilen))
+    pw = re.search(r"Linked with libpipewire (\S+)", _ausgabe(["pw-cli", "--version"], timeout=4)) if shutil.which("pw-cli") else None
+    pa = re.search(r"Server Name:\s*(.+)", _ausgabe(["pactl", "info"], timeout=4)) if shutil.which("pactl") else None
+    wp = re.search(r"(\d+\.\d+[\d.]*)", _ausgabe(["wireplumber", "--version"], timeout=4)) if shutil.which("wireplumber") else None
+    alsa = _lese("/proc/asound/version").replace("Advanced Linux Sound Architecture Driver Version", "").strip(" .")
+    karten = [(m.group(1), m.group(2).strip()) for m in
+              re.finditer(r"^\s*(\d+) \[[^\]]*\]:\s*(.+?)\s*$", _lire_texte("/proc/asound/cards") or "", re.M)]
+    gruppen.append(_gruppe("Audio subsystem", ("ALSA kernel driver", alsa), ("PipeWire", pw.group(1) if pw else ""),
+                           ("WirePlumber", wp.group(1) if wp else ""), ("Pulse server", pa.group(1) if pa else ""),
+                           *[("Sound card " + n, t) for n, t in karten]))
+    return gruppen
+
+
+def sammle_netz():
+    gruppen = []
+    for k in pci_karten(("Ethernet controller", "Network controller", "Wireless controller")):
+        v = modul_version(k["treiber"]) if k["treiber"] else ""
+        pmax, pnow = pcie_info(k["slot"])
+        gruppen.append(_gruppe("Adapter " + k["slot"], ("Model", (k["hersteller"] + " " + k["modell"]).strip()),
+                               ("Subsystem", k["unter"]),
+                               ("Kernel driver", (k["treiber"] + (" " + v if v else "")).strip()),
+                               ("Available modules", ", ".join(k["module"])), ("PCIe link", pnow or pmax)))
+    zeilen = []
+    try:
+        namen = sorted(os.listdir("/sys/class/net"))
+    except OSError:
+        namen = []
+    for n in namen:
+        basis = "/sys/class/net/" + n
+        if not os.path.exists(basis + "/device"):   # lo, Bridges, VPN und virtuelle Adapter haben kein Gerät dahinter
+            continue
+        treiber = os.path.basename(os.path.realpath(basis + "/device/driver")) if os.path.exists(basis + "/device/driver") else ""
+        sp = _lese(basis + "/speed")
+        zeilen.append((n + (" (Wi-Fi)" if os.path.exists(basis + "/wireless") else " (Ethernet)"),
+                       " · ".join(x for x in (("driver " + treiber) if treiber else "", _lese(basis + "/operstate"),
+                                              (sp + " Mb/s") if sp.isdigit() and int(sp) > 0 else "") if x)))
+    gruppen.append(_gruppe("Interfaces", *zeilen))
+    return gruppen
+
+
+_BERICHT = [None]
+_BERICHT_SPERRE = threading.Lock()
+
+
+def _sicher(fn):
+    try:
+        return [g for g in fn() if g]
+    except Exception as e:   # ein ungewohntes Format darf nur seinen Abschnitt kosten, nicht den ganzen Bericht
+        print("[drivedeck] systemdaten %s :" % fn.__name__, e)
+        return []
+
+
+def lade_bericht(neu=False):
+    """Vollständiger Bericht {categories, modules, needsRoot, generated}. Die Abschnitte werden parallel gelesen ;
+    das Ergebnis bleibt für die Sitzung im Speicher (die Hardware ändert sich im Betrieb nicht)."""
+    with _BERICHT_SPERRE:
+        if _BERICHT[0] is not None and not neu:
+            return _BERICHT[0]
+        if _DMI["daten"] is None:
+            _dmi_ohne_root()
+        namen = ("cpu", "board", "gpu", "display", "ram", "system", "net")
+        funktionen = (sammle_cpu, sammle_board, sammle_gpu, sammle_display, sammle_ram, sammle_system, sammle_netz)
+        with ThreadPoolExecutor(max_workers=7) as pool:
+            ergebnis = dict(zip(namen, pool.map(_sicher, funktionen)))
+        kat = lambda i, en, ic, gr: {"id": i, "en": en, "title": tr(en), "icon": disk_icon(ic), "groups": gr}
+        _BERICHT[0] = {
+            "categories": [
+                kat("cpu", "CPU & Board", ["cpu", "computer"], ergebnis["cpu"] + ergebnis["board"]),
+                kat("gpu", "GPU & Display", ["video-card", "video-display"], ergebnis["gpu"] + ergebnis["display"]),
+                kat("ram", "Memory", ["memory", "drive-harddisk"], ergebnis["ram"]),
+                kat("system", "System & Drivers", ["preferences-system", "computer"], ergebnis["system"]),
+                kat("net", "Network", ["network-wired", "network-workgroup"], ergebnis["net"])],
+            "modules": sorted(modul_liste()),
+            "needsRoot": _DMI["daten"] is None and bool(shutil.which("pkexec")) and bool(shutil.which("dmidecode")),
+            "generated": time.strftime("%Y-%m-%d %H:%M:%S"), "version": APP_VERSION}
+        return _BERICHT[0]
+
+
+def bericht_text(b):
+    """Vollständiger Bericht als Text : englische Bezeichnungen, damit er sich überall weitergeben lässt."""
+    z = ["DriveDeck system report", "Version %s · %s" % (b.get("version", ""), b.get("generated", ""))]
+    for c in b["categories"]:
+        z += ["", "=== %s ===" % c["en"]]
+        for g in c["groups"]:
+            z += ["", "[%s]" % g["title"]] + ["  %s: %s" % (i["k"], i["v"]) for i in g["items"]]
+    z += ["", "=== All loaded kernel modules (%d) ===" % len(b["modules"]), ", ".join(b["modules"]), ""]
+    return "\n".join(z)
+
+
+def specs_text(zeilen):
+    """Reiner Text zum Weitergeben (Forum, Discord) : immer englische Bezeichnungen, damit jeder sie versteht."""
+    kopf = "System specs (DriveDeck %s)" % APP_VERSION
+    return "\n".join([kopf] + ["%s: %s" % (z["en"], " — ".join(z["lines"])) for z in zeilen])
 
 
 class Backend(QObject):
@@ -1786,6 +2375,8 @@ class Backend(QObject):
     pinsUpdated = pyqtSignal(int, list)
     statsChanged = pyqtSignal()
     statsUpdated = pyqtSignal(dict)
+    specsReady = pyqtSignal(list)
+    reportReady = pyqtSignal("QVariantMap")   # nicht « dict » : das käme in QML als undurchsichtiges Python-Objekt an
 
     def __init__(self):
         super().__init__()
@@ -1797,7 +2388,18 @@ class Backend(QObject):
         self._pinGen = 0
         self.pinsUpdated.connect(self._setPinInfos)
         self._stats = {}
+        self._tools = None
+        self._privLaeuft = False
         self.statsUpdated.connect(self._setStats)
+        # Symbolnamen der Hardware-Übersicht gleich hier (GUI-Thread) auflösen : QIcon gehört nicht in Hintergrund-Threads
+        for namen in (["cpu", "computer"], ["video-card", "video-display", "computer"], ["audio-card", "audio-speakers", "computer"],
+                      ["preferences-system", "computer"], ["memory", "drive-harddisk", "computer"],
+                      ["network-wired", "network-workgroup"]):
+            disk_icon(namen)
+        self._specs = []
+        self.specsReady.connect(self._keepSpecs)
+        self._bericht = None
+        self.reportReady.connect(self._keepReport)
         self._disks = charger_cache_disques()   # sofort sichtbar, wird gleich vom Thread aktualisiert
         self._networks = charger_cache_reseau()
         self._printers = charger_cache_imprimantes()
@@ -1828,6 +2430,98 @@ class Backend(QObject):
         threading.Thread(target=self._ioLoop, daemon=True).start()
         threading.Thread(target=self._statsLoop, daemon=True).start()
 
+    @pyqtSlot()
+    def loadSpecs(self):
+        """Hardware-Übersicht im Hintergrund lesen ; die Antwort kommt als specsReady (der Dialog öffnet sofort)."""
+        def arbeit():
+            try:
+                self.specsReady.emit(lire_specs())
+            except Exception as e:   # ein unerwartetes Format darf nur den Dialog betreffen, nicht das Programm
+                print("[drivedeck] systemdaten :", e)
+                self.specsReady.emit([{"key": "error", "en": "Error", "title": tr("Cannot read hardware details"),
+                                       "icon": "dialog-warning", "lines": [str(e)]}])
+        threading.Thread(target=arbeit, daemon=True).start()
+
+    def _keepSpecs(self, zeilen):
+        self._specs = zeilen
+
+    @pyqtSlot()
+    def loadReport(self):
+        """Ausführlichen Bericht holen (Hintergrund ; nach dem ersten Mal sofort aus dem Speicher)."""
+        def arbeit():
+            try:
+                self.reportReady.emit(lade_bericht())
+            except Exception as e:
+                print("[drivedeck] bericht :", e)
+                self.reportReady.emit({"categories": [{"id": "error", "en": "Error", "title": tr("Cannot read hardware details"),
+                                                       "icon": "dialog-warning",
+                                                       "groups": [{"title": "Error", "items": [{"k": "Details", "v": str(e)}]}]}],
+                                       "modules": [], "needsRoot": False})
+        threading.Thread(target=arbeit, daemon=True).start()
+
+    def _keepReport(self, b):
+        self._bericht = b
+
+    @pyqtSlot()
+    def readPrivileged(self):
+        """Speicherbänke, Sockel & Co. brauchen Root (SMBIOS-Tabellen) : dmidecode über pkexec, nach Rückfrage von Plasma."""
+        if self._privLaeuft:
+            return
+        self._privLaeuft = True
+
+        def arbeit():
+            try:
+                lauf()
+            finally:
+                self._privLaeuft = False
+
+        def lauf():
+            titre = tr("Cannot read hardware details")
+            try:
+                r = subprocess.run(["pkexec", "dmidecode", "-t", "4", "-t", "16", "-t", "17"], capture_output=True,
+                                   text=True, timeout=180, env=ENV_C)
+            except (OSError, subprocess.SubprocessError) as e:
+                self.messageRequested.emit(titre, str(e))
+                return
+            if r.returncode == 126:   # Abbruch oder keine Berechtigung : keine Fehlermeldung nötig
+                return
+            d = parse_dmidecode(r.stdout) if r.returncode == 0 else None
+            if not d or not d["memory"]:
+                self.messageRequested.emit(titre, (r.stderr or "").strip() or "dmidecode: no memory devices in the output")
+                return
+            _DMI["daten"] = d
+            try:
+                self.reportReady.emit(lade_bericht(neu=True))
+            except Exception as e:
+                self.messageRequested.emit(titre, str(e))
+        threading.Thread(target=arbeit, daemon=True).start()
+
+    @pyqtProperty(str, constant=True)
+    def exportSuggestion(self):
+        return "file://" + os.path.join(os.path.expanduser("~"), "drivedeck-specs.txt")
+
+    @pyqtSlot(str)
+    def exportReport(self, url):
+        """Vollständigen Bericht speichern : Endung .json = JSON, sonst Text."""
+        if not self._bericht or not self._bericht.get("categories"):
+            return
+        from urllib.parse import unquote, urlparse
+        pfad = unquote(urlparse(url).path) if url.startswith("file:") else url
+        try:
+            inhalt = (json.dumps(self._bericht, ensure_ascii=False, indent=2) if pfad.lower().endswith(".json")
+                      else bericht_text(self._bericht))
+            with open(pfad, "w", encoding="utf-8") as f:
+                f.write(inhalt)
+        except (OSError, TypeError, ValueError) as e:
+            self.messageRequested.emit(tr("Cannot save report"), str(e))
+            return
+        self.messageRequested.emit(tr("Report saved"), pfad)
+
+    @pyqtSlot()
+    def copySpecs(self):
+        if self._specs:
+            QApplication.clipboard().setText(specs_text(self._specs))
+
     @pyqtProperty("QVariantMap", notify=statsChanged)
     def sysStats(self):
         """Live-Übersicht : cpu (%), ramUsed/ramTotal, up/down (Bytes/s), diskUsed/diskTotal ; leer bis zur 1. Messung."""
@@ -1853,7 +2547,7 @@ class Backend(QObject):
                     d_idle, d_ges = cpu[0] - vor[1][0], cpu[1] - vor[1][1]
                     belegt, gesamt = speicher_summe(self._disks)
                     self.statsUpdated.emit({
-                        "cpu": round(100 * (1 - d_idle / d_ges)) if d_ges > 0 else 0,
+                        "cpu": max(0, min(100, round(100 * (1 - d_idle / d_ges)))) if d_ges > 0 else 0,
                         "ramUsed": ram_gesamt - ram_frei, "ramTotal": ram_gesamt,
                         "down": max(netz[0] - vor[2][0], 0) / dt, "up": max(netz[1] - vor[2][1], 0) / dt,
                         "diskUsed": belegt, "diskTotal": gesamt})
@@ -1888,9 +2582,11 @@ class Backend(QObject):
     @pyqtProperty("QVariantMap", constant=True)
     def tools(self):
         """Welche Werkzeug-Schaltflächen es gibt : nur Programme, die auf diesem Rechner installiert sind."""
-        return {"terminal": any(shutil.which(c) for c in ("konsole", "xdg-terminal-exec", "x-terminal-emulator")),
-                "monitor": werkzeug_waehlen("monitor") is not None,
-                "analyze": werkzeug_waehlen("analyze") is not None}
+        if self._tools is None:
+            self._tools = {"terminal": any(shutil.which(c) for c in ("konsole", "xdg-terminal-exec", "x-terminal-emulator")),
+                           "monitor": werkzeug_waehlen("monitor") is not None,
+                           "analyze": werkzeug_waehlen("analyze") is not None}
+        return self._tools
 
     @pyqtSlot(str, str)
     def launchTool(self, art, path):
@@ -2536,6 +3232,9 @@ class Backend(QObject):
             return
         except subprocess.TimeoutExpired:
             self.messageRequested.emit(titre, tr("Unmounting {label} timed out.").format(label=label))
+            return
+        except OSError as e:
+            self.messageRequested.emit(titre, str(e))
             return
         if r.returncode != 0:
             detail = r.stderr.strip() or tr("unknown error")
@@ -3734,6 +4433,276 @@ QQC2.ApplicationWindow {
         }
     }
 
+    // hardwareInfo : ausführliche Hardware-Übersicht mit Reitern (Übersicht, CPU & Board, GPU & Display, Speicher, System, Netzwerk)
+    QQC2.Dialog {
+        id: hwInfoDialog
+        objectName: "hwInfoDialog"
+        modal: true
+        anchors.centerIn: QQC2.Overlay.overlay
+        title: win.trad("System specs")
+        width: Math.min(940, win.width - 40)
+        height: Math.min(660, win.height - 40)
+        property var overview: []
+        property var report: ({ categories: [] })
+        property int tab: 0
+        property bool copied: false
+        readonly property bool reportReady: report.categories !== undefined && report.categories.length > 0
+        readonly property var tabs: [{ title: win.trad("Overview"), icon: "computer" }].concat(reportReady ? report.categories : [])
+        readonly property var groups: (tab > 0 && reportReady && report.categories[tab - 1]) ? report.categories[tab - 1].groups : []
+        function startExport(suffix) {
+            hwFileDialog.suffix = suffix
+            hwFileDialog.currentFile = backend.exportSuggestion.replace(/txt$/, suffix)
+            hwFileDialog.open()
+        }
+        onAboutToShow: {
+            tab = 0
+            copied = false
+            overview = []
+            backend.loadSpecs()
+            backend.loadReport()   // beim ersten Mal ~1 s im Hintergrund, danach sofort aus dem Speicher
+        }
+        Connections {
+            target: backend
+            function onSpecsReady(zeilen) { hwInfoDialog.overview = zeilen }
+            function onReportReady(b) { hwInfoDialog.report = b }
+        }
+        Timer { id: copiedTimer; interval: 1800; onTriggered: hwInfoDialog.copied = false }
+        FileDialog {
+            id: hwFileDialog
+            property string suffix: "txt"
+            fileMode: FileDialog.SaveFile
+            title: win.trad("Export full report…")
+            defaultSuffix: suffix
+            nameFilters: [(suffix === "json" ? win.trad("JSON report") : win.trad("Text report")) + " (*." + suffix + ")"]
+            onAccepted: backend.exportReport(selectedFile.toString())
+        }
+
+        contentItem: RowLayout {
+            spacing: 12
+            // Kategorien links (wie bei HWiNFO)
+            Rectangle {
+                Layout.preferredWidth: 190
+                Layout.fillHeight: true
+                radius: 8
+                color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.05)
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 6
+                    spacing: 3
+                    Repeater {
+                        model: hwInfoDialog.tabs
+                        delegate: Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 40
+                            radius: 6
+                            readonly property bool sel: hwInfoDialog.tab === index
+                            color: sel ? Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.22)
+                                       : (tabMouse.containsMouse ? Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.07) : "transparent")
+                            border.width: sel ? 1 : 0
+                            border.color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.7)
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: 10
+                                anchors.rightMargin: 8
+                                spacing: 10
+                                Kirigami.Icon {
+                                    Layout.preferredWidth: 22
+                                    Layout.preferredHeight: 22
+                                    source: modelData.icon
+                                }
+                                QQC2.Label {
+                                    Layout.fillWidth: true
+                                    text: modelData.title
+                                    elide: Text.ElideRight
+                                    font.bold: parent.parent.sel
+                                }
+                            }
+                            MouseArea {
+                                id: tabMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: hwInfoDialog.tab = index
+                            }
+                        }
+                    }
+                    Item { Layout.fillHeight: true }
+                }
+            }
+            // Inhalt rechts
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                spacing: 8
+                readonly property bool busy: hwInfoDialog.tab === 0 ? hwInfoDialog.overview.length === 0 : !hwInfoDialog.reportReady
+                Item { Layout.fillHeight: true; visible: parent.busy }
+                QQC2.BusyIndicator {
+                    Layout.alignment: Qt.AlignHCenter
+                    visible: parent.busy
+                    running: visible
+                }
+                QQC2.Label {
+                    Layout.alignment: Qt.AlignHCenter
+                    visible: parent.busy
+                    text: win.trad("Reading hardware…")
+                    opacity: 0.7
+                }
+                Item { Layout.fillHeight: true; visible: parent.busy }
+                QQC2.ScrollView {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    visible: !parent.busy
+                    contentWidth: availableWidth
+                    clip: true
+                    ColumnLayout {
+                        width: parent.width
+                        spacing: 8
+                        // Übersicht : eine Karte je Komponente
+                        Repeater {
+                            model: hwInfoDialog.tab === 0 ? hwInfoDialog.overview : []
+                            delegate: Rectangle {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: rowCol.implicitHeight + 16
+                                radius: 8
+                                color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.05)
+                                border.width: 1
+                                border.color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.35)
+                                RowLayout {
+                                    anchors.fill: parent
+                                    anchors.margins: 8
+                                    spacing: 12
+                                    Kirigami.Icon {
+                                        Layout.preferredWidth: 32
+                                        Layout.preferredHeight: 32
+                                        Layout.alignment: Qt.AlignTop
+                                        source: modelData.icon
+                                    }
+                                    ColumnLayout {
+                                        id: rowCol
+                                        Layout.fillWidth: true
+                                        spacing: 1
+                                        QQC2.Label {
+                                            text: modelData.title.toUpperCase()
+                                            font.pointSize: Kirigami.Theme.smallFont.pointSize
+                                            font.bold: true
+                                            font.letterSpacing: 1.2
+                                            color: Kirigami.Theme.highlightColor
+                                        }
+                                        Repeater {
+                                            model: modelData.lines
+                                            delegate: QQC2.Label {
+                                                Layout.fillWidth: true
+                                                wrapMode: Text.Wrap
+                                                text: modelData
+                                                opacity: index === 0 ? 1.0 : 0.7
+                                                font.bold: index === 0
+                                                font.pointSize: index === 0 ? Kirigami.Theme.defaultFont.pointSize : Kirigami.Theme.smallFont.pointSize
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        // Detail-Reiter : eine Karte je Gruppe mit Schlüssel/Wert-Zeilen
+                        Repeater {
+                            model: hwInfoDialog.groups
+                            delegate: Rectangle {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: grpCol.implicitHeight + 20
+                                radius: 8
+                                color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.05)
+                                border.width: 1
+                                border.color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.35)
+                                ColumnLayout {
+                                    id: grpCol
+                                    anchors.fill: parent
+                                    anchors.margins: 10
+                                    spacing: 3
+                                    QQC2.Label {
+                                        text: modelData.title.toUpperCase()
+                                        font.pointSize: Kirigami.Theme.smallFont.pointSize
+                                        font.bold: true
+                                        font.letterSpacing: 1.2
+                                        color: Kirigami.Theme.highlightColor
+                                    }
+                                    Repeater {
+                                        model: modelData.items
+                                        delegate: RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 12
+                                            QQC2.Label {
+                                                Layout.preferredWidth: 210
+                                                Layout.alignment: Qt.AlignTop
+                                                text: modelData.k
+                                                wrapMode: Text.Wrap
+                                                opacity: 0.65
+                                                font: Kirigami.Theme.smallFont
+                                            }
+                                            QQC2.Label {
+                                                Layout.fillWidth: true
+                                                Layout.alignment: Qt.AlignTop
+                                                text: modelData.v
+                                                wrapMode: Text.Wrap
+                                                font.bold: true
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        // Speicherbänke und Sockel brauchen Root : nur auf Wunsch, mit Rückfrage von Plasma
+                        QQC2.Button {
+                            visible: (hwInfoDialog.tab === 1 || hwInfoDialog.tab === 3) && hwInfoDialog.report.needsRoot === true
+                            icon.name: "dialog-password"
+                            text: win.trad("Read slot details (administrator)")
+                            onClicked: backend.readPrivileged()
+                        }
+                    }
+                }
+                QQC2.Label {   // Rückmeldung nach dem Kopieren (blendet nach 1,8 s aus)
+                    Layout.alignment: Qt.AlignHCenter
+                    text: "\\u2713 " + win.trad("Copied to clipboard")
+                    color: Kirigami.Theme.positiveTextColor
+                    opacity: hwInfoDialog.copied ? 1 : 0
+                    Behavior on opacity { NumberAnimation { duration: 250 } }
+                }
+            }
+        }
+        footer: QQC2.DialogButtonBox {
+            standardButtons: QQC2.DialogButtonBox.Close
+            QQC2.Button {
+                text: win.trad("Copy specs")
+                icon.name: "edit-copy"
+                enabled: hwInfoDialog.overview.length > 0
+                QQC2.DialogButtonBox.buttonRole: QQC2.DialogButtonBox.ActionRole
+                onClicked: {
+                    backend.copySpecs()
+                    hwInfoDialog.copied = true
+                    copiedTimer.restart()
+                }
+            }
+            QQC2.Button {
+                text: win.trad("Export full report…")
+                icon.name: "document-export"
+                enabled: hwInfoDialog.reportReady
+                QQC2.DialogButtonBox.buttonRole: QQC2.DialogButtonBox.ActionRole
+                onClicked: exportMenu.popup()
+                QQC2.Menu {
+                    id: exportMenu
+                    QQC2.MenuItem {
+                        text: win.trad("Text report") + " (.txt)"
+                        icon.name: "text-plain"
+                        onTriggered: hwInfoDialog.startExport("txt")
+                    }
+                    QQC2.MenuItem {
+                        text: win.trad("JSON report") + " (.json)"
+                        icon.name: "application-json"
+                        onTriggered: hwInfoDialog.startExport("json")
+                    }
+                }
+            }
+        }
+    }
+
     // aProposDialog : fenêtre « À propos de Ce PC »
     QQC2.Dialog {
         id: aboutDialog
@@ -3861,6 +4830,8 @@ QQC2.ApplicationWindow {
                     backend.launchApp("kinfocenter")
                 else if (a === "about")
                     aboutDialog.open()
+                else if (a === "specs")
+                    hwInfoDialog.open()
                 else if (a === "terminal" || a === "monitor")
                     backend.launchTool(a, "")
                 else if (a === "analyze")   // gewähltes lokales Laufwerk, sonst der persönliche Ordner
@@ -3903,6 +4874,7 @@ QQC2.ApplicationWindow {
                             { g: win.trad("System"), items: [
                                 { t: win.trad("System Settings"), i: "settings", a: "settings", w: 100 },
                                 { t: win.trad("System information"), i: "info", a: "info", w: 100 },
+                                { t: win.trad("System specs"), i: "specs", a: "specs", w: 84 },
                                 { t: win.trad("About"), i: "about", a: "about", w: 84 } ] }
                         // Schaltflächen nur für installierte Programme ; Gruppen ohne Schaltfläche entfallen
                         ].map(function(g) {
@@ -5566,7 +6538,8 @@ def bar_icons_ruban():
               ("add", "places/folder-network-open", "folder-network"),
               ("settings", "apps/preferences-system", "preferences-system"),
               ("info", "devices/computer", "computer"),
-              ("about", "apps/help-about", "help-about"))
+              ("about", "apps/help-about", "help-about"),
+              ("specs", "devices/cpu", "cpu"))
     res = {"refresh": actualiser or "view-refresh"}
     for cle, sous, repli in voulus:
         res[cle] = repli
@@ -5576,6 +6549,8 @@ def bar_icons_ruban():
             if os.path.isfile(p):
                 res[cle] = "file://" + p
                 break
+    if res["specs"] == "cpu":
+        res["specs"] = disk_icon(["cpu", "computer"])
     return res
 
 
