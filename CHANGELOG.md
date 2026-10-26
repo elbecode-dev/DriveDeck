@@ -120,6 +120,13 @@ hidden and everything else works).
 
 ### Performance and robustness (review pass)
 
+- **Memory trimming.** `gc.collect()` plus glibc `malloc_trim(0)` run in a background thread (`Backend.trimMemory`, at most
+  one run at a time and not more often than every 5 s) and then trim the QML component cache. Triggers: after the
+  hardware report is built, when the *System information* window closes, and shortly after the main window is minimized.
+  Without glibc the call does nothing.
+- The *System information* button now opens the hardware window directly; the separate *System specs* button and the
+  KInfoCenter launcher are gone.
+
 - Review of the new code: invalid UTF-8 in DMI/`/proc` text no longer empties the overview (`errors="replace"`); an
   `Unknown` RAM speed, an empty EFI variable and cache entries without `device` no longer abort a section or stall the
   live summary; a failed read shows an error card instead of an endless spinner; only one `pkexec` prompt at a time;

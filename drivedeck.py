@@ -6,6 +6,8 @@
 """DriveDeck (Plasma/QML) - folders, drives, network locations, printers and devices; follows the Plasma colours."""
 
 import configparser
+import ctypes
+import gc
 import hashlib
 import json
 import re
@@ -2299,6 +2301,16 @@ def sammle_netz():
 
 
 _BERICHT = [None]
+_TRIM = {"laeuft": False, "zuletzt": 0.0}
+
+
+def trim_memory():
+    """Python-Müll einsammeln und freie glibc-Seiten ans System zurückgeben (malloc_trim) ; ohne glibc ein No-op."""
+    gc.collect()
+    try:
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
+    except (OSError, AttributeError):
+        pass
 _BERICHT_SPERRE = threading.Lock()
 
 
@@ -2357,6 +2369,7 @@ class Backend(QObject):
     disksChanged = pyqtSignal()
     networksChanged = pyqtSignal()
     messageRequested = pyqtSignal(str, str)
+    trimmed = pyqtSignal()   # nach dem Trim : QML-Komponenten-Cache der Engine im GUI-Thread aufräumen
     sharesFound = pyqtSignal(list)
     sharesError = pyqtSignal(str)
     smartReady = pyqtSignal(str, str)
@@ -2442,6 +2455,24 @@ class Backend(QObject):
                                        "icon": "dialog-warning", "lines": [str(e)]}])
         threading.Thread(target=arbeit, daemon=True).start()
 
+    @pyqtSlot()
+    def trimMemory(self, verzoegerung=0.0):
+        """Speicher im Hintergrund zurückgeben ; höchstens ein Lauf gleichzeitig und nie öfter als alle 5 s."""
+        def arbeit():
+            if verzoegerung:
+                time.sleep(verzoegerung)
+            try:
+                trim_memory()
+                self.trimmed.emit()
+            finally:
+                _TRIM["laeuft"] = False
+        jetzt = time.monotonic()
+        if _TRIM["laeuft"] or jetzt - _TRIM["zuletzt"] < 5:
+            return
+        _TRIM["laeuft"] = True
+        _TRIM["zuletzt"] = jetzt
+        threading.Thread(target=arbeit, daemon=True).start()
+
     def _keepSpecs(self, zeilen):
         self._specs = zeilen
 
@@ -2451,6 +2482,7 @@ class Backend(QObject):
         def arbeit():
             try:
                 self.reportReady.emit(lade_bericht())
+                self.trimMemory(2.0)   # die großen lspci-/dmidecode-Texte sind jetzt geparst
             except Exception as e:
                 print("[drivedeck] bericht :", e)
                 self.reportReady.emit({"categories": [{"id": "error", "en": "Error", "title": tr("Cannot read hardware details"),
@@ -2492,6 +2524,7 @@ class Backend(QObject):
             _DMI["daten"] = d
             try:
                 self.reportReady.emit(lade_bericht(neu=True))
+                self.trimMemory(2.0)
             except Exception as e:
                 self.messageRequested.emit(titre, str(e))
         threading.Thread(target=arbeit, daemon=True).start()
@@ -2567,6 +2600,7 @@ class Backend(QObject):
                 ev.set()   # sofort frische Werte statt Stand von vor der Pause
         else:
             self._aktivEvent.clear()
+            self.trimMemory(3.0)   # minimiert : Speicher dezent zurückgeben
 
     def _bereit(self):
         """Blockiert, solange das Fenster nicht sichtbar ist ; True, wenn dabei pausiert wurde."""
@@ -4440,6 +4474,7 @@ QQC2.ApplicationWindow {
         modal: true
         anchors.centerIn: QQC2.Overlay.overlay
         title: win.trad("System specs")
+        onClosed: backend.trimMemory()
         width: Math.min(940, win.width - 40)
         height: Math.min(660, win.height - 40)
         property var overview: []
@@ -6671,6 +6706,7 @@ def main():
     engine.rootContext().setContextProperty("winInit", load_window_state())
     engine.rootContext().setContextProperty("badgeOffline", badge_offline())
     engine.rootContext().setContextProperty("badgeHealth", badge_health())
+    backend.trimmed.connect(engine.trimComponentCache)   # queued : läuft im GUI-Thread
     engine.loadData(qml.encode("utf-8"))
     if not engine.rootObjects():
         print("Échec du chargement QML")
