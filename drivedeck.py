@@ -18,6 +18,7 @@ import threading
 import time
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
+from functools import lru_cache
 
 os.environ["QT_QUICK_CONTROLS_STYLE"] = "org.kde.desktop"
 # Manche Symbolthemen (z. B. Vivid-Dark-Icons) enthalten SVGs mit fehlenden Farbverläufen : Qt meldet das bei jedem
@@ -548,6 +549,31 @@ def _unescape_mount_path(path):
     return re.sub(r"\\([0-7]{3})", lambda m: chr(int(m.group(1), 8)), path)
 
 
+_USAGE_LAEUFT = set()   # Mountpunkte, an denen gerade ein statvfs hängt : kein zweiter Thread darauf
+
+
+def disk_usage_mit_limit(pfad, sek=4):
+    """shutil.disk_usage, aber ein toter NFS/SMB-Mount (statvfs blockiert unbegrenzt) hält den Aufrufer höchstens
+    sek Sekunden fest. Hängt der Aufruf noch, wird kein weiterer Thread darauf gestartet (sonst +1 Thread je Zyklus)."""
+    if pfad in _USAGE_LAEUFT:
+        return None
+    ergebnis = []
+
+    def arbeit():
+        try:
+            ergebnis.append(shutil.disk_usage(pfad))
+        except OSError:
+            ergebnis.append(None)
+        finally:
+            _USAGE_LAEUFT.discard(pfad)
+
+    _USAGE_LAEUFT.add(pfad)
+    t = threading.Thread(target=arbeit, daemon=True)
+    t.start()
+    t.join(sek)
+    return ergebnis[0] if ergebnis else None
+
+
 def list_network_mounts():
     mounts = []
     seen = set()
@@ -569,9 +595,8 @@ def list_network_mounts():
             continue
         if ignore_mount(mountpoint):
             continue
-        try:
-            usage = shutil.disk_usage(mountpoint)
-        except (PermissionError, FileNotFoundError, OSError):
+        usage = disk_usage_mit_limit(mountpoint)
+        if usage is None:
             continue
         seen.add(mountpoint)
         label = os.path.basename(mountpoint.rstrip("/")) or device
@@ -951,13 +976,14 @@ def temperatur_stufe(platte, grad):
     return "hot" if grad >= heiss else ("warn" if grad >= warn else "ok")
 
 
-def pin_infos(pins):
-    """Für die Anzeige : Standard-Name und -Symbol ergänzen, 'exists' = Ordner gerade erreichbar (USB-Stick steckt?)."""
+def pin_infos(pins, pruefen=True):
+    """Für die Anzeige : Standard-Name und -Symbol ergänzen, 'exists' = Ordner gerade erreichbar (USB-Stick steckt?).
+    pruefen=False überspringt os.path.isdir (kann auf einem toten Netzlaufwerk ewig blockieren)."""
     res = []
     for p in pins:
         path = p["path"]
         res.append({"path": path, "label": p.get("label") or os.path.basename(path.rstrip("/")) or "/",
-                    "icon": p.get("icon") or "folder", "exists": os.path.isdir(path)})
+                    "icon": p.get("icon") or "folder", "exists": os.path.isdir(path) if pruefen else True})
     return res
 
 
@@ -1058,13 +1084,19 @@ def charger_cache_disques():
 
 
 _DISQUES_ECRIT = None
+_DISQUES_STAND = [None, 0.0]   # (Signatur ohne Füllstände, Zeitpunkt) des letzten Schreibens
 
 
 def enregistrer_cache_disques(liste):
+    """Füllstände ändern sich ständig ; sie werden höchstens einmal pro Minute gespeichert, eine geänderte Liste
+    (Stick ein-/ausgesteckt) sofort. Spart bei laufendem Programm fast alle Schreibzugriffe auf die SSD."""
     global _DISQUES_ECRIT
     try:
         contenu = json.dumps(liste)
         if contenu == _DISQUES_ECRIT:
+            return
+        sig = json.dumps([{k: v for k, v in d.items() if k not in ("used", "free", "total")} for d in liste])
+        if sig == _DISQUES_STAND[0] and time.monotonic() - _DISQUES_STAND[1] < 60:
             return
         os.makedirs(os.path.dirname(DISK_CACHE), exist_ok=True)
         tmp = DISK_CACHE + ".tmp"
@@ -1072,6 +1104,7 @@ def enregistrer_cache_disques(liste):
             f.write(contenu)
         os.replace(tmp, DISK_CACHE)
         _DISQUES_ECRIT = contenu
+        _DISQUES_STAND[0], _DISQUES_STAND[1] = sig, time.monotonic()
     except (OSError, TypeError, ValueError):
         pass
 
@@ -1628,16 +1661,24 @@ def nom_noyau(device):
     return os.path.basename(os.path.realpath(device))
 
 
+@lru_cache(maxsize=4)
+def _glaett_kern_nenner(n):
+    """(Dreiecksfenster, Gewichtssumme je Position) für eine Reihe der Länge n : ändert sich nur, bis der Verlauf voll ist."""
+    import numpy as np
+    kern = np.array([1.0, 2.0, 3.0, 2.0, 1.0])   # Dreiecksfenster : Spitzen bleiben Hügel, Zacken verschwinden
+    return kern, np.convolve(np.ones(n), kern, "same")
+
+
 def glaetten(taux):
     """Glättet die Bytes/s-Reihe eines Laufwerks (1 Wert pro Sekunde, ältester zuerst) für die Sparkline.
     Rohwerte zucken stark, weil Schreibzugriffe stoßweise (Cache-Flush) kommen.
     Bekommt und liefert ein 1-D-NumPy-Array gleicher Länge."""
     import numpy as np
-    kern = np.array([1.0, 2.0, 3.0, 2.0, 1.0])   # Dreiecksfenster : Spitzen bleiben Hügel, Zacken verschwinden
+    kern, nenner = _glaett_kern_nenner(len(taux))
     if len(taux) < len(kern):
         return taux
     # Durch die tatsächliche Gewichtssumme teilen : an den Rändern (neuester Wert!) kein Abfall Richtung 0
-    return np.convolve(taux, kern, "same") / np.convolve(np.ones(len(taux)), kern, "same")
+    return np.convolve(taux, kern, "same") / nenner
 
 
 class Backend(QObject):
@@ -1659,9 +1700,17 @@ class Backend(QObject):
     dirsListed = pyqtSignal(str, list)
     ioUpdated = pyqtSignal(dict)
     raiseRequested = pyqtSignal()   # ein zweiter Start soll das vorhandene Fenster nach vorn holen
+    pinsUpdated = pyqtSignal(int, list)
 
     def __init__(self):
         super().__init__()
+        # fensterAktiv : solange das Fenster minimiert/versteckt ist, ruhen alle Abfrage-Threads (CPU, Prozessstarts,
+        # Netzwerk-Sonden). Beim Wiedereinblenden wird sofort neu gelesen.
+        self._aktiv = True
+        self._aktivEvent = threading.Event()
+        self._aktivEvent.set()
+        self._pinGen = 0
+        self.pinsUpdated.connect(self._setPinInfos)
         self._disks = charger_cache_disques()   # sofort sichtbar, wird gleich vom Thread aktualisiert
         self._networks = charger_cache_reseau()
         self._printers = charger_cache_imprimantes()
@@ -1687,8 +1736,28 @@ class Backend(QObject):
         self.tempUpdated.connect(self._setTemps)
         threading.Thread(target=self._tempLoop, daemon=True).start()
         self._pins = load_pins()
-        self._pinInfos = pin_infos(self._pins)
+        self._pinInfos = pin_infos(self._pins, pruefen=False)   # sofort anzeigen ; Erreichbarkeit folgt im Hintergrund
+        self._refreshPins()
         threading.Thread(target=self._ioLoop, daemon=True).start()
+
+    @pyqtSlot(bool)
+    def setActive(self, aktiv):
+        if aktiv == self._aktiv:
+            return
+        self._aktiv = aktiv
+        if aktiv:
+            self._aktivEvent.set()
+            for ev in (self._diskWake, self._netWake, self._prnWake):
+                ev.set()   # sofort frische Werte statt Stand von vor der Pause
+        else:
+            self._aktivEvent.clear()
+
+    def _bereit(self):
+        """Blockiert, solange das Fenster nicht sichtbar ist ; True, wenn dabei pausiert wurde."""
+        if self._aktivEvent.is_set():
+            return False
+        self._aktivEvent.wait()
+        return True
 
     @pyqtProperty("QVariantList", notify=disksChanged)
     def disks(self):
@@ -1705,13 +1774,21 @@ class Backend(QObject):
 
     def _tempLoop(self):
         # festplattenTemperatur : alle 5 s ; nur ein Signal, wenn sich ein (gerundeter) Wert oder eine Stufe ändert
+        zuordnung, stand = {}, None   # Gerät -> Platte : nur neu auflösen, wenn sich die Laufwerksliste ändert
         while True:
+            self._bereit()
+            liste = self._disks
+            if liste is not stand:
+                zuordnung.clear()
+                stand = liste
             res = {}
-            for d in list(self._disks):
+            for d in list(liste):
                 if d.get("isOptical"):
                     continue
                 try:
-                    platte = basis_platte(os.path.basename(os.path.realpath(d["device"])))
+                    platte = zuordnung.get(d["device"])
+                    if platte is None:
+                        platte = zuordnung[d["device"]] = basis_platte(os.path.basename(os.path.realpath(d["device"])))
                     grad = platten_temperatur(platte)
                 except Exception:
                     grad = None
@@ -1725,8 +1802,13 @@ class Backend(QObject):
         return self._pinInfos
 
     def _refreshPins(self):
-        neu = pin_infos(self._pins)
-        if neu != self._pinInfos:
+        """isdir auf einem toten NFS/SMB-Pin blockiert ewig : deshalb im Hintergrund ; nur die neueste Antwort zählt."""
+        self._pinGen += 1
+        gen, pins = self._pinGen, list(self._pins)
+        threading.Thread(target=lambda: self.pinsUpdated.emit(gen, pin_infos(pins)), daemon=True).start()
+
+    def _setPinInfos(self, gen, neu):
+        if gen == self._pinGen and neu != self._pinInfos:
             self._pinInfos = neu
             self.pinsChanged.emit()
 
@@ -1804,8 +1886,9 @@ class Backend(QObject):
         return self._io
 
     def _setIo(self, new):
-        self._io = new
-        self.ioChanged.emit()
+        if new != self._io:   # ruhende Platte : identische Nullreihen lösen kein QML-Update mehr aus
+            self._io = new
+            self.ioChanged.emit()
 
     def _ioLoop(self):
         # ioVerlauf : einmal pro Sekunde /proc/diskstats lesen, Raten per NumPy aus den Zählerdifferenzen bilden.
@@ -1815,13 +1898,23 @@ class Backend(QObject):
         except ImportError:   # ohne NumPy : kein I/O-Verlauf, der Rest läuft normal
             return
         verlauf = {}   # Kernelname -> deque[(Zeitpunkt, gelesen, geschrieben)]
+        zuordnung, stand = {}, None   # Gerät -> Kernelname (realpath nur bei geänderter Laufwerksliste)
         while True:
+            if self._bereit():
+                verlauf.clear()   # Lücke in der Zeitreihe : lieber neu beginnen als falsche Raten zeigen
+            liste = self._disks
+            if liste is not stand:
+                zuordnung = {d["device"]: nom_noyau(d["device"]) for d in liste}
+                stand = liste
+                verlauf = {k: v for k, v in verlauf.items() if k in zuordnung.values()}
             t = time.monotonic()
+            gebraucht = set(zuordnung.values())
             for nom, (lu, ecrit) in lire_diskstats().items():
-                verlauf.setdefault(nom, deque(maxlen=IO_FENSTER + 1)).append((t, lu, ecrit))
+                if nom in gebraucht:   # loop*/ram*/zram* gar nicht erst sammeln
+                    verlauf.setdefault(nom, deque(maxlen=IO_FENSTER + 1)).append((t, lu, ecrit))
             resultat = {}
-            for d in list(self._disks):
-                h = verlauf.get(nom_noyau(d["device"]))
+            for d in list(liste):
+                h = verlauf.get(zuordnung.get(d["device"]))
                 if not h or len(h) < 2:
                     continue
                 a = np.array(h, dtype=float)
@@ -1861,6 +1954,8 @@ class Backend(QObject):
         derniere, dernier = None, 0.0
         forcer = True
         while True:
+            if self._bereit():
+                forcer = True
             etat = etat_montages()
             delai = DISQUES_INTERVALLE if etat is not None else 3
             if forcer or etat != derniere or time.monotonic() - dernier >= delai:
@@ -1877,6 +1972,7 @@ class Backend(QObject):
     def _netLoop(self):
         # emplacements réseau seuls : un NAS éteint ne retarde plus la liste des imprimantes
         while True:
+            self._bereit()
             try:
                 liste = build_network_list()
                 enregistrer_cache_reseau(liste)
@@ -1888,6 +1984,7 @@ class Backend(QObject):
 
     def _printLoop(self):
         while True:
+            self._bereit()
             try:
                 imprimantes = list_printers()
                 imprimantes = imprimantes + cartes_scanners(self._scanners, self._scanTrouves, imprimantes) \
@@ -2468,6 +2565,8 @@ QQC2.ApplicationWindow {
     height: Math.max(520, winInit.h > 0 ? winInit.h : 584)
     // fenetreMemo : la taille est enregistrée à la fermeture (visibility 4 = fenêtre agrandie)
     onClosing: backend.saveWindow(win.width, win.height, win.visibility === 4)
+    // fensterAktiv : 0 = versteckt, 3 = minimiert -> Hintergrundabfragen ruhen
+    onVisibilityChanged: backend.setActive(win.visibility !== 0 && win.visibility !== 3)
     Component.onCompleted: {
         if (winInit.max)
             win.showMaximized()

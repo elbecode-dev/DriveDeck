@@ -97,6 +97,17 @@ hidden and everything else works).
 - `pin_normaliser`: pins are compared with `~` expanded and trailing slashes removed; symbolic links are **not** resolved
   on purpose (a pin keeps the path you chose, a stick mounted at another path stays a separate entry); case counts.
 
+### Performance and robustness (review pass)
+
+- Background polling (drives, network, printers, temperatures, live I/O) now sleeps while the window is minimised or
+  hidden and refreshes immediately when it is shown again.
+- A dead NFS/SMB mount can no longer freeze the network list: `statvfs` is limited to 4 s and never stacked.
+- Pinned folders are checked for reachability in the background, so an unreachable network pin cannot block startup.
+- The live I/O graph only updates the UI when values change; kernel-name lookups are cached and only the displayed
+  drives are sampled.
+- The drive cache is written at most once a minute unless the drive list changes (fewer SSD writes).
+- The smoothing kernel is computed once per series length.
+
 ### Visual changes
 
 - **Donut ring** instead of the pie chart in the *Properties* dialog (`QtQuick.Shapes`, GPU curve renderer): rounded
