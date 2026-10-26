@@ -120,6 +120,9 @@ EXTRA_DE = {
     "Move down": "Nach unten",
     "Drag folders here to pin them": "Ordner hierher ziehen, um sie anzuheften",
     "Tools": "Werkzeuge",
+    "Unmount": "Aushängen",
+    "Cannot unmount": "Aushängen nicht möglich",
+    "System summary": "Systemübersicht",
     "Terminal": "Terminal",
     "System monitor": "Systemmonitor",
     "Analyze storage": "Speicher analysieren",
@@ -1705,6 +1708,57 @@ def glaetten(taux):
     return np.convolve(taux, kern, "same") / nenner
 
 
+def lire_cpu():
+    """(untätige Zeit, Gesamtzeit) aller Kerne aus der ersten Zeile von /proc/stat, in Ticks."""
+    with open("/proc/stat") as f:
+        werte = [int(x) for x in f.readline().split()[1:9]]   # user nice system idle iowait irq softirq steal
+    return werte[3] + werte[4], sum(werte)
+
+
+def lire_ram():
+    """(gesamt, verfügbar) in Bytes aus /proc/meminfo ; « verfügbar » zählt Cache mit, den der Kernel jederzeit freigibt."""
+    info = {}
+    with open("/proc/meminfo") as f:
+        for ligne in f:
+            cle, _, rest = ligne.partition(":")
+            if cle in ("MemTotal", "MemAvailable"):
+                info[cle] = int(rest.split()[0]) * 1024
+                if len(info) == 2:
+                    break
+    return info["MemTotal"], info["MemAvailable"]
+
+
+_NETZ_ECHT = {}   # Schnittstelle -> hat ein echtes Gerät dahinter (kein lo, Bridge, veth, VPN : sonst doppelt gezählt)
+
+
+def lire_netz():
+    """(empfangene, gesendete Bytes) aller echten Netzwerkkarten seit dem Start, aus /proc/net/dev."""
+    rx = tx = 0
+    with open("/proc/net/dev") as f:
+        for ligne in list(f)[2:]:
+            nom, _, rest = ligne.partition(":")
+            nom = nom.strip()
+            if nom not in _NETZ_ECHT:
+                _NETZ_ECHT[nom] = os.path.exists("/sys/class/net/%s/device" % nom)
+            if _NETZ_ECHT[nom]:
+                c = rest.split()
+                rx += int(c[0])
+                tx += int(c[8])
+    return rx, tx
+
+
+def speicher_summe(disks):
+    """(belegt, gesamt) in Bytes über alle eingebundenen lokalen Laufwerke ; jedes Gerät nur einmal (Btrfs-Subvolumes)."""
+    gesehen, belegt, gesamt = set(), 0, 0
+    for d in disks:
+        if d.get("isOptical") or d.get("isUnmounted") or d["device"] in gesehen:
+            continue
+        gesehen.add(d["device"])
+        belegt += d.get("used", 0)
+        gesamt += d.get("total", 0)
+    return belegt, gesamt
+
+
 class Backend(QObject):
     disksChanged = pyqtSignal()
     networksChanged = pyqtSignal()
@@ -1725,6 +1779,8 @@ class Backend(QObject):
     ioUpdated = pyqtSignal(dict)
     raiseRequested = pyqtSignal()   # ein zweiter Start soll das vorhandene Fenster nach vorn holen
     pinsUpdated = pyqtSignal(int, list)
+    statsChanged = pyqtSignal()
+    statsUpdated = pyqtSignal(dict)
 
     def __init__(self):
         super().__init__()
@@ -1735,6 +1791,8 @@ class Backend(QObject):
         self._aktivEvent.set()
         self._pinGen = 0
         self.pinsUpdated.connect(self._setPinInfos)
+        self._stats = {}
+        self.statsUpdated.connect(self._setStats)
         self._disks = charger_cache_disques()   # sofort sichtbar, wird gleich vom Thread aktualisiert
         self._networks = charger_cache_reseau()
         self._printers = charger_cache_imprimantes()
@@ -1763,6 +1821,41 @@ class Backend(QObject):
         self._pinInfos = pin_infos(self._pins, pruefen=False)   # sofort anzeigen ; Erreichbarkeit folgt im Hintergrund
         self._refreshPins()
         threading.Thread(target=self._ioLoop, daemon=True).start()
+        threading.Thread(target=self._statsLoop, daemon=True).start()
+
+    @pyqtProperty("QVariantMap", notify=statsChanged)
+    def sysStats(self):
+        """Live-Übersicht : cpu (%), ramUsed/ramTotal, up/down (Bytes/s), diskUsed/diskTotal ; leer bis zur 1. Messung."""
+        return self._stats
+
+    def _setStats(self, neu):
+        if neu != self._stats:
+            self._stats = neu
+            self.statsChanged.emit()
+
+    def _statsLoop(self):
+        # Einmal pro Sekunde : /proc/stat, /proc/meminfo, /proc/net/dev (drei kleine Dateien, kein Prozessstart).
+        # CPU und Netz sind Zähler : die Rate ist die Differenz zweier Messungen geteilt durch die Zeit dazwischen.
+        vor = None
+        while True:
+            if self._bereit():
+                vor = None   # nach der Pause nicht über die Lücke mitteln
+            try:
+                t = time.monotonic()
+                cpu, netz, (ram_gesamt, ram_frei) = lire_cpu(), lire_netz(), lire_ram()
+                if vor is not None:
+                    dt = max(t - vor[0], 1e-3)
+                    d_idle, d_ges = cpu[0] - vor[1][0], cpu[1] - vor[1][1]
+                    belegt, gesamt = speicher_summe(self._disks)
+                    self.statsUpdated.emit({
+                        "cpu": round(100 * (1 - d_idle / d_ges)) if d_ges > 0 else 0,
+                        "ramUsed": ram_gesamt - ram_frei, "ramTotal": ram_gesamt,
+                        "down": max(netz[0] - vor[2][0], 0) / dt, "up": max(netz[1] - vor[2][1], 0) / dt,
+                        "diskUsed": belegt, "diskTotal": gesamt})
+                vor = (t, cpu, netz)
+            except (OSError, ValueError, IndexError, KeyError):
+                vor = None
+            time.sleep(1)
 
     @pyqtSlot(bool)
     def setActive(self, aktiv):
@@ -2423,6 +2516,28 @@ class Backend(QObject):
                 self.messageRequested.emit(titre, str(e))
                 return
         self.messageRequested.emit(titre, tr("No terminal program found"))
+
+    @pyqtSlot(str, str)
+    def unmountDevice(self, device, label):
+        """Aushängen : nur abmelden, das Laufwerk bleibt eingeschaltet (anders als « Sicher entfernen »)."""
+        threading.Thread(target=self._unmount, args=(device, label), daemon=True).start()
+
+    def _unmount(self, device, label):
+        titre = tr("Cannot unmount")
+        try:
+            r = subprocess.run(["udisksctl", "unmount", "-b", device], capture_output=True, text=True, timeout=30)
+        except FileNotFoundError:
+            self.messageRequested.emit(titre, tr("The udisksctl command was not found on this system."))
+            return
+        except subprocess.TimeoutExpired:
+            self.messageRequested.emit(titre, tr("Unmounting {label} timed out.").format(label=label))
+            return
+        if r.returncode != 0:
+            detail = r.stderr.strip() or tr("unknown error")
+            self.messageRequested.emit(titre, tr("Could not unmount {label}:\n{detail}\n\n"
+                                                 "Check that no file is still open on this drive.").format(label=label, detail=detail))
+            return
+        self._diskWake.set()   # die Karte zeigt sofort « Nicht eingebunden »
 
     @pyqtSlot(str, str)
     def ejectDevice(self, device, label):
@@ -3952,7 +4067,117 @@ QQC2.ApplicationWindow {
                                        Kirigami.Theme.textColor.b, 0.2)
                     }
 
-                    Item { Layout.fillWidth: true }
+                    // liveUebersicht : kompakte Telemetrie-Chips im freien Platz rechts. Die Gruppe bestimmt die Mindestbreite
+                    // des Fensters nicht mit (preferredWidth 0) und blendet sich aus, wenn der Platz nicht reicht.
+                    ColumnLayout {
+                        id: liveGrp
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        Layout.preferredWidth: 0
+                        Layout.minimumWidth: 0
+                        Layout.maximumWidth: 280
+                        spacing: 2
+                        readonly property var st: backend.sysStats
+                        readonly property bool ready: st.cpu !== undefined
+                        readonly property bool roomy: width >= 190
+                        // « 4,2 / 32,0 GB » : die Einheit des ersten Werts entfällt, wenn sie gleich ist
+                        function pair(a, b) {
+                            var ta = win.taille(a), tb = win.taille(b)
+                            var ue = tb.substring(tb.lastIndexOf(" "))
+                            return (ta.substring(ta.lastIndexOf(" ")) === ue ? ta.slice(0, ta.length - ue.length) : ta) + " / " + tb
+                        }
+                        readonly property var chips: !ready ? [] : [
+                            { l: "CPU", f: st.cpu / 100, t: st.cpu + " %" },
+                            { l: "RAM", f: st.ramTotal > 0 ? st.ramUsed / st.ramTotal : 0, t: pair(st.ramUsed, st.ramTotal) },
+                            { l: "Storage", f: st.diskTotal > 0 ? st.diskUsed / st.diskTotal : 0, t: pair(st.diskUsed, st.diskTotal) },
+                            { l: "", f: -1, t: "" }
+                        ]
+
+                        Item {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 84
+                            visible: liveGrp.roomy && liveGrp.ready
+                            Column {
+                                x: 6
+                                y: 1
+                                width: parent.width - 12
+                                spacing: 1
+                                Repeater {
+                                    model: liveGrp.chips
+                                    delegate: Rectangle {
+                                        width: parent.width
+                                        height: 20   // höher als die Schrift : Balken und Text lassen sich besser ablesen
+                                        radius: 10
+                                        color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.07)
+                                        readonly property bool isNet: modelData.f < 0
+                                        readonly property real f: Math.max(0, Math.min(1, modelData.f))
+                                        QQC2.Label {
+                                            visible: !parent.isNet
+                                            x: 9
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            width: 46
+                                            text: modelData.l
+                                            font: Kirigami.Theme.smallFont
+                                            opacity: 0.7
+                                            color: Kirigami.Theme.textColor
+                                        }
+                                        Rectangle {   // Mini-Fortschrittsbalken : ab 80 % orange, ab 90 % rot (wie die Laufwerkskarten)
+                                            visible: !parent.isNet
+                                            x: 56
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            width: Math.max(24, parent.width - 160)   // der Balken nimmt den freien Platz
+                                            height: 7
+                                            radius: 3.5
+                                            color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.16)
+                                            Rectangle {
+                                                width: parent.width * parent.parent.f
+                                                height: parent.height
+                                                radius: parent.radius
+                                                color: parent.parent.f >= 0.9 ? Kirigami.Theme.negativeTextColor
+                                                     : (parent.parent.f >= 0.8 ? Kirigami.Theme.neutralTextColor : Kirigami.Theme.highlightColor)
+                                                Behavior on width { NumberAnimation { duration: 400; easing.type: Easing.OutCubic } }
+                                            }
+                                        }
+                                        QQC2.Label {
+                                            visible: !parent.isNet
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            x: parent.width - 98
+                                            width: 90
+                                            text: modelData.t
+                                            elide: Text.ElideRight
+                                            horizontalAlignment: Text.AlignRight
+                                            font: Kirigami.Theme.smallFont
+                                            color: Kirigami.Theme.textColor
+                                        }
+                                        Row {   // Netz : ▲ gesendet (orange) ▼ empfangen (grün)
+                                            visible: parent.isNet
+                                            anchors.centerIn: parent
+                                            spacing: 10
+                                            QQC2.Label {
+                                                text: "\u25B2 " + win.rateText(liveGrp.st.up)
+                                                font: Kirigami.Theme.smallFont
+                                                color: Kirigami.Theme.neutralTextColor
+                                            }
+                                            QQC2.Label {
+                                                text: "\u25BC " + win.rateText(liveGrp.st.down)
+                                                font: Kirigami.Theme.smallFont
+                                                color: Kirigami.Theme.positiveTextColor
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        Item { Layout.fillHeight: true }
+                        QQC2.Label {
+                            Layout.alignment: Qt.AlignHCenter
+                            visible: liveGrp.roomy && liveGrp.ready
+                            text: win.trad("System summary")
+                            font: Kirigami.Theme.smallFont
+                            opacity: 0.65
+                            color: Kirigami.Theme.textColor
+                        }
+                    }
                 }
             }
         }
@@ -4737,6 +4962,16 @@ QQC2.ApplicationWindow {
                                         icon.name: win.isPinned(modelData.mountpoint) ? "window-unpin" : "window-pin"
                                         onTriggered: win.isPinned(modelData.mountpoint) ? backend.unpinPath(modelData.mountpoint)
                                                                                         : backend.pinPath(modelData.mountpoint, modelData.label, "drive-harddisk")
+                                    }
+                                    QQC2.MenuItem {
+                                        text: win.trad("Unmount")
+                                        icon.name: "media-mount"
+                                        // nicht für das System selbst (« / », /boot, /home, /var …) und nicht für optische Laufwerke
+                                        visible: modelData.isUnmounted !== true && modelData.isOptical !== true
+                                                 && modelData.mountpoint.charAt(0) === "/"
+                                                 && !/^[/](boot|home|var|usr|opt|etc|nix)?([/]|$)/.test(modelData.mountpoint)
+                                        height: visible ? implicitHeight : 0
+                                        onTriggered: backend.unmountDevice(modelData.device, modelData.label)
                                     }
                                     QQC2.MenuItem {
                                         text: win.trad("Safely remove")

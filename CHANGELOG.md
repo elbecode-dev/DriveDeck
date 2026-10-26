@@ -32,6 +32,14 @@ hidden and everything else works).
 
 ### New features
 
+- **System summary chips.** Four compact telemetry chips (CPU %, RAM used/total, Storage used/total of all mounted
+  local drives, network ▲/▼ rates) in the free space right of the *Show* group. A `_statsLoop` thread reads
+  `/proc/stat`, `/proc/meminfo` and `/proc/net/dev` once per second (no process is started; rates are counter
+  differences; only real network cards are counted, so bridges, veth and VPNs are not counted twice) and pauses with
+  the window. The group has no preferred width, so the minimum window width stays the same; it hides below ~190 px of
+  free ribbon space.
+- **Unmount.** `unmountDevice` (`udisksctl unmount`) in the drive context menu, without powering the drive off. Hidden
+  for system mount points and optical drives; errors (e.g. a file is still open) are shown in a message.
 - **Tools group in the ribbon.** *Terminal*, *System monitor* (`plasma-systemmonitor`, else `btop`/`htop` in a terminal)
   and *Analyze storage* (`filelight`, else `baobab`, else `ncdu -x` in a terminal). Buttons only appear for installed
   programs (`backend.tools`); programs are started through a fixed table (`WERKZEUGE`) via `launchTool`, never from

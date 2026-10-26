@@ -67,9 +67,15 @@ Everything below is explained in plain words. You do **not** need to be a progra
   automatically shows up as a card marked "Not mounted". **Double-click it** (or right-click → *Mount*) and it is
   connected and opened. Tiny system partitions (boot, recovery, swap, encrypted) are hidden on purpose.
 - **More right-click options**
-  - On drives: *Mount*, *Open in terminal*, *Analyze storage*, *Copy path* (folder cards and the Quick access pane
+  - On drives: *Mount*, *Unmount*, *Open in terminal*, *Analyze storage*, *Copy path* (folder cards and the Quick access pane
     also offer *Analyze storage*)
   - On network locations: *Disconnect*, *Open in terminal*, *Copy path*
+- **System summary.** Compact live chips at the right end of the ribbon: **CPU** load, **RAM** used / total,
+  **Storage** (all mounted local drives together) and network throughput (▲ sent, ▼ received). The bars turn orange at
+  80 % and red at 90 %. The chips use the free space on the right and hide themselves when the window is too narrow
+  (about 1430 px or less); they pause while the window is minimised.
+- **Unmount.** *Unmount* in a drive's right-click menu only logs the drive out and leaves it powered on, unlike
+  *Safely remove*. It is not offered for system folders (`/`, `/boot`, `/home` …) or optical drives.
 - **Tools group.** A ribbon group with **Terminal**, **System monitor** (Plasma System Monitor, otherwise btop or htop)
   and **Analyze storage** (Filelight, otherwise Baobab or ncdu) to find what eats your space. The analysis runs on the
   selected local drive, or on your home folder. Buttons for programs that are not installed are hidden.
