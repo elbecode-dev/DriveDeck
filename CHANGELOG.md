@@ -120,6 +120,9 @@ hidden and everything else works).
 
 ### Performance and robustness (review pass)
 
+- Final refinements: `_agesa()` skips `dmesg` when `kernel.dmesg_restrict=1` and reports "not exposed by the kernel"; NumPy
+  is imported once at module level (`HAS_NUMPY`) instead of inside the 1 s loops; the CPU chip guards the empty first
+  state of `sysStats` in QML.
 - **Memory trimming.** `gc.collect()` plus glibc `malloc_trim(0)` run in a background thread (`Backend.trimMemory`, at most
   one run at a time and not more often than every 5 s) and then trim the QML component cache. Triggers: after the
   hardware report is built, when the *System information* window closes, and shortly after the main window is minimized.

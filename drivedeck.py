@@ -33,6 +33,12 @@ from PyQt6.QtGui import QIcon
 from PyQt6.QtQml import QQmlApplicationEngine
 from PyQt6.QtWidgets import QApplication
 try:
+    import numpy as np
+    HAS_NUMPY = True
+except ImportError:   # ohne NumPy : kein I/O-Verlauf, der Rest läuft normal
+    np = None
+    HAS_NUMPY = False
+try:
     from PyQt6.QtNetwork import QLocalServer, QLocalSocket
 except ImportError:   # ohne QtNetwork läuft alles, nur ohne Einzelinstanz
     QLocalServer = QLocalSocket = None
@@ -1725,7 +1731,6 @@ def nom_noyau(device):
 @lru_cache(maxsize=4)
 def _glaett_kern_nenner(n):
     """(Dreiecksfenster, Gewichtssumme je Position) für eine Reihe der Länge n : ändert sich nur, bis der Verlauf voll ist."""
-    import numpy as np
     kern = np.array([1.0, 2.0, 3.0, 2.0, 1.0])   # Dreiecksfenster : Spitzen bleiben Hügel, Zacken verschwinden
     return kern, np.convolve(np.ones(n), kern, "same")
 
@@ -1734,7 +1739,6 @@ def glaetten(taux):
     """Glättet die Bytes/s-Reihe eines Laufwerks (1 Wert pro Sekunde, ältester zuerst) für die Sparkline.
     Rohwerte zucken stark, weil Schreibzugriffe stoßweise (Cache-Flush) kommen.
     Bekommt und liefert ein 1-D-NumPy-Array gleicher Länge."""
-    import numpy as np
     kern, nenner = _glaett_kern_nenner(len(taux))
     if len(taux) < len(kern):
         return taux
@@ -1998,8 +2002,12 @@ def _chipsatz(board):
 
 
 def _agesa():
-    m = re.search(r"AGESA[^\n]{0,60}", _ausgabe(["dmesg"], timeout=4))
-    return m.group(0).strip() if m else ""
+    """AGESA-Version aus dem Kernel-Log ; « not exposed by the kernel », wenn dmesg gesperrt ist oder nichts liefert."""
+    nein = "not exposed by the kernel"
+    if os.geteuid() != 0 and (_lire_texte("/proc/sys/kernel/dmesg_restrict") or "").strip() == "1":
+        return nein   # kernel.dmesg_restrict=1 : dmesg scheitert ohne Root, also gar nicht erst starten
+    m = re.search(r"AGESA[^\n]{0,60}", _ausgabe(["dmesg"], timeout=4))   # wirft nie ; bei « Permission denied » leer
+    return m.group(0).strip() if m else nein
 
 
 def _secure_boot():
@@ -2093,7 +2101,7 @@ def sammle_board():
                 ("Chipset (from the model name)", _chipsatz(name))),
         _gruppe("BIOS / UEFI", ("Vendor", _dmi("bios_vendor")), ("Version", _dmi("bios_version")),
                 ("Date", _dmi("bios_date")), ("Release", _dmi("bios_release")), ("Boot mode", _secure_boot()),
-                ("AGESA / firmware", _agesa() or "not exposed by the kernel")),
+                ("AGESA / firmware", _agesa())),
         _gruppe("System", ("Manufacturer", _dmi("sys_vendor")), ("Product", _dmi("product_name")),
                 ("Family", _dmi("product_family")), ("Chassis type", _dmi("chassis_type"))),
     ]
@@ -2580,7 +2588,7 @@ class Backend(QObject):
                     d_idle, d_ges = cpu[0] - vor[1][0], cpu[1] - vor[1][1]
                     belegt, gesamt = speicher_summe(self._disks)
                     self.statsUpdated.emit({
-                        "cpu": max(0, min(100, round(100 * (1 - d_idle / d_ges)))) if d_ges > 0 else 0,
+                        "cpu": max(0, min(100, round(100 * (1 - d_idle / d_ges)))) if d_ges > 0 else 0,   # d_ges <= 0 : Standby/Zählersprung
                         "ramUsed": ram_gesamt - ram_frei, "ramTotal": ram_gesamt,
                         "down": max(netz[0] - vor[2][0], 0) / dt, "up": max(netz[1] - vor[2][1], 0) / dt,
                         "diskUsed": belegt, "diskTotal": gesamt})
@@ -2783,10 +2791,7 @@ class Backend(QObject):
 
     def _ioLoop(self):
         # ioVerlauf : einmal pro Sekunde /proc/diskstats lesen, Raten per NumPy aus den Zählerdifferenzen bilden.
-        # NumPy wird erst hier im Thread geladen : der Fensterstart bleibt davon unberührt.
-        try:
-            import numpy as np
-        except ImportError:   # ohne NumPy : kein I/O-Verlauf, der Rest läuft normal
+        if not HAS_NUMPY:   # ohne NumPy : kein I/O-Verlauf, der Rest läuft normal
             return
         verlauf = {}   # Kernelname -> deque[(Zeitpunkt, gelesen, geschrieben)]
         zuordnung, stand = {}, None   # Gerät -> Kernelname (realpath nur bei geänderter Laufwerksliste)
@@ -5087,7 +5092,7 @@ QQC2.ApplicationWindow {
                         Layout.maximumWidth: 280
                         spacing: 2
                         readonly property var st: backend.sysStats
-                        readonly property bool ready: st.cpu !== undefined
+                        readonly property bool ready: st !== null && st !== undefined && st.cpu !== undefined
                         readonly property bool roomy: width >= 190
                         // « 4,2 / 32,0 GB » : die Einheit des ersten Werts entfällt, wenn sie gleich ist
                         function pair(a, b) {
