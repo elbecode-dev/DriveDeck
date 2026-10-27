@@ -130,6 +130,8 @@ Everything below is explained in plain words. You do **not** need to be a progra
 - Cards react more softly to the mouse: they fade a highlight in, the icon grows a little, and the selected card gets
   an accent strip. Folders, drives, network locations and printers all share **one hover look**: a translucent
   purple-to-cyan gradient with a glowing gradient border.
+- Text is easier to read: labels and subtitles use larger sizes relative to your system font, and secondary text has more
+  contrast.
 - Section headers ("FOLDERS", "DEVICES AND DRIVES", …) are in capitals with the item count as a small pill and a line that
   fades out to the right. Divider lines are softer.
 

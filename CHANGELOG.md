@@ -131,6 +131,11 @@ hidden and everything else works).
   component draws a translucent purple-to-cyan gradient with a glowing border; selected or pressed cards glow stronger.
   This replaces three separate highlight rectangles, one of which used a grey border.
   The border is a gradient ring (purple → blue → cyan, drawn as a `Shape` with the curve renderer) instead of a single colour.
+- Readability pass (UI/UX audit): the small Plasma system font (often only 7 pt) is no longer used for labels. Card
+  subtitles use the normal system font, ribbon labels, chips and badges at least 92 % of it. Secondary text is at least
+  75 % opaque (better contrast on light themes). Section headers and card grids sit on an 8 px grid (24/16 px margins),
+  the fold arrows have a 32 px click area, ribbon buttons are at least as wide as their longest word, and the *Storage* chip
+  shows the full value. The minimum window width grows by about 40–90 px.
 - Softer dividers: the line between sidebar and content and the ribbon group separators are fainter.
 
 ### Performance and robustness (review pass)

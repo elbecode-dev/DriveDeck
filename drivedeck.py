@@ -3652,7 +3652,7 @@ QQC2.ApplicationWindow {
             text: fmt.replace(" ({n})", "").replace("({n})", "").toUpperCase()
             font.bold: true
             font.letterSpacing: 1.2
-            font.pointSize: Math.max(7, Kirigami.Theme.defaultFont.pointSize * 0.9)
+            font.pointSize: Kirigami.Theme.defaultFont.pointSize
             opacity: 0.85
         }
         Rectangle {
@@ -3667,7 +3667,7 @@ QQC2.ApplicationWindow {
                 anchors.centerIn: parent
                 text: count
                 font.bold: true
-                font.pointSize: Math.max(7, Kirigami.Theme.defaultFont.pointSize * 0.85)
+                font.pointSize: Math.max(Kirigami.Theme.smallFont.pointSize, Kirigami.Theme.defaultFont.pointSize * 0.92)
                 color: Qt.lighter(accent, 1.6)
             }
         }
@@ -3727,6 +3727,11 @@ QQC2.ApplicationWindow {
     // grilleCartes : cartes de largeur fixe, autant de colonnes que la place le permet
     // (zone utile = largeur du défilement - 10 - marges 2 x 15 ; 8 d'espacement entre colonnes)
     readonly property real cardWidth: 340
+    // Schriftstufen : Plasma-Systemschrift als Maßstab. Die « kleine » Systemschrift (oft nur 7 pt) ist für Beschriftungen zu
+    // klein ; infoFont (Kartenuntertitel) = normale Schrift, badgeFont (Chips, Plaketten, Beschriftungen) mindestens 92 % davon.
+    readonly property font infoFont: Kirigami.Theme.defaultFont
+    readonly property font badgeFont: Qt.font({ family: Kirigami.Theme.defaultFont.family,
+                                               pointSize: Math.max(Kirigami.Theme.smallFont.pointSize, Kirigami.Theme.defaultFont.pointSize * 0.92) })
     readonly property int cardCols: Math.max(1, Math.floor((scroll.availableWidth - 32) / (cardWidth + 8)))
 
 
@@ -4390,7 +4395,7 @@ QQC2.ApplicationWindow {
                 readOnly: true
                 wrapMode: TextEdit.NoWrap
                 font.family: "monospace"
-                font.pointSize: Kirigami.Theme.smallFont.pointSize
+                font.pointSize: win.badgeFont.pointSize
             }
         }
     }
@@ -4624,7 +4629,7 @@ QQC2.ApplicationWindow {
 
                         QQC2.Label {
                             text: modelData.name
-                            font: Kirigami.Theme.smallFont
+                            font: win.badgeFont
                             elide: Text.ElideRight
                             Layout.preferredWidth: 150
                         }
@@ -4646,7 +4651,7 @@ QQC2.ApplicationWindow {
                         }
                         QQC2.Label {
                             text: modelData.level + " %"
-                            font: Kirigami.Theme.smallFont
+                            font: win.badgeFont
                             color: modelData.low ? win.gaugeRed : Kirigami.Theme.textColor
                             horizontalAlignment: Text.AlignRight
                             Layout.preferredWidth: 40
@@ -4769,7 +4774,7 @@ QQC2.ApplicationWindow {
                     Layout.alignment: Qt.AlignHCenter
                     visible: parent.busy
                     text: win.trad("Reading hardware…")
-                    opacity: 0.7
+                    opacity: 0.75
                 }
                 Item { Layout.fillHeight: true; visible: parent.busy }
                 QQC2.ScrollView {
@@ -4807,7 +4812,7 @@ QQC2.ApplicationWindow {
                                         spacing: 1
                                         QQC2.Label {
                                             text: modelData.title.toUpperCase()
-                                            font.pointSize: Kirigami.Theme.smallFont.pointSize
+                                            font.pointSize: win.badgeFont.pointSize
                                             font.bold: true
                                             font.letterSpacing: 1.2
                                             color: Kirigami.Theme.highlightColor
@@ -4818,9 +4823,9 @@ QQC2.ApplicationWindow {
                                                 Layout.fillWidth: true
                                                 wrapMode: Text.Wrap
                                                 text: modelData
-                                                opacity: index === 0 ? 1.0 : 0.7
+                                                opacity: index === 0 ? 1.0 : 0.75
                                                 font.bold: index === 0
-                                                font.pointSize: index === 0 ? Kirigami.Theme.defaultFont.pointSize : Kirigami.Theme.smallFont.pointSize
+                                                font.pointSize: index === 0 ? Kirigami.Theme.defaultFont.pointSize : win.badgeFont.pointSize
                                             }
                                         }
                                     }
@@ -4844,7 +4849,7 @@ QQC2.ApplicationWindow {
                                     spacing: 3
                                     QQC2.Label {
                                         text: modelData.title.toUpperCase()
-                                        font.pointSize: Kirigami.Theme.smallFont.pointSize
+                                        font.pointSize: win.badgeFont.pointSize
                                         font.bold: true
                                         font.letterSpacing: 1.2
                                         color: Kirigami.Theme.highlightColor
@@ -4859,8 +4864,8 @@ QQC2.ApplicationWindow {
                                                 Layout.alignment: Qt.AlignTop
                                                 text: modelData.k
                                                 wrapMode: Text.Wrap
-                                                opacity: 0.65
-                                                font: Kirigami.Theme.smallFont
+                                                opacity: 0.75
+                                                font: win.badgeFont
                                             }
                                             QQC2.Label {
                                                 Layout.fillWidth: true
@@ -5014,8 +5019,8 @@ QQC2.ApplicationWindow {
             QQC2.Label {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
-                font: Kirigami.Theme.smallFont
-                opacity: 0.65
+                font: win.badgeFont
+                opacity: 0.75
                 text: "Qt " + aboutInfo.qt + " · PyQt6 " + aboutInfo.pyqt + " · Python " + aboutInfo.python
             }
         }
@@ -5120,8 +5125,14 @@ QQC2.ApplicationWindow {
                                             id: bBtn
                                             readonly property bool usable: modelData.a === "open" ? barRoot.canOpen
                                                 : (modelData.a === "props" ? barRoot.canProps : true)
-                                            width: modelData.w
+                                            // Breite : Vorgabe, mindestens aber das längste Wort + Rand (sonst bricht « Systemeinstellungen » mitten im Wort)
+                                            width: Math.max(modelData.w, longestWord.width + 16)
                                             height: 84
+                                            TextMetrics {
+                                                id: longestWord
+                                                font: win.badgeFont
+                                                text: modelData.t.split(" ").reduce(function(a, w) { return w.length > a.length ? w : a }, "")
+                                            }
 
                                             Rectangle {
                                                 anchors.fill: parent
@@ -5169,7 +5180,7 @@ QQC2.ApplicationWindow {
                                                 verticalAlignment: Text.AlignTop
                                                 elide: Text.ElideRight
                                                 maximumLineCount: 2
-                                                font: Kirigami.Theme.smallFont
+                                                font: win.badgeFont
                                                 color: Kirigami.Theme.textColor
                                                 opacity: bBtn.usable ? 1.0 : 0.45
                                             }
@@ -5187,8 +5198,8 @@ QQC2.ApplicationWindow {
                                 QQC2.Label {
                                     Layout.alignment: Qt.AlignHCenter
                                     text: modelData.g
-                                    font: Kirigami.Theme.smallFont
-                                    opacity: 0.65
+                                    font: win.badgeFont
+                                    opacity: 0.75
                                     color: Kirigami.Theme.textColor
                                 }
                             }
@@ -5238,7 +5249,7 @@ QQC2.ApplicationWindow {
                                     delegate: QQC2.CheckBox {
                                         topPadding: 0
                                         bottomPadding: 0
-                                        font: Kirigami.Theme.smallFont
+                                        font: win.badgeFont
                                         text: win.sectName(modelData.t)
                                         checked: win[modelData.k + "Shown"]
                                         onToggled: win[modelData.k + "Shown"] = checked
@@ -5250,8 +5261,8 @@ QQC2.ApplicationWindow {
                         QQC2.Label {
                             Layout.alignment: Qt.AlignHCenter
                             text: win.trad("Show")
-                            font: Kirigami.Theme.smallFont
-                            opacity: 0.65
+                            font: win.badgeFont
+                            opacity: 0.75
                             color: Kirigami.Theme.textColor
                         }
                     }
@@ -5316,15 +5327,15 @@ QQC2.ApplicationWindow {
                                             anchors.verticalCenter: parent.verticalCenter
                                             width: 46
                                             text: modelData.l
-                                            font: Kirigami.Theme.smallFont
-                                            opacity: 0.7
+                                            font: win.badgeFont
+                                            opacity: 0.75
                                             color: Kirigami.Theme.textColor
                                         }
                                         Rectangle {   // Mini-Fortschrittsbalken : ab 80 % orange, ab 90 % rot (wie die Laufwerkskarten)
                                             visible: !parent.isNet
                                             x: 56
                                             anchors.verticalCenter: parent.verticalCenter
-                                            width: Math.max(24, parent.width - 160)   // der Balken nimmt den freien Platz
+                                            width: Math.max(24, parent.width - 184)   // der Balken nimmt den freien Platz
                                             height: 7
                                             radius: 3.5
                                             color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.16)
@@ -5340,12 +5351,12 @@ QQC2.ApplicationWindow {
                                         QQC2.Label {
                                             visible: !parent.isNet
                                             anchors.verticalCenter: parent.verticalCenter
-                                            x: parent.width - 98
-                                            width: 90
+                                            x: parent.width - 120
+                                            width: 112
                                             text: modelData.t
                                             elide: Text.ElideRight
                                             horizontalAlignment: Text.AlignRight
-                                            font: Kirigami.Theme.smallFont
+                                            font: win.badgeFont
                                             color: Kirigami.Theme.textColor
                                         }
                                         Row {   // Netz : ▲ gesendet (orange) ▼ empfangen (grün)
@@ -5354,12 +5365,12 @@ QQC2.ApplicationWindow {
                                             spacing: 10
                                             QQC2.Label {
                                                 text: "\u25B2 " + win.rateText(liveGrp.st.up)
-                                                font: Kirigami.Theme.smallFont
+                                                font: win.badgeFont
                                                 color: Kirigami.Theme.neutralTextColor
                                             }
                                             QQC2.Label {
                                                 text: "\u25BC " + win.rateText(liveGrp.st.down)
-                                                font: Kirigami.Theme.smallFont
+                                                font: win.badgeFont
                                                 color: Kirigami.Theme.positiveTextColor
                                             }
                                         }
@@ -5372,8 +5383,8 @@ QQC2.ApplicationWindow {
                             Layout.alignment: Qt.AlignHCenter
                             visible: liveGrp.roomy && liveGrp.ready
                             text: win.trad("System summary")
-                            font: Kirigami.Theme.smallFont
-                            opacity: 0.65
+                            font: win.badgeFont
+                            opacity: 0.75
                             color: Kirigami.Theme.textColor
                         }
                     }
@@ -5610,7 +5621,7 @@ QQC2.ApplicationWindow {
                             width: parent.width - 40
                             visible: r.type === "hint"
                             text: win.trad("Drag folders here to pin them")
-                            opacity: 0.55
+                            opacity: 0.7
                             wrapMode: Text.Wrap
                             horizontalAlignment: Text.AlignHCenter
                         }
@@ -5674,21 +5685,21 @@ QQC2.ApplicationWindow {
                     Item {
                         visible: win.foldersShown
                         Layout.fillWidth: true
-                        Layout.leftMargin: 23
-                        Layout.rightMargin: 15
-                        Layout.topMargin: 12
-                        Layout.bottomMargin: 4
+                        Layout.leftMargin: 24
+                        Layout.rightMargin: 16
+                        Layout.topMargin: 16
+                        Layout.bottomMargin: 8
                         implicitHeight: headerRow.implicitHeight
 
                         RowLayout {
                             id: headerRow
                             anchors.fill: parent
-                            spacing: 4
+                            spacing: 8
 
                             Kirigami.Icon {
                                 source: win.foldersCollapsed ? "arrow-up" : "arrow-down"
-                                Layout.preferredWidth: 14
-                                Layout.preferredHeight: 14
+                                Layout.preferredWidth: 16
+                                Layout.preferredHeight: 16
                             }
                             SectionTitle {
                                 Layout.fillWidth: true
@@ -5700,7 +5711,7 @@ QQC2.ApplicationWindow {
                             anchors.left: parent.left
                             anchors.top: parent.top
                             anchors.bottom: parent.bottom
-                            width: 24
+                            width: 32
                             cursorShape: Qt.PointingHandCursor
                             onClicked: win.foldersCollapsed = !win.foldersCollapsed
                         }
@@ -5711,13 +5722,13 @@ QQC2.ApplicationWindow {
                         id: folderGrid
                         visible: win.foldersShown && !win.foldersCollapsed
                         Layout.fillWidth: true
-                        Layout.leftMargin: 15
-                        Layout.rightMargin: 15
+                        Layout.leftMargin: 16
+                        Layout.rightMargin: 16
                         Layout.bottomMargin: 8
                         readonly property real cellWidth: Math.max(216, frameWidth)
                         columns: Math.max(1, Math.floor((scroll.availableWidth - 32) / (cellWidth + 8)))
                         columnSpacing: 8
-                        rowSpacing: 6
+                        rowSpacing: 8
                         uniformCellWidths: true
 
                         // cadreDossiers : largeur du cadre = marge + icône + espace + nom le plus long + marge
@@ -5825,21 +5836,21 @@ QQC2.ApplicationWindow {
                     Item {
                         visible: win.disksShown
                         Layout.fillWidth: true
-                        Layout.leftMargin: 23
-                        Layout.rightMargin: 15
-                        Layout.topMargin: 12
-                        Layout.bottomMargin: 4
+                        Layout.leftMargin: 24
+                        Layout.rightMargin: 16
+                        Layout.topMargin: 16
+                        Layout.bottomMargin: 8
                         implicitHeight: disksHeaderRow.implicitHeight
 
                         RowLayout {
                             id: disksHeaderRow
                             anchors.fill: parent
-                            spacing: 4
+                            spacing: 8
 
                             Kirigami.Icon {
                                 source: win.disksCollapsed ? "arrow-up" : "arrow-down"
-                                Layout.preferredWidth: 14
-                                Layout.preferredHeight: 14
+                                Layout.preferredWidth: 16
+                                Layout.preferredHeight: 16
                             }
                             SectionTitle {
                                 Layout.fillWidth: true
@@ -5851,7 +5862,7 @@ QQC2.ApplicationWindow {
                             anchors.left: parent.left
                             anchors.top: parent.top
                             anchors.bottom: parent.bottom
-                            width: 24
+                            width: 32
                             cursorShape: Qt.PointingHandCursor
                             onClicked: win.disksCollapsed = !win.disksCollapsed
                         }
@@ -5861,8 +5872,8 @@ QQC2.ApplicationWindow {
                     GridLayout {
                         visible: win.disksShown && !win.disksCollapsed
                         Layout.fillWidth: true
-                        Layout.leftMargin: 15
-                        Layout.rightMargin: 15
+                        Layout.leftMargin: 16
+                        Layout.rightMargin: 16
                         Layout.topMargin: 16
                         Layout.bottomMargin: 8
                         columns: win.cardCols
@@ -5944,7 +5955,7 @@ QQC2.ApplicationWindow {
                                                     id: tempText
                                                     anchors.centerIn: parent
                                                     text: tempChip.t !== undefined ? Math.round(tempChip.t.c) + " °C" : ""
-                                                    font.pointSize: Kirigami.Theme.smallFont.pointSize
+                                                    font.pointSize: win.badgeFont.pointSize
                                                     font.weight: Font.DemiBold
                                                     color: tempChip.tone
                                                 }
@@ -5985,7 +5996,7 @@ QQC2.ApplicationWindow {
                                             spacing: 6
                                             QQC2.Label {
                                                 text: modelData.freeText
-                                                font: Kirigami.Theme.smallFont
+                                                font: win.infoFont
                                                 opacity: 0.75
                                                 elide: Text.ElideRight
                                                 Layout.fillWidth: true
@@ -6005,7 +6016,7 @@ QQC2.ApplicationWindow {
                                                     id: pillText
                                                     anchors.centerIn: parent
                                                     text: "\u26A0 " + Math.round(frac * 100) + " %"
-                                                    font.pointSize: Kirigami.Theme.smallFont.pointSize
+                                                    font.pointSize: win.badgeFont.pointSize
                                                     font.weight: Font.DemiBold
                                                     color: win.gaugeRed
                                                 }
@@ -6018,7 +6029,7 @@ QQC2.ApplicationWindow {
                                         QQC2.Label {   // santeDisque (1.1)
                                             visible: text !== ""
                                             text: modelData.healthText || ""
-                                            font.pointSize: Kirigami.Theme.smallFont.pointSize
+                                            font.pointSize: win.badgeFont.pointSize
                                             font.weight: Font.DemiBold
                                             color: modelData.health === "fail" ? "#c42b1c" : "#d35400"
                                             elide: Text.ElideRight
@@ -6177,21 +6188,21 @@ QQC2.ApplicationWindow {
                     Item {
                         visible: win.netShown
                         Layout.fillWidth: true
-                        Layout.leftMargin: 23
-                        Layout.rightMargin: 15
-                        Layout.topMargin: 12
-                        Layout.bottomMargin: 4
+                        Layout.leftMargin: 24
+                        Layout.rightMargin: 16
+                        Layout.topMargin: 16
+                        Layout.bottomMargin: 8
                         implicitHeight: netHeaderRow.implicitHeight
 
                         RowLayout {
                             id: netHeaderRow
                             anchors.fill: parent
-                            spacing: 4
+                            spacing: 8
 
                             Kirigami.Icon {
                                 source: win.netCollapsed ? "arrow-up" : "arrow-down"
-                                Layout.preferredWidth: 14
-                                Layout.preferredHeight: 14
+                                Layout.preferredWidth: 16
+                                Layout.preferredHeight: 16
                             }
                             SectionTitle {
                                 Layout.fillWidth: true
@@ -6203,7 +6214,7 @@ QQC2.ApplicationWindow {
                             anchors.left: parent.left
                             anchors.top: parent.top
                             anchors.bottom: parent.bottom
-                            width: 24
+                            width: 32
                             cursorShape: Qt.PointingHandCursor
                             onClicked: win.netCollapsed = !win.netCollapsed
                         }
@@ -6213,8 +6224,8 @@ QQC2.ApplicationWindow {
                     GridLayout {
                         visible: win.netShown && !win.netCollapsed
                         Layout.fillWidth: true
-                        Layout.leftMargin: 15
-                        Layout.rightMargin: 15
+                        Layout.leftMargin: 16
+                        Layout.rightMargin: 16
                         Layout.bottomMargin: 8
                         columns: win.cardCols
                         columnSpacing: 8
@@ -6312,7 +6323,7 @@ QQC2.ApplicationWindow {
                                             spacing: 6
                                             QQC2.Label {
                                                 text: modelData.freeText
-                                                font: Kirigami.Theme.smallFont
+                                                font: win.infoFont
                                                 opacity: offline ? 0.6 : 0.75
                                                 elide: Text.ElideRight
                                                 Layout.fillWidth: true
@@ -6332,7 +6343,7 @@ QQC2.ApplicationWindow {
                                                     id: pillText
                                                     anchors.centerIn: parent
                                                     text: "\u26A0 " + Math.round(frac * 100) + " %"
-                                                    font.pointSize: Kirigami.Theme.smallFont.pointSize
+                                                    font.pointSize: win.badgeFont.pointSize
                                                     font.weight: Font.DemiBold
                                                     color: win.gaugeRed
                                                 }
@@ -6436,21 +6447,21 @@ QQC2.ApplicationWindow {
                     Item {
                         visible: win.printersShown && ((backend && backend.printers) ? backend.printers : []).length > 0
                         Layout.fillWidth: true
-                        Layout.leftMargin: 23
-                        Layout.rightMargin: 15
-                        Layout.topMargin: 12
-                        Layout.bottomMargin: 4
+                        Layout.leftMargin: 24
+                        Layout.rightMargin: 16
+                        Layout.topMargin: 16
+                        Layout.bottomMargin: 8
                         implicitHeight: printersHeaderRow.implicitHeight
 
                         RowLayout {
                             id: printersHeaderRow
                             anchors.fill: parent
-                            spacing: 4
+                            spacing: 8
 
                             Kirigami.Icon {
                                 source: win.printersCollapsed ? "arrow-up" : "arrow-down"
-                                Layout.preferredWidth: 14
-                                Layout.preferredHeight: 14
+                                Layout.preferredWidth: 16
+                                Layout.preferredHeight: 16
                             }
                             SectionTitle {
                                 Layout.fillWidth: true
@@ -6462,7 +6473,7 @@ QQC2.ApplicationWindow {
                             anchors.left: parent.left
                             anchors.top: parent.top
                             anchors.bottom: parent.bottom
-                            width: 24
+                            width: 32
                             cursorShape: Qt.PointingHandCursor
                             onClicked: win.printersCollapsed = !win.printersCollapsed
                         }
@@ -6471,8 +6482,8 @@ QQC2.ApplicationWindow {
                     GridLayout {
                         visible: win.printersShown && ((backend && backend.printers) ? backend.printers : []).length > 0 && !win.printersCollapsed
                         Layout.fillWidth: true
-                        Layout.leftMargin: 15
-                        Layout.rightMargin: 15
+                        Layout.leftMargin: 16
+                        Layout.rightMargin: 16
                         Layout.bottomMargin: 8
                         columns: win.cardCols
                         columnSpacing: 8
@@ -6522,7 +6533,7 @@ QQC2.ApplicationWindow {
                                         }
                                         QQC2.Label {
                                             text: modelData.statusText
-                                            font: Kirigami.Theme.smallFont
+                                            font: win.infoFont
                                             opacity: 0.75
                                             Layout.fillWidth: true
                                             elide: Text.ElideRight
