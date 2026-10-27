@@ -122,6 +122,9 @@ hidden and everything else works).
 
 - Section headers ("Folders", "Devices and drives", …) are now upper-case with wider letter spacing, show the item count
   as a small accent pill and continue with a line that fades out to the right (new `SectionTitle` component).
+- One hover/selection look for all cards (folders, drives, network locations, printers and devices): a new `CardGlow`
+  component draws a translucent purple-to-cyan gradient with a glowing border; selected or pressed cards glow stronger.
+  This replaces three separate highlight rectangles, one of which used a grey border.
 - Softer dividers: the line between sidebar and content and the ribbon group separators are fainter.
 
 ### Performance and robustness (review pass)

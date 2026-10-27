@@ -3497,6 +3497,39 @@ QQC2.ApplicationWindow {
     color: Kirigami.Theme.backgroundColor
 
     // rubriquesMemo (Ce PC 1.1) : repli de chaque rubrique et rubriques affichées, retenus d'une ouverture à l'autre
+    // Karten-Hervorhebung für alle vier Sektionen : unsichtbar im Ruhezustand, beim Überfahren ein Neon-Verlauf
+    // (Lila → Blau → Cyan) mit leuchtendem Rand ; ausgewählt oder gedrückt etwas kräftiger
+    component CardGlow: Rectangle {
+        property bool hovered: false
+        property bool selected: false
+        property bool pressed: false
+        property bool stripe: false   // Akzentstreifen links bei Auswahl
+        readonly property bool strong: selected || pressed
+        readonly property real a: strong ? 0.32 : 0.17
+        z: -1
+        radius: 8
+        opacity: (hovered || strong) ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: 140 } }
+        gradient: Gradient {
+            orientation: Gradient.Horizontal
+            GradientStop { position: 0.0; color: Qt.rgba(0.69, 0.26, 1.0, a) }
+            GradientStop { position: 0.55; color: Qt.rgba(0.24, 0.48, 1.0, a * 0.8) }
+            GradientStop { position: 1.0; color: Qt.rgba(0.0, 0.90, 1.0, a * 0.9) }
+        }
+        border.width: 1
+        border.color: strong ? Qt.rgba(0.0, 0.90, 1.0, 0.85) : Qt.rgba(0.69, 0.40, 1.0, 0.6)
+        Rectangle {
+            visible: stripe
+            width: 3; radius: 1.5
+            height: parent.height - 24
+            anchors.left: parent.left; anchors.leftMargin: 3
+            anchors.verticalCenter: parent.verticalCenter
+            color: Qt.rgba(0.0, 0.90, 1.0, 1.0)
+            opacity: parent.selected ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: 140 } }
+        }
+    }
+
     // Sektionskopf : Titel in Versalien, Anzahl als Pille im Akzentton, danach ein Verlauf, der nach rechts ausblendet
     component SectionTitle: RowLayout {
         property string fmt: ""
@@ -5614,20 +5647,15 @@ QQC2.ApplicationWindow {
                                         anchors.verticalCenter: parent.verticalCenter
                                     }
                                 }
-                                // Cadre au survol (comme Dolphin) : couleur d'accent de Plasma, translucide
-                                Rectangle {
-                                    z: -1
+                                CardGlow {
                                     anchors.left: parent.left
                                     anchors.top: parent.top
                                     anchors.bottom: parent.bottom
                                     width: Math.min(parent.width, folderGrid.frameWidth)
                                     radius: 5
-                                    visible: folderMouse.containsMouse || folderMouse.pressed || navRoot.navSel
-                                    color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
-                                                   Kirigami.Theme.highlightColor.b, navRoot.navSel ? 0.22 : 0.12)
-                                    border.width: 1
-                                    border.color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
-                                                          Kirigami.Theme.highlightColor.b, navRoot.navSel ? 0.8 : 0.35)
+                                    hovered: folderMouse.containsMouse
+                                    pressed: folderMouse.pressed
+                                    selected: navRoot.navSel
                                 }
                                 MouseArea {
                                     id: folderMouse
@@ -5928,30 +5956,12 @@ QQC2.ApplicationWindow {
                                         QQC2.ToolTip.text: ioBox.io ? ("\u25BC " + win.rateText(ioBox.io.readRate) + "   \u25B2 " + win.rateText(ioBox.io.writeRate)) : ""
                                     }
                                 }
-                                // Fin cadre au survol ; au clic, fond teinté de la couleur d'accent (reste jusqu'à un autre clic)
-                                Rectangle {
-                                    z: -1
+                                CardGlow {
                                     anchors.fill: parent
-                                    radius: 8
-                                    readonly property bool selected: win.selectedKey === modelData.mountpoint
-                                    opacity: (selected || cardMouse.containsMouse) ? 1 : 0
-                                    Behavior on opacity { NumberAnimation { duration: 140 } }
-                                    color: (selected || cardMouse.pressed)
-                                           ? Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.20)
-                                           : Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.06)
-                                    Behavior on color { ColorAnimation { duration: 140 } }
-                                    border.width: 1
-                                    border.color: selected ? Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.75)
-                                                            : Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.30)
-                                    Rectangle {   // Akzentstreifen der Auswahl
-                                        width: 3; radius: 1.5
-                                        height: parent.height - 24
-                                        anchors.left: parent.left; anchors.leftMargin: 3
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        color: Kirigami.Theme.highlightColor
-                                        opacity: parent.selected ? 1 : 0
-                                        Behavior on opacity { NumberAnimation { duration: 140 } }
-                                    }
+                                    stripe: true
+                                    hovered: cardMouse.containsMouse
+                                    pressed: cardMouse.pressed
+                                    selected: win.selectedKey === modelData.mountpoint
                                 }
                                 MouseArea {
                                     id: cardMouse
@@ -6223,30 +6233,12 @@ QQC2.ApplicationWindow {
                                     }
                                 }
 
-                                // Fin cadre au survol ; au clic, fond teinté de la couleur d'accent (reste jusqu'à un autre clic)
-                                Rectangle {
-                                    z: -1
+                                CardGlow {
                                     anchors.fill: parent
-                                    radius: 8
-                                    readonly property bool selected: win.selectedKey === modelData.mountpoint
-                                    opacity: (selected || cardMouse.containsMouse) ? 1 : 0
-                                    Behavior on opacity { NumberAnimation { duration: 140 } }
-                                    color: (selected || cardMouse.pressed)
-                                           ? Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.20)
-                                           : Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.06)
-                                    Behavior on color { ColorAnimation { duration: 140 } }
-                                    border.width: 1
-                                    border.color: selected ? Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.75)
-                                                            : Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.30)
-                                    Rectangle {   // Akzentstreifen der Auswahl
-                                        width: 3; radius: 1.5
-                                        height: parent.height - 24
-                                        anchors.left: parent.left; anchors.leftMargin: 3
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        color: Kirigami.Theme.highlightColor
-                                        opacity: parent.selected ? 1 : 0
-                                        Behavior on opacity { NumberAnimation { duration: 140 } }
-                                    }
+                                    stripe: true
+                                    hovered: cardMouse.containsMouse
+                                    pressed: cardMouse.pressed
+                                    selected: win.selectedKey === modelData.mountpoint
                                 }
                                 MouseArea {
                                     id: cardMouse
@@ -6471,22 +6463,11 @@ QQC2.ApplicationWindow {
                                         QQC2.ToolTip.text: inks.map(function(i) { return i.name + ": " + i.level + " %" }).join("\n")
                                     }
                                 }
-                                Rectangle {
-                                    z: -1
+                                CardGlow {
                                     anchors.fill: parent
-                                    radius: 4
-                                    readonly property bool selected: win.selectedKey === modelData.key
-                                    visible: selected || printerMouse.containsMouse
-                                    color: (selected || printerMouse.pressed)
-                                           ? Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
-                                                     Kirigami.Theme.highlightColor.b, 0.22)
-                                           : "transparent"
-                                    border.width: 1
-                                    border.color: selected
-                                                  ? Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
-                                                            Kirigami.Theme.highlightColor.b, 0.8)
-                                                  : Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
-                                                            Kirigami.Theme.textColor.b, 0.55)
+                                    hovered: printerMouse.containsMouse
+                                    pressed: printerMouse.pressed
+                                    selected: win.selectedKey === modelData.key
                                 }
                                 MouseArea {
                                     id: printerMouse
