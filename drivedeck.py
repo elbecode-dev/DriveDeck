@@ -28,7 +28,7 @@ os.environ["QT_QUICK_CONTROLS_STYLE"] = "org.kde.desktop"
 # wird ausgeblendet ; eigene QT_LOGGING_RULES des Benutzers bleiben erhalten und haben Vorrang (stehen weiter hinten).
 os.environ["QT_LOGGING_RULES"] = ";".join(r for r in ("qt.svg.warning=false", os.environ.get("QT_LOGGING_RULES", "")) if r)
 
-from PyQt6.QtCore import QObject, pyqtProperty, pyqtSignal, pyqtSlot
+from PyQt6.QtCore import QEvent, QObject, pyqtProperty, pyqtSignal, pyqtSlot
 from PyQt6.QtGui import QIcon
 from PyQt6.QtQml import QQmlApplicationEngine
 from PyQt6.QtWidgets import QApplication
@@ -3660,12 +3660,12 @@ QQC2.ApplicationWindow {
         var k = selectedKey
         if (k === "")
             return null
-        for (var i = 0; i < backend.disks.length; i++)
-            if (backend.disks[i].mountpoint === k)
-                return backend.disks[i]
-        for (var j = 0; j < backend.networks.length; j++)
-            if (backend.networks[j].mountpoint === k)
-                return backend.networks[j]
+        for (var i = 0; i < ((backend && backend.disks) ? backend.disks : []).length; i++)
+            if (((backend && backend.disks) ? backend.disks : [])[i].mountpoint === k)
+                return ((backend && backend.disks) ? backend.disks : [])[i]
+        for (var j = 0; j < ((backend && backend.networks) ? backend.networks : []).length; j++)
+            if (((backend && backend.networks) ? backend.networks : [])[j].mountpoint === k)
+                return ((backend && backend.networks) ? backend.networks : [])[j]
         return null
     }
 
@@ -3745,7 +3745,7 @@ QQC2.ApplicationWindow {
         var rows = []
         rows.push({ type: "head", key: "quick", selKey: "head:quick", label: trad("Quick access"), icon: "starred-symbolic",
                     collapsed: quickCollapsed, canAdd: true })
-        var ps = backend.pins
+        var ps = ((backend && backend.pins) ? backend.pins : [])
         if (!quickCollapsed) {
             for (var i = 0; i < ps.length; i++)
                 rows.push({ type: "pin", selKey: "pin:" + ps[i].path, path: ps[i].path, label: ps[i].label, icon: ps[i].icon,
@@ -3755,7 +3755,7 @@ QQC2.ApplicationWindow {
         }
         rows.push({ type: "head", key: "pc", selKey: "head:pc", label: trad("This PC"), icon: "computer", collapsed: pcCollapsed })
         if (!pcCollapsed) {
-            var ds = backend.disks
+            var ds = ((backend && backend.disks) ? backend.disks : [])
             for (var j = 0; j < ds.length; j++) {
                 var d = ds[j]
                 if (d.mountpoint.charAt(0) !== "/" || d.isUnmounted === true || d.isOptical === true)
@@ -3779,7 +3779,7 @@ QQC2.ApplicationWindow {
     }
     // Laufwerks-Wurzeln gleich lesen, damit auch ein leerer Stick keinen unnötigen Pfeil zeigt
     function probeRoots() {
-        var ds = backend.disks
+        var ds = ((backend && backend.disks) ? backend.disks : [])
         for (var j = 0; j < ds.length; j++) {
             var d = ds[j]
             if (d.mountpoint.charAt(0) !== "/" || d.isUnmounted === true || d.isOptical === true)
@@ -3789,10 +3789,10 @@ QQC2.ApplicationWindow {
                 backend.listDirs(pth)
         }
     }
-    // schnellzugriff : ist dieser Pfad angeheftet? (liest backend.pins, daher reagieren Menütexte sofort)
+    // schnellzugriff : ist dieser Pfad angeheftet? (liest ((backend && backend.pins) ? backend.pins : []), daher reagieren Menütexte sofort)
     function isPinned(path) {
         var k = path.length > 1 ? path.replace(/[/]+$/, "") : path
-        var ps = backend.pins
+        var ps = ((backend && backend.pins) ? backend.pins : [])
         for (var i = 0; i < ps.length; i++) {
             var q = ps[i].path
             if ((q.length > 1 ? q.replace(/[/]+$/, "") : q) === k)
@@ -3837,12 +3837,12 @@ QQC2.ApplicationWindow {
         var res = []
         if (foldersShown && !foldersCollapsed && foldersModel.length > 0)
             res.push({ cols: folderGrid.columns, items: navUnique(foldersModel.map(function(f) { return { key: "folder:" + f.path, kind: "folder", e: f } })) })
-        if (disksShown && !disksCollapsed && backend.disks.length > 0)
-            res.push({ cols: cardCols, items: navUnique(backend.disks.map(function(d) { return { key: d.mountpoint, kind: "disk", e: d } })) })
-        if (netShown && !netCollapsed && backend.networks.length > 0)
-            res.push({ cols: cardCols, items: navUnique(backend.networks.map(function(d) { return { key: d.mountpoint, kind: "net", e: d } })) })
-        if (printersShown && !printersCollapsed && backend.printers.length > 0)
-            res.push({ cols: cardCols, items: navUnique(backend.printers.map(function(p) { return { key: p.key, kind: "printer", e: p } })) })
+        if (disksShown && !disksCollapsed && ((backend && backend.disks) ? backend.disks : []).length > 0)
+            res.push({ cols: cardCols, items: navUnique(((backend && backend.disks) ? backend.disks : []).map(function(d) { return { key: d.mountpoint, kind: "disk", e: d } })) })
+        if (netShown && !netCollapsed && ((backend && backend.networks) ? backend.networks : []).length > 0)
+            res.push({ cols: cardCols, items: navUnique(((backend && backend.networks) ? backend.networks : []).map(function(d) { return { key: d.mountpoint, kind: "net", e: d } })) })
+        if (printersShown && !printersCollapsed && ((backend && backend.printers) ? backend.printers : []).length > 0)
+            res.push({ cols: cardCols, items: navUnique(((backend && backend.printers) ? backend.printers : []).map(function(p) { return { key: p.key, kind: "printer", e: p } })) })
         return res
     }
     function navFind(secs, key) {
@@ -3937,7 +3937,7 @@ QQC2.ApplicationWindow {
             showPrinter(it.e)
         } else {
             var m = settingsModuleFor(it.e)
-            if (m !== "" && backend.hasSettings(m))
+            if (m !== "" && ((backend && backend.hasSettings) ? backend.hasSettings(m) : false))
                 backend.openSettings(m)
         }
     }
@@ -4163,13 +4163,13 @@ QQC2.ApplicationWindow {
                 QQC2.Label { text: win.trad("Device:"); opacity: 0.75 }
                 QQC2.Label { text: win.propsDisk.device || ""; Layout.fillWidth: true }
                 QQC2.Label {
-                    visible: backend.temps[win.propsDisk.device || ""] !== undefined
+                    visible: ((backend && backend.temps) ? backend.temps : ({}))[win.propsDisk.device || ""] !== undefined
                     text: win.trad("Temperature:")
                     opacity: 0.75
                 }
                 QQC2.Label {
-                    visible: backend.temps[win.propsDisk.device || ""] !== undefined
-                    text: visible ? backend.temps[win.propsDisk.device].c.toFixed(1).replace(".", trDecimal) + " °C" : ""
+                    visible: ((backend && backend.temps) ? backend.temps : ({}))[win.propsDisk.device || ""] !== undefined
+                    text: visible ? ((backend && backend.temps) ? backend.temps : ({}))[win.propsDisk.device].c.toFixed(1).replace(".", trDecimal) + " °C" : ""
                     Layout.fillWidth: true
                 }
             }
@@ -4330,9 +4330,9 @@ QQC2.ApplicationWindow {
         function onNetworksChanged() {
             if (!propsDialog.visible)
                 return
-            for (var k = 0; k < backend.networks.length; k++) {
-                if (backend.networks[k].mountpoint === win.propsDisk.mountpoint) {
-                    win.propsDisk = backend.networks[k]
+            for (var k = 0; k < ((backend && backend.networks) ? backend.networks : []).length; k++) {
+                if (((backend && backend.networks) ? backend.networks : [])[k].mountpoint === win.propsDisk.mountpoint) {
+                    win.propsDisk = ((backend && backend.networks) ? backend.networks : [])[k]
                     break
                 }
             }
@@ -4340,9 +4340,9 @@ QQC2.ApplicationWindow {
         function onDisksChanged() {
             if (!propsDialog.visible)
                 return
-            for (var i = 0; i < backend.disks.length; i++) {
-                if (backend.disks[i].mountpoint === win.propsDisk.mountpoint) {
-                    win.propsDisk = backend.disks[i]
+            for (var i = 0; i < ((backend && backend.disks) ? backend.disks : []).length; i++) {
+                if (((backend && backend.disks) ? backend.disks : [])[i].mountpoint === win.propsDisk.mountpoint) {
+                    win.propsDisk = ((backend && backend.disks) ? backend.disks : [])[i]
                     break
                 }
             }
@@ -4922,9 +4922,9 @@ QQC2.ApplicationWindow {
             // miseAJour (1.1)
             QQC2.CheckBox {
                 Layout.fillWidth: true
-                visible: backend.updateSupported
+                visible: (backend && backend.updateSupported)
                 text: win.trad("Check for a new version once a week")
-                checked: backend.updateCheck
+                checked: (backend && backend.updateCheck)
                 onToggled: backend.setUpdateCheck(checked)
             }
 
@@ -5019,7 +5019,7 @@ QQC2.ApplicationWindow {
                                 { t: win.trad("About"), i: "about", a: "about", w: 84 } ] }
                         // Schaltflächen nur für installierte Programme ; Gruppen ohne Schaltfläche entfallen
                         ].map(function(g) {
-                            return { g: g.g, items: g.items.filter(function(x) { return backend.tools[x.a] !== false }) }
+                            return { g: g.g, items: g.items.filter(function(x) { return ((backend && backend.tools) ? backend.tools : ({}))[x.a] !== false }) }
                         }).filter(function(g) { return g.items.length > 0 })
                         delegate: RowLayout {
                             id: grp
@@ -5195,7 +5195,7 @@ QQC2.ApplicationWindow {
                         Layout.minimumWidth: 0
                         Layout.maximumWidth: 280
                         spacing: 2
-                        readonly property var st: backend.sysStats
+                        readonly property var st: ((backend && backend.sysStats) ? backend.sysStats : ({}))
                         readonly property bool ready: st !== null && st !== undefined && st.cpu !== undefined
                         readonly property bool roomy: width >= 190
                         // « 4,2 / 32,0 GB » : die Einheit des ersten Werts entfällt, wenn sie gleich ist
@@ -5374,7 +5374,7 @@ QQC2.ApplicationWindow {
                     QQC2.MenuItem {
                         text: win.trad("Analyze storage")
                         icon.name: "filelight"
-                        visible: backend.tools.analyze
+                        visible: ((backend && backend.tools) ? backend.tools : ({})).analyze
                         height: visible ? implicitHeight : 0
                         onTriggered: backend.launchTool("analyze", rowMenu.t.path)
                     }
@@ -5718,7 +5718,7 @@ QQC2.ApplicationWindow {
                                     QQC2.MenuItem {
                                         text: win.trad("Analyze storage")
                                         icon.name: "filelight"
-                                        visible: backend.tools.analyze
+                                        visible: ((backend && backend.tools) ? backend.tools : ({})).analyze
                                         height: visible ? implicitHeight : 0
                                         onTriggered: backend.launchTool("analyze", modelData.path)
                                     }
@@ -5763,7 +5763,7 @@ QQC2.ApplicationWindow {
                             SectionTitle {
                                 Layout.fillWidth: true
                                 fmt: win.trad("Devices and drives ({n})")
-                                count: backend.disks.length
+                                count: ((backend && backend.disks) ? backend.disks : []).length
                             }
                         }
                         MouseArea {   // flecheSeule : seule la flèche replie la rubrique
@@ -5790,7 +5790,7 @@ QQC2.ApplicationWindow {
                         uniformCellWidths: true
 
                         Repeater {
-                            model: backend.disks
+                            model: ((backend && backend.disks) ? backend.disks : [])
                             delegate: Item {
                                 Layout.fillWidth: false
                                 Layout.preferredWidth: win.cardWidth
@@ -5848,7 +5848,7 @@ QQC2.ApplicationWindow {
                                             // festplattenTemperatur : Chip, nur wenn ein Sensor einen Wert liefert (NVMe, SATA mit drivetemp, SMART über udisks)
                                             Rectangle {
                                                 id: tempChip
-                                                readonly property var t: backend.temps[modelData.device]
+                                                readonly property var t: ((backend && backend.temps) ? backend.temps : ({}))[modelData.device]
                                                 readonly property color tone: t === undefined ? "transparent"
                                                         : (t.level === "hot" ? win.gaugeRed : (t.level === "warn" ? Kirigami.Theme.neutralTextColor : Kirigami.Theme.textColor))
                                                 visible: t !== undefined
@@ -5948,7 +5948,7 @@ QQC2.ApplicationWindow {
                                     // ioVerlauf : Lese-/Schreib-Sparkline der letzten 60 s ; Tooltip mit den Momentanwerten
                                     Item {
                                         id: ioBox
-                                        readonly property var io: backend.ioStats[modelData.device]
+                                        readonly property var io: ((backend && backend.ioStats) ? backend.ioStats : ({}))[modelData.device]
                                         readonly property real peak: io ? Math.max(1048576, Math.max.apply(null, io.read.concat(io.write))) : 1048576
                                         function pts(serie) {
                                             var n = serie.length, out = [], step = width / 59
@@ -6036,7 +6036,7 @@ QQC2.ApplicationWindow {
                                     QQC2.MenuItem {
                                         text: win.trad("Analyze storage")
                                         icon.name: "filelight"
-                                        visible: backend.tools.analyze && modelData.mountpoint.charAt(0) === "/"
+                                        visible: ((backend && backend.tools) ? backend.tools : ({})).analyze && modelData.mountpoint.charAt(0) === "/"
                                         height: visible ? implicitHeight : 0
                                         onTriggered: backend.launchTool("analyze", modelData.mountpoint)
                                     }
@@ -6115,7 +6115,7 @@ QQC2.ApplicationWindow {
                             SectionTitle {
                                 Layout.fillWidth: true
                                 fmt: win.trad("Network locations ({n})")
-                                count: backend.networks.length
+                                count: ((backend && backend.networks) ? backend.networks : []).length
                             }
                         }
                         MouseArea {   // flecheSeule : seule la flèche replie la rubrique
@@ -6141,7 +6141,7 @@ QQC2.ApplicationWindow {
                         uniformCellWidths: true
 
                         Repeater {
-                            model: backend.networks
+                            model: ((backend && backend.networks) ? backend.networks : [])
                             delegate: Item {
                                 Layout.fillWidth: false
                                 Layout.preferredWidth: win.cardWidth
@@ -6353,7 +6353,7 @@ QQC2.ApplicationWindow {
 
                     // Imprimantes et périphériques : information seulement, sous les emplacements réseau
                     Item {
-                        visible: win.printersShown && backend.printers.length > 0
+                        visible: win.printersShown && ((backend && backend.printers) ? backend.printers : []).length > 0
                         Layout.fillWidth: true
                         Layout.leftMargin: 23
                         Layout.rightMargin: 15
@@ -6374,7 +6374,7 @@ QQC2.ApplicationWindow {
                             SectionTitle {
                                 Layout.fillWidth: true
                                 fmt: win.trad("Printers and devices ({n})")
-                                count: backend.printers.length
+                                count: ((backend && backend.printers) ? backend.printers : []).length
                             }
                         }
                         MouseArea {   // flecheSeule : seule la flèche replie la rubrique
@@ -6388,7 +6388,7 @@ QQC2.ApplicationWindow {
                     }
 
                     GridLayout {
-                        visible: win.printersShown && backend.printers.length > 0 && !win.printersCollapsed
+                        visible: win.printersShown && ((backend && backend.printers) ? backend.printers : []).length > 0 && !win.printersCollapsed
                         Layout.fillWidth: true
                         Layout.leftMargin: 15
                         Layout.rightMargin: 15
@@ -6399,7 +6399,7 @@ QQC2.ApplicationWindow {
                         uniformCellWidths: true
 
                         Repeater {
-                            model: backend.printers
+                            model: ((backend && backend.printers) ? backend.printers : [])
                             delegate: Item {
                                 Layout.fillWidth: false
                                 Layout.preferredWidth: win.cardWidth
@@ -6513,12 +6513,12 @@ QQC2.ApplicationWindow {
                                             backend.launchApp("skanpage")
                                         else if (!modelData.indicator)
                                             win.showPrinter(modelData)
-                                        else if (settingsMod !== "" && backend.hasSettings(settingsMod))
+                                        else if (settingsMod !== "" && ((backend && backend.hasSettings) ? backend.hasSettings(settingsMod) : false))
                                             backend.openSettings(settingsMod)   // Controller, Maus, Tastatur … -> Systemeinstellungen
                                     }
                                     onClicked: function(mouse) {
                                         if (mouse.button === Qt.RightButton && (!modelData.indicator
-                                                || (settingsMod !== "" && backend.hasSettings(settingsMod))))
+                                                || (settingsMod !== "" && ((backend && backend.hasSettings) ? backend.hasSettings(settingsMod) : false))))
                                             printerMenu.popup()
                                     }
                                 }
@@ -6531,7 +6531,7 @@ QQC2.ApplicationWindow {
                                         onTriggered: win.showPrinter(modelData)
                                     }
                                     QQC2.MenuItem {
-                                        visible: settingsMod !== "" && backend.hasSettings(settingsMod)
+                                        visible: settingsMod !== "" && ((backend && backend.hasSettings) ? backend.hasSettings(settingsMod) : false)
                                         text: win.trad("Open settings")
                                         icon.name: "configure"
                                         onTriggered: backend.openSettings(settingsMod)
@@ -6571,7 +6571,7 @@ QQC2.ApplicationWindow {
                 anchors.leftMargin: 15
                 anchors.verticalCenter: parent.verticalCenter
                 opacity: 0.75
-                text: win.trad("{n} item(s)").replace("{n}", (win.foldersCollapsed || !win.foldersShown ? 0 : foldersModel.length) + (win.disksCollapsed || !win.disksShown ? 0 : backend.disks.length) + (win.netCollapsed || !win.netShown ? 0 : backend.networks.length) + (win.printersCollapsed || !win.printersShown ? 0 : backend.printers.length))
+                text: win.trad("{n} item(s)").replace("{n}", (win.foldersCollapsed || !win.foldersShown ? 0 : foldersModel.length) + (win.disksCollapsed || !win.disksShown ? 0 : ((backend && backend.disks) ? backend.disks : []).length) + (win.netCollapsed || !win.netShown ? 0 : ((backend && backend.networks) ? backend.networks : []).length) + (win.printersCollapsed || !win.printersShown ? 0 : ((backend && backend.printers) ? backend.printers : []).length))
             }
         }
     }
@@ -6765,6 +6765,11 @@ def main():
         print("Échec du chargement QML")
         return 1
     code = app.exec()
+    # Abbau in der richtigen Reihenfolge : erst die Engine (und mit ihr alle Bindings), dann das Backend, auf das sie zugreifen.
+    # Sonst stirbt backend beim Verlassen von main() zuerst, und QML meldet « Cannot read property … of null ».
+    engine.deleteLater()
+    app.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    del engine
     del serveur
     return code
 
