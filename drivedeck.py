@@ -3497,6 +3497,46 @@ QQC2.ApplicationWindow {
     color: Kirigami.Theme.backgroundColor
 
     // rubriquesMemo (Ce PC 1.1) : repli de chaque rubrique et rubriques affichées, retenus d'une ouverture à l'autre
+    // Sektionskopf : Titel in Versalien, Anzahl als Pille im Akzentton, danach ein Verlauf, der nach rechts ausblendet
+    component SectionTitle: RowLayout {
+        property string fmt: ""
+        property int count: 0
+        readonly property color accent: Kirigami.Theme.highlightColor
+        spacing: 8
+        QQC2.Label {
+            text: fmt.replace(" ({n})", "").replace("({n})", "").toUpperCase()
+            font.bold: true
+            font.letterSpacing: 1.2
+            font.pointSize: Math.max(7, Kirigami.Theme.defaultFont.pointSize * 0.9)
+            opacity: 0.85
+        }
+        Rectangle {
+            implicitWidth: Math.max(implicitHeight, pillText.implicitWidth + 12)
+            implicitHeight: pillText.implicitHeight + 2
+            radius: height / 2
+            color: Qt.rgba(accent.r, accent.g, accent.b, 0.18)
+            border.width: 1
+            border.color: Qt.rgba(accent.r, accent.g, accent.b, 0.4)
+            QQC2.Label {
+                id: pillText
+                anchors.centerIn: parent
+                text: count
+                font.bold: true
+                font.pointSize: Math.max(7, Kirigami.Theme.defaultFont.pointSize * 0.85)
+                color: Qt.lighter(accent, 1.6)
+            }
+        }
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 1
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0.0; color: Qt.rgba(accent.r, accent.g, accent.b, 0.6) }
+                GradientStop { position: 1.0; color: Qt.rgba(accent.r, accent.g, accent.b, 0.0) }
+            }
+        }
+    }
+
     property bool foldersCollapsed: sectInit.folders.collapsed
     property bool disksCollapsed: sectInit.disks.collapsed
     property bool netCollapsed: sectInit.net.collapsed
@@ -5017,7 +5057,7 @@ QQC2.ApplicationWindow {
                                 Layout.leftMargin: 8
                                 Layout.rightMargin: 8
                                 color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
-                                               Kirigami.Theme.textColor.b, 0.2)
+                                               Kirigami.Theme.textColor.b, 0.12)
                                 // Die Seitenleiste endet genau auf der ersten Trennlinie (neben « Aktualisieren »)
                                 Component.onCompleted: if (index === 0) { win.firstGrp = grp; win.firstSep = grpSep }
                             }
@@ -5242,7 +5282,7 @@ QQC2.ApplicationWindow {
                 anchors.bottom: parent.bottom
                 width: visible ? win.sideWidth : 0
                 color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.04)
-                Kirigami.Separator { anchors.right: parent.right; height: parent.height }
+                Kirigami.Separator { anchors.right: parent.right; height: parent.height; opacity: 0.35 }
 
                 DropArea {   // Ordner aus Dolphin hineinziehen heftet sie an
                     anchors.fill: parent
@@ -5505,12 +5545,11 @@ QQC2.ApplicationWindow {
                                 Layout.preferredWidth: 14
                                 Layout.preferredHeight: 14
                             }
-                            QQC2.Label {
-                                text: win.trad("Folders ({n})").replace("{n}", foldersModel.length)
-                                opacity: 0.75
-                                Layout.rightMargin: 6
+                            SectionTitle {
+                                Layout.fillWidth: true
+                                fmt: win.trad("Folders ({n})")
+                                count: foldersModel.length
                             }
-                            Kirigami.Separator { Layout.fillWidth: true }
                         }
                         MouseArea {   // flecheSeule : seule la flèche replie la rubrique
                             anchors.left: parent.left
@@ -5662,12 +5701,11 @@ QQC2.ApplicationWindow {
                                 Layout.preferredWidth: 14
                                 Layout.preferredHeight: 14
                             }
-                            QQC2.Label {
-                                text: win.trad("Devices and drives ({n})").replace("{n}", backend.disks.length)
-                                opacity: 0.75
-                                Layout.rightMargin: 6
+                            SectionTitle {
+                                Layout.fillWidth: true
+                                fmt: win.trad("Devices and drives ({n})")
+                                count: backend.disks.length
                             }
-                            Kirigami.Separator { Layout.fillWidth: true }
                         }
                         MouseArea {   // flecheSeule : seule la flèche replie la rubrique
                             anchors.left: parent.left
@@ -6033,12 +6071,11 @@ QQC2.ApplicationWindow {
                                 Layout.preferredWidth: 14
                                 Layout.preferredHeight: 14
                             }
-                            QQC2.Label {
-                                text: win.trad("Network locations ({n})").replace("{n}", backend.networks.length)
-                                opacity: 0.75
-                                Layout.rightMargin: 6
+                            SectionTitle {
+                                Layout.fillWidth: true
+                                fmt: win.trad("Network locations ({n})")
+                                count: backend.networks.length
                             }
-                            Kirigami.Separator { Layout.fillWidth: true }
                         }
                         MouseArea {   // flecheSeule : seule la flèche replie la rubrique
                             anchors.left: parent.left
@@ -6311,12 +6348,11 @@ QQC2.ApplicationWindow {
                                 Layout.preferredWidth: 14
                                 Layout.preferredHeight: 14
                             }
-                            QQC2.Label {
-                                text: win.trad("Printers and devices ({n})").replace("{n}", backend.printers.length)
-                                opacity: 0.75
-                                Layout.rightMargin: 6
+                            SectionTitle {
+                                Layout.fillWidth: true
+                                fmt: win.trad("Printers and devices ({n})")
+                                count: backend.printers.length
                             }
-                            Kirigami.Separator { Layout.fillWidth: true }
                         }
                         MouseArea {   // flecheSeule : seule la flèche replie la rubrique
                             anchors.left: parent.left

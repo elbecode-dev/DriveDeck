@@ -118,6 +118,12 @@ hidden and everything else works).
 - `pin_normaliser`: pins are compared with `~` expanded and trailing slashes removed; symbolic links are **not** resolved
   on purpose (a pin keeps the path you chose, a stick mounted at another path stays a separate entry); case counts.
 
+### Look
+
+- Section headers ("Folders", "Devices and drives", …) are now upper-case with wider letter spacing, show the item count
+  as a small accent pill and continue with a line that fades out to the right (new `SectionTitle` component).
+- Softer dividers: the line between sidebar and content and the ribbon group separators are fainter.
+
 ### Performance and robustness (review pass)
 
 - Final refinements: `_agesa()` skips `dmesg` when `kernel.dmesg_restrict=1` and reports "not exposed by the kernel"; NumPy
