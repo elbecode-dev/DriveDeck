@@ -118,6 +118,13 @@ hidden and everything else works).
 - `pin_normaliser`: pins are compared with `~` expanded and trailing slashes removed; symbolic links are **not** resolved
   on purpose (a pin keeps the path you chose, a stick mounted at another path stays a separate entry); case counts.
 
+### SMART
+
+- USB drives: if `smartctl -a` fails with a SCSI/identity error, DriveDeck retries automatically with SAT
+  (`-d sat -T permissive`) and then the NVMe bridge modes (`nvme`, `sntjmicron`, `sntasmedia`, `sntrealtek`). USB drives
+  start with SAT directly. If no mode works, the dialog explains that the enclosure does not support SMART pass-through.
+- When root rights are needed, the whole fallback chain runs in a single `pkexec` session, so the password is asked once.
+
 ### Look
 
 - Section headers ("Folders", "Devices and drives", …) are now upper-case with wider letter spacing, show the item count

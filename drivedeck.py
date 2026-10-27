@@ -118,6 +118,8 @@ EXTRA_DE = {
     "About DriveDeck": "Über DriveDeck",
     "A community fork of Fenestra “This PC” by naykkalak: your folders, drives, network locations, printers and devices in one window for KDE Plasma.":
         "Ein Community-Fork von Fenestra „This PC“ von naykkalak: deine Ordner, Laufwerke, Netzwerkorte, Drucker und Geräte in einem Fenster für KDE Plasma.",
+    "Note: the external USB enclosure or bridge controller does not support SMART pass-through.":
+        "Hinweis: Das externe USB-Gehäuse bzw. der Bridge-Controller unterstützt kein SMART-Passthrough.",
     "Temperature": "Temperatur",
     "Temperature:": "Temperatur:",
     "No subfolders": "Keine Unterordner",
@@ -615,6 +617,44 @@ def disk_usage_mit_limit(pfad, sek=4):
     t.start()
     t.join(sek)
     return ergebnis[0] if ergebnis else None
+
+
+# smartctl-Zusatzoptionen für USB-Gehäuse, die SMART nicht von allein durchreichen (SATA via SAT, dann NVMe-Bridges)
+SMART_USB_VARIANTEN = (["-d", "sat", "-T", "permissive"], ["-d", "nvme", "-T", "permissive"],
+                       ["-d", "sntjmicron", "-T", "permissive"], ["-d", "sntasmedia", "-T", "permissive"],
+                       ["-d", "sntrealtek", "-T", "permissive"])
+_SMART_FEHLER = ("unsupported field", "mandatory smart command failed", "scsi error", "read device identity failed",
+                 "unknown usb bridge", "please specify device type")
+SMART_ROOT_MARKE = "##SMART-ALL-FAILED##"
+# Dieselbe Prüfung wie smart_ok(), aber als Shell-Skript : läuft komplett in EINER pkexec-Sitzung (Argumente : Gerät, Varianten …)
+SMART_ROOT_SKRIPT = r"""dev="$1"; shift; first=""
+for v in "$@"; do
+  out=$(timeout 25 smartctl -a $v "$dev" 2>&1); rc=$?
+  [ -z "$first" ] && first="$out"
+  if [ $((rc & 3)) -eq 0 ] && ! printf '%s' "$out" | grep -qiE '@FEHLER@'; then printf '%s\n' "$out"; exit $rc; fi
+done
+printf '%s\n' "$first"; echo '@MARKE@'; exit 1""".replace("@FEHLER@", "|".join(_SMART_FEHLER)).replace("@MARKE@", SMART_ROOT_MARKE)
+
+
+def smart_varianten(usb):
+    """Reihenfolge der smartctl-Versuche : Standard zuerst, bei USB-Laufwerken gleich SAT (spart die Fehlerrunde)."""
+    if usb:
+        return [SMART_USB_VARIANTEN[0], []] + list(SMART_USB_VARIANTEN[1:])
+    return [[]] + list(SMART_USB_VARIANTEN)
+
+
+def laufwerk_ist_usb(base):
+    try:
+        return subprocess.run(["lsblk", "-dno", "TRAN", base], capture_output=True, text=True, timeout=5).stdout.strip() == "usb"
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def smart_ok(r):
+    """Hat smartctl brauchbare Daten geliefert? Exit-Bit 0 = Aufruffehler, Bit 1 = Öffnen/Identifizieren fehlgeschlagen ;
+    die höheren Bits (einzelner SMART-Befehl, Plattenzustand) liefern trotzdem brauchbare Ausgabe."""
+    text = ((r.stdout or "") + (r.stderr or "")).lower()
+    return r.returncode & 3 == 0 and not any(f in text for f in _SMART_FEHLER)
 
 
 def ist_ordner(pfad, sek=2.0):
@@ -3348,28 +3388,42 @@ class Backend(QObject):
 
     def _smart(self, device):
         base = get_base_disk_device(device)
+        titre = tr("SMART unavailable")
+        varianten = smart_varianten(laufwerk_ist_usb(base))
+        hinweis_text = tr("Note: the external USB enclosure or bridge controller does not support SMART pass-through.")
 
-        def run(cmd, timeout):
-            return subprocess.run(cmd, capture_output=True, text=True,
-                                  timeout=timeout)
+        def run(extra, timeout):
+            return subprocess.run(["smartctl", "-a", *extra, base], capture_output=True, text=True, timeout=timeout)
 
-        try:
-            result = run(["smartctl", "-a", base], 30)
-        except FileNotFoundError:
-            self.messageRequested.emit(
-                tr("SMART unavailable"),
-                tr("The smartctl command was not found.\n\n"
-                   "Install the smartmontools package to enable this feature."))
-            return
-        except (subprocess.SubprocessError, OSError):
-            self.messageRequested.emit(
-                tr("SMART unavailable"), tr("Reading SMART timed out."))
-            return
-
-        combined = (result.stdout + result.stderr).lower()
-        if "permission denied" in combined or "must be root" in combined:
+        # Ohne Root : alle Varianten nacheinander (kostet nichts). Erst wenn der Zugriff verweigert wird, folgt EIN pkexec.
+        erstes, brauchbar, rechte = None, None, False
+        for extra in varianten:
             try:
-                result = run(["pkexec", "smartctl", "-a", base], 90)
+                r = run(extra, 30 if erstes is None else 20)
+            except FileNotFoundError:
+                self.messageRequested.emit(
+                    titre, tr("The smartctl command was not found.\n\n"
+                              "Install the smartmontools package to enable this feature."))
+                return
+            except (subprocess.SubprocessError, OSError):
+                if erstes is None:
+                    self.messageRequested.emit(titre, tr("Reading SMART timed out."))
+                    return
+                continue
+            erstes = erstes or r
+            text = (r.stdout + r.stderr).lower()
+            if "permission denied" in text or "must be root" in text:
+                rechte = True
+                break
+            if smart_ok(r):
+                brauchbar = r
+                break
+
+        if rechte:
+            # Eine einzige Root-Shell führt die ganze Kaskade aus : Polkit fragt genau einmal nach dem Passwort
+            try:
+                r = subprocess.run(["pkexec", "sh", "-c", SMART_ROOT_SKRIPT, "sh", base, *(" ".join(v) for v in varianten)],
+                                   capture_output=True, text=True, timeout=240)
             except FileNotFoundError:
                 self.messageRequested.emit(
                     tr("Insufficient rights"),
@@ -3377,12 +3431,18 @@ class Backend(QObject):
                        "(graphical elevation) was not found on this system."))
                 return
             except (subprocess.SubprocessError, OSError):
-                self.messageRequested.emit(
-                    tr("SMART unavailable"), tr("Reading SMART timed out."))
+                self.messageRequested.emit(titre, tr("Reading SMART timed out."))
                 return
+            ausgabe = (r.stdout or "").strip()
+            if SMART_ROOT_MARKE in ausgabe:   # keine Variante lieferte Daten
+                ausgabe = hinweis_text + "\n\n" + ausgabe.replace(SMART_ROOT_MARKE, "").strip()
+            self.smartReady.emit("SMART - " + base, ausgabe or (r.stderr or "").strip() or tr("No information available."))
+            return
 
-        output = (result.stdout.strip() or result.stderr.strip()
-                  or tr("No information available."))
+        r = brauchbar or erstes
+        output = (r.stdout.strip() or r.stderr.strip() or tr("No information available."))
+        if brauchbar is None:
+            output = hinweis_text + "\n\n" + output
         self.smartReady.emit("SMART - " + base, output)
 
     @pyqtSlot(str, result=str)
