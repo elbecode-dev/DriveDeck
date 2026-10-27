@@ -43,27 +43,24 @@ try:
 except ImportError:   # ohne QtNetwork läuft alles, nur ohne Einzelinstanz
     QLocalServer = QLocalSocket = None
 
-# fenestraLangues : traductions au format gettext (un dossier par langue), l'anglais sert de repli
+# langues : traductions au format gettext (un dossier par langue), l'anglais sert de repli
 import gettext
 import glob
 
-# drivedeckPfade : eigener Namensraum. Die alten Orte (~/.config/fenestra, …) werden nur noch gelesen, um beim ersten
-# Start Einstellungen zu übernehmen (siehe migrer_ancienne_config) ; sie bleiben als Sicherung unverändert liegen.
+# Pfade : eigener Namensraum unter ~/.config, ~/.cache und ~/.local/share
 APP_ID = "drivedeck"
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 DATA_DIR = os.path.expanduser("~/.local/share/drivedeck")
 CONFIG_DIR = os.path.expanduser("~/.config/drivedeck")
 CACHE_DIR = os.path.expanduser("~/.cache/drivedeck")
-LEGACY_CONFIG_DIR = os.path.expanduser("~/.config/fenestra")
 
 
 def _erstes_vorhandenes(*pfade):
     return next((p for p in pfade if os.path.isdir(p)), pfade[0])
 
 
-# Sprachdateien : installiert, sonst direkt neben dem Programm (Start aus dem Projektordner), sonst die alte Installation
-LANG_DIR = _erstes_vorhandenes(os.path.join(DATA_DIR, "locale"), os.path.join(SCRIPT_DIR, "locale"),
-                               os.path.expanduser("~/.local/share/fenestra/ce-pc-langues"))
+# Sprachdateien : installiert, sonst direkt neben dem Programm (Start aus dem Projektordner)
+LANG_DIR = _erstes_vorhandenes(os.path.join(DATA_DIR, "locale"), os.path.join(SCRIPT_DIR, "locale"))
 LANG_ALIAS = {"pt": "pt_BR", "pt_PT": "pt_BR", "zh": "zh_CN", "zh_SG": "zh_CN",
               "zh_HK": "zh_TW", "zh_MO": "zh_TW"}
 
@@ -94,7 +91,7 @@ def langues_systeme():
 
 LANGUES = langues_systeme()
 try:
-    _TRAD = gettext.translation("ce-pc", LANG_DIR, languages=LANGUES, fallback=True) if LANGUES \
+    _TRAD = gettext.translation("drivedeck", LANG_DIR, languages=LANGUES, fallback=True) if LANGUES \
         else gettext.NullTranslations()
 except Exception:
     _TRAD = gettext.NullTranslations()
@@ -210,7 +207,7 @@ USER_FOLDERS_SPEC = [
      ["folder-videos", "folder-video", "folder"]),
 ]
 
-ICON_CACHE_DIR = os.path.expanduser("~/.local/share/icons/ce_pc_cache")
+ICON_CACHE_DIR = os.path.expanduser("~/.local/share/icons/drivedeck_cache")
 
 
 def get_icon_theme_name():
@@ -462,9 +459,9 @@ def lecteurs_optiques_sans_montage():
     return res
 
 
-# santeDisque (Ce PC 1.1) : état SMART surveillé par udisks2, lisible sans droits administrateur.
+# santeDisque : état SMART surveillé par udisks2, lisible sans droits administrateur.
 # Résultat : "" (bon ou inconnu), "warn" (signes d'usure), "fail" (disque défaillant).
-# Pour essayer l'affichage : CEPC_SANTE_TEST=warn ou fail force l'état du disque système.
+# Pour essayer l'affichage : DRIVEDECK_SANTE_TEST=warn ou fail force l'état du disque système.
 _SANTE = {}   # nom du périphérique (sda2, nvme0n1p2…) -> (instant de la lecture, état)
 _UDISKS = "org.freedesktop.UDisks2"
 
@@ -479,7 +476,7 @@ def _udisks_prop(objet, interface, nom):
 
 
 def disk_health(device, mountpoint=""):
-    test = os.environ.get("CEPC_SANTE_TEST", "")
+    test = os.environ.get("DRIVEDECK_SANTE_TEST", "")
     if mountpoint == "/" and test in ("warn", "fail"):
         return test
     nom = os.path.basename(os.path.realpath(device))
@@ -734,12 +731,12 @@ def net_url(loc):
 
 PLACES = os.path.expanduser("~/.local/share/user-places.xbel")
 # Bewusst unverändert : so findet das Programm die schon angelegten Dolphin-Favoriten weiter und kann sie sauber entfernen.
-PLACES_TAG = "fenestra-cepc-"
+PLACES_TAG = "drivedeck-"
 
 
 def _sync_places(locs):
-    """Remet les favoris « Distant » de Dolphin en phase avec la liste des emplacements réseau de Ce PC.
-    Ne touche qu'aux favoris créés par Ce PC (identifiant « fenestra-cepc-… »)."""
+    """Remet les favoris « Distant » de Dolphin en phase avec la liste des emplacements réseau de DriveDeck.
+    Ne touche qu'aux favoris créés par DriveDeck (identifiant « drivedeck-… »)."""
     try:
         with open(PLACES, encoding="utf-8") as f:
             texte = f.read()
@@ -776,10 +773,10 @@ def _sync_places(locs):
     if nouveau == texte:
         return
     try:
-        bak = PLACES + ".bak-fenestra"
+        bak = PLACES + ".bak-drivedeck"
         if not os.path.exists(bak):
             shutil.copy2(PLACES, bak)
-        tmp = PLACES + ".fenestra.tmp"
+        tmp = PLACES + ".drivedeck.tmp"
         with open(tmp, "w", encoding="utf-8") as f:
             f.write(nouveau)
         os.replace(tmp, PLACES)
@@ -797,7 +794,7 @@ def sync_places(locs):
 
 
 # Bewusst unverändert : unter diesem KWallet-Ordner liegen die gespeicherten Netzwerk-Passwörter.
-WALLET_DOSSIER = "Fenestra Ce PC"
+WALLET_DOSSIER = "DriveDeck"
 _ESPACE = {}          # url -> (heure, valeur ou None) : évite d'interroger le NAS toutes les 3 secondes
 _PORTEFEUILLE = {"ko_jusqu": 0}
 
@@ -918,7 +915,7 @@ def badge_offline():
         return ""
 
 
-SECT_CONFIG = os.path.join(CONFIG_DIR, "rubriques.json")   # rubriquesMemo (Ce PC 1.1)
+SECT_CONFIG = os.path.join(CONFIG_DIR, "rubriques.json")   # rubriquesMemo
 SECTIONS = ("folders", "disks", "net", "printers", "quick")
 
 
@@ -1570,7 +1567,7 @@ def list_peripheriques():
     return liste
 
 
-# scannersInfo (Ce PC 1.1) : scanners trouvés par SANE (scanimage -L). La recherche réseau dure ~10 s :
+# scannersInfo : scanners trouvés par SANE (scanimage -L). La recherche réseau dure ~10 s :
 # elle tourne en arrière-plan (au démarrage puis toutes les 10 minutes) et le dernier résultat est gardé
 # en cache. Sécurité : un scanner RÉSEAU n'est affiché que s'il correspond à une imprimante installée
 # sur ce PC (même nom de modèle) ; les scanners des autres sur le même Wi-Fi restent cachés.
@@ -1673,10 +1670,10 @@ def cartes_scanners(scanners, trouves, imprimantes):
     return res
 
 
-# miseAJour (Ce PC 1.1) : au plus une fois par semaine, Ce PC demande à GitHub le numéro de la dernière
+# miseAJour : au plus une fois par semaine, DriveDeck demande à GitHub le numéro de la dernière
 # version publiée. Rien n'est installé : un bandeau propose seulement d'ouvrir la page de la version.
 # Aucune donnée personnelle n'est envoyée (GitHub voit l'adresse IP, comme pour toute visite).
-# Désactivable dans « À propos ». Essai du bandeau : CEPC_MAJ_TEST=9.9 python3 drivedeck.py
+# Désactivable dans « À propos ». Essai du bandeau : DRIVEDECK_MAJ_TEST=9.9 python3 drivedeck.py
 MAJ_CONFIG = os.path.join(CONFIG_DIR, "mise-a-jour.json")
 # Fork : leer = keine Update-Prüfung (das Original-Repository würde sonst ein Update melden, das diesen Fork
 # überschreibt). Für ein eigenes Repository z. B.:
@@ -1733,7 +1730,7 @@ def lire_derniere_version():
             data = json.loads(r.read(200000).decode("utf-8"))
         tag = str(data.get("tag_name", "")).lstrip("vV")
         url = str(data.get("html_url", ""))
-        if not _version_tuple(tag) or not url.startswith("https://github.com/naykkalak/fenestra-ce-pc/"):
+        if not _version_tuple(tag) or not MAJ_PAGE or not url.startswith(MAJ_PAGE.rsplit("/releases", 1)[0] + "/"):
             return None
         return tag, url
     except Exception:
@@ -2963,7 +2960,7 @@ class Backend(QObject):
         time.sleep(1.5)   # laisse la fenêtre s'afficher d'abord
         if not self._maj["enabled"]:   # case décochée dans « À propos » : ni vérification ni bandeau (essai compris)
             return
-        test = os.environ.get("CEPC_MAJ_TEST", "")
+        test = os.environ.get("DRIVEDECK_MAJ_TEST", "")
         if test:
             self.updateAvailable.emit(test, MAJ_PAGE)
             return
@@ -3580,7 +3577,7 @@ QQC2.ApplicationWindow {
     }
     color: Kirigami.Theme.backgroundColor
 
-    // rubriquesMemo (Ce PC 1.1) : repli de chaque rubrique et rubriques affichées, retenus d'une ouverture à l'autre
+    // rubriquesMemo : repli de chaque rubrique et rubriques affichées, retenus d'une ouverture à l'autre
     // Karten-Hervorhebung für alle vier Sektionen : unsichtbar im Ruhezustand, beim Überfahren ein Neon-Verlauf
     // (Lila → Blau → Cyan) mit leuchtendem Rand ; ausgewählt oder gedrückt etwas kräftiger
     component CardGlow: Rectangle {
@@ -3733,7 +3730,7 @@ QQC2.ApplicationWindow {
     readonly property int cardCols: Math.max(1, Math.floor((scroll.availableWidth - 32) / (cardWidth + 8)))
 
 
-    // fenestraLangues : texte traduit (table envoyée par le programme), texte anglais si absent
+    // langues : texte traduit (table envoyée par le programme), texte anglais si absent
     function trad(s) {
         var v = trTable[s]
         return v !== undefined ? v : s
@@ -4931,7 +4928,7 @@ QQC2.ApplicationWindow {
         }
     }
 
-    // aProposDialog : fenêtre « À propos de Ce PC »
+    // aProposDialog : fenêtre « À propos de DriveDeck »
     QQC2.Dialog {
         id: aboutDialog
         modal: true
@@ -5028,7 +5025,7 @@ QQC2.ApplicationWindow {
         anchors.fill: parent
         spacing: 0
 
-        // barreRuban : barre de commandes en ruban (Ce PC 1.1 : le mode simple a été retiré)
+        // barreRuban : barre de commandes en ruban (le mode simple a été retiré)
         Item {
             id: barRoot
             // couleursBarre : couleurs « En-tête » du thème (comme la bande des menus de Dolphin)
@@ -5069,7 +5066,7 @@ QQC2.ApplicationWindow {
                 color: Kirigami.Theme.backgroundColor
             }
 
-            // ===== RUBAN ===== (Ce PC 1.1 : seul mode de la barre)
+            // ===== RUBAN ===== (seul mode de la barre)
             ColumnLayout {
                 anchors.fill: parent
                 spacing: 0
@@ -5212,7 +5209,7 @@ QQC2.ApplicationWindow {
                         }
                     }
 
-                    // groupeAfficher (Ce PC 1.1) : une case par rubrique, décochée = rubrique masquée
+                    // groupeAfficher : une case par rubrique, décochée = rubrique masquée
                     ColumnLayout {
                         Layout.fillHeight: true
                         spacing: 2
@@ -5395,7 +5392,7 @@ QQC2.ApplicationWindow {
             type: Kirigami.MessageType.Information
             showCloseButton: true
             visible: false
-            text: win.trad("Version {version} of This PC is available. To update, download it and run ./install.sh again.").replace("{version}", version)
+            text: win.trad("Version {version} of DriveDeck is available. To update, download it and run ./install.sh again.").replace("{version}", version)
             actions: [
                 Kirigami.Action {
                     text: win.trad("View")
@@ -6743,7 +6740,7 @@ def load_window_state():
 
 
 def instance_existante(nom):
-    """True si Ce PC läuft schon (der Aufruf holt dessen Fenster nach vorn)."""
+    """True si DriveDeck läuft schon (der Aufruf holt dessen Fenster nach vorn)."""
     if QLocalSocket is None:
         return False
     sock = QLocalSocket()
@@ -6778,37 +6775,15 @@ def serveur_instance(nom, backend):
     return srv
 
 
-# Einstellungen früherer Versionen (Name « Fenestra This PC » : ~/.config/fenestra/ce-pc-*.json) -> neuer Ordner
-_ALTE_EINSTELLUNGEN = {"ce-pc-reseau.json": "reseau.json", "ce-pc-rubriques.json": "rubriques.json",
-                       "ce-pc-epingles.json": "epingles.json", "ce-pc-imprimantes.json": "imprimantes.json",
-                       "ce-pc-mise-a-jour.json": "mise-a-jour.json", "ce-pc-fenetre.json": "fenetre.json"}
-
-
-def migrer_ancienne_config():
-    """Kopiert beim ersten Start die Einstellungen aus ~/.config/fenestra in ~/.config/drivedeck (angeheftete Ordner,
-    Netzwerkorte, bekannte Drucker, Fenstergröße …). Es wird nur kopiert und nur, was im neuen Ordner noch fehlt :
-    die alten Dateien bleiben unverändert als Sicherung liegen."""
-    for alt, neu in _ALTE_EINSTELLUNGEN.items():
-        quelle, ziel = os.path.join(LEGACY_CONFIG_DIR, alt), os.path.join(CONFIG_DIR, neu)
-        if os.path.isfile(quelle) and not os.path.exists(ziel):
-            try:
-                os.makedirs(CONFIG_DIR, exist_ok=True)
-                shutil.copy2(quelle, ziel)
-                print("[drivedeck] Einstellung übernommen :", alt, "->", neu)
-            except OSError as e:
-                print("[drivedeck] Übernahme von", alt, "fehlgeschlagen :", e)
-
-
 def main():
     if "--dump-qml" in sys.argv:   # Oberfläche als .qml-Datei ausgeben (Bearbeitung mit Syntaxfarben)
         sys.stdout.write(QML)
         return 0
-    migrer_ancienne_config()
     app = QApplication(sys.argv)
     app.setApplicationName(APP_ID)
     app.setDesktopFileName(APP_ID)   # Plasma ordnet das Fenster über drivedeck.desktop dem Symbol und dem Namen zu
     nom_instance = "%s-%d" % (APP_ID, os.getuid())
-    if not os.environ.get("CEPC_MULTI") and instance_existante(nom_instance):
+    if not os.environ.get("DRIVEDECK_MULTI") and instance_existante(nom_instance):
         return 0
     theme = get_icon_theme_name()
     QIcon.setThemeName(theme)
@@ -6823,15 +6798,15 @@ def main():
           {f["label"]: f["icon"] for f in folders})
 
     backend = Backend()
-    serveur = None if os.environ.get("CEPC_MULTI") else serveur_instance(nom_instance, backend)   # Referenz halten
+    serveur = None if os.environ.get("DRIVEDECK_MULTI") else serveur_instance(nom_instance, backend)   # Referenz halten
     qml = QML
-    chemin_qml = os.environ.get("CEPC_QML")   # Entwicklung: QML aus Datei laden (siehe --dump-qml)
+    chemin_qml = os.environ.get("DRIVEDECK_QML")   # Entwicklung: QML aus Datei laden (siehe --dump-qml)
     if chemin_qml:
         try:
             with open(chemin_qml, encoding="utf-8") as f:
                 qml = f.read()
         except OSError as e:
-            print("[drivedeck] CEPC_QML nicht lesbar :", e)
+            print("[drivedeck] DRIVEDECK_QML nicht lesbar :", e)
     engine = QQmlApplicationEngine()
     engine.rootContext().setContextProperty("foldersModel", folders)
     engine.rootContext().setContextProperty("backend", backend)

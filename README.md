@@ -150,7 +150,7 @@ Everything below is explained in plain words. You do **not** need to be a progra
 ## Requirements
 
 - **KDE Plasma 6** (Wayland, same as the original)
-- **Python 3** with **PyQt6** (QtQml, QtQuick) and **Kirigami**
+- **Python 3** with **PyQt6** (QtQml, QtQuick) and **Kirigami** and `qqc2-desktop-style`
 - `lsblk` and `udevadm` (almost every Linux system has them)
 
 Optional tools switch on extra features:
@@ -172,7 +172,9 @@ Optional tools switch on extra features:
 
 ## Install
 
-Installs for your user only. No administrator rights needed.
+The program installs for your user only. The installer checks every requirement above and, on Arch/CachyOS, Fedora and
+Debian/Ubuntu, offers to install the missing packages for you (it asks for your `sudo` password once, and only if you
+agree). It can also switch on the CUPS and Avahi services so that printers show up.
 
 ```bash
 git clone https://github.com/elbecode-dev/DriveDeck.git
@@ -180,13 +182,12 @@ cd drivedeck
 bash install.sh
 ```
 
+Options: `--yes` installs missing packages without asking, `--no-deps` skips package installation, `--no-desktop-icon`
+skips the desktop shortcut. Package names were checked on Arch/CachyOS; on Fedora and Debian/Ubuntu a wrong name only
+means that one package is skipped.
+
 The program then appears as **DriveDeck** in your application menu (and on the desktop unless you use
 `bash install.sh --no-desktop-icon`).
-
-**Coming from "Fenestra This PC" / `ce_pc_plasma.py`?** Just run `bash install.sh`. It replaces the old menu entry and
-desktop shortcut, keeps the old command `ce_pc_plasma.py` working (it simply starts DriveDeck), and DriveDeck copies your
-settings (pinned folders, network locations, window size …) from `~/.config/fenestra` to `~/.config/drivedeck` at its first
-start. The old files are left untouched as a backup.
 
 To remove it again: `bash uninstall.sh` (keeps your settings) or `bash uninstall.sh --purge` (removes everything).
 
@@ -214,10 +215,10 @@ python3 drivedeck.py
 
 # Export the user interface (QML) to a file, edit it, and run from the file
 python3 drivedeck.py --dump-qml > drivedeck.qml
-CEPC_QML=drivedeck.qml python3 drivedeck.py
+DRIVEDECK_QML=drivedeck.qml python3 drivedeck.py
 
 # Allow several windows at once (for testing)
-CEPC_MULTI=1 python3 drivedeck.py
+DRIVEDECK_MULTI=1 python3 drivedeck.py
 ```
 
 Bug reports and pull requests are welcome. If you find a problem, please include the terminal output of

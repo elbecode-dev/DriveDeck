@@ -1,4 +1,4 @@
-# Ce PC (Fenestra) : traduction "ja"
+# DriveDeck : traduction "ja"
 msgid ""
 msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -9,9 +9,6 @@ msgstr "192.168.1.10、NAS 名、または smb://..."
 
 msgid "About"
 msgstr "バージョン情報"
-
-msgid "About This PC"
-msgstr "PC について"
 
 msgid "Add a network location"
 msgstr "ネットワークの場所を追加"
@@ -192,9 +189,6 @@ msgstr "開く"
 
 msgid "Open with Dolphin"
 msgstr "Dolphin で開く"
-
-msgid "Part of the Fenestra series, which gives KDE Plasma the look of a Windows 11 desktop."
-msgstr "KDE Plasma に Windows 11 のデスクトップの外観を与える Fenestra シリーズの一部です。"
 
 msgid "Partial eject"
 msgstr "一部のみ取り出しました"
@@ -385,8 +379,8 @@ msgstr "使用中: {size}"
 msgid "Username (required):"
 msgstr "ユーザー名 (必須):"
 
-msgid "Version {version} of This PC is available. To update, download it and run ./install.sh again."
-msgstr "PC のバージョン {version} が利用可能です。更新するには、ダウンロードして ./install.sh をもう一度実行してください。"
+msgid "Version {version} of DriveDeck is available. To update, download it and run ./install.sh again."
+msgstr "DriveDeck のバージョン {version} が利用可能です。更新するには、ダウンロードして ./install.sh をもう一度実行してください。"
 
 msgid "Version {version} · Plasma version"
 msgstr "バージョン {version} · Plasma 版"

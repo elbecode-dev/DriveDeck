@@ -19,15 +19,13 @@ hidden and everything else works).
   the menu entry (`drivedeck.desktop`, `Icon=drivedeck`), the application id (`drivedeck`, so Plasma matches window and
   icon under Wayland), the single-instance name and the log prefix use the new name. The original authorship of
   naykkalak is kept in the file header, the *About* window, the README and `COPYING`.
-- **File renamed** `ce_pc_plasma.py` → `drivedeck.py`. `install.sh` keeps the old command alive: if
-  `~/.local/bin/ce_pc_plasma.py` exists it is replaced by a tiny forwarder that starts `drivedeck.py`, so old copies and
-  shortcuts keep working. It also removes the old menu entry `fenestra-ce-pc.desktop` and the old desktop shortcut.
-- **Own folders.** Settings: `~/.config/drivedeck/`, caches: `~/.cache/drivedeck/`, data: `~/.local/share/drivedeck/`
-  (the `ce-pc-` prefix of the file names is gone). At the first start `migrer_ancienne_config()` **copies** the settings of the
-  old name (`~/.config/fenestra/ce-pc-*.json`: pinned folders, network locations, known printers, window size, sections) into
-  the new folder; nothing is deleted, the old files stay as a backup. `uninstall.sh --purge` removes both generations.
-- **Kept on purpose:** the Dolphin bookmark tag `fenestra-cepc-` and the KWallet folder `Fenestra Ce PC`, so bookmarks and saved
-  network passwords created earlier keep working; the `CEPC_*` environment variables; the `ce-pc` translation catalogue.
+- **File renamed** `ce_pc_plasma.py` → `drivedeck.py`. All internal leftovers of the old name are gone: the settings
+  migration, the old-command forwarder in `install.sh`, the old language and icon-cache folders, the `ce-pc` translation
+  catalogue (now `drivedeck.po`/`.mo`), the `CEPC_*` environment variables (now `DRIVEDECK_*`), the Dolphin bookmark tag
+  (now `drivedeck-`) and the KWallet folder (now `DriveDeck`). **Network passwords saved by the old name must be entered once
+  again**, and bookmarks added earlier stay in Dolphin's *Remote* section as normal entries. The original authorship of
+  naykkalak stays in the file header, the *About* window, the README and `COPYING`.
+- **Own folders.** Settings: `~/.config/drivedeck/`, caches: `~/.cache/drivedeck/`, data: `~/.local/share/drivedeck/`.
 - The language files are also found next to the program (start from the project folder without installing).
 
 ### New features
@@ -192,7 +190,7 @@ hidden and everything else works).
 
 | # | Problem in the original | Fix |
 |---|---|---|
-| 1 | On Btrfs systems `lsblk` reports only one of several mount points per device (e.g. a subvolume such as `/var/tmp`). Double-clicking "Local Disk" therefore opened `/var/tmp` instead of the user's files, and the system drive was not recognised as `/` (sorting, root icon, `CEPC_SANTE_TEST` health test). | `lsblk` is queried with `MOUNTPOINTS` (plural, falls back to `MOUNTPOINT` on old util-linux). If a device has several mount points, `/` wins, otherwise the first non-system one. The system drive keeps the mount point `/`; `/` and `/var/tmp` open the **current user's home** (`os.path.expanduser("~")`) via the new helper `chemin_affiche()`. Works for every user and needs no hard-coded path or device. |
+| 1 | On Btrfs systems `lsblk` reports only one of several mount points per device (e.g. a subvolume such as `/var/tmp`). Double-clicking "Local Disk" therefore opened `/var/tmp` instead of the user's files, and the system drive was not recognised as `/` (sorting, root icon, `DRIVEDECK_SANTE_TEST` health test). | `lsblk` is queried with `MOUNTPOINTS` (plural, falls back to `MOUNTPOINT` on old util-linux). If a device has several mount points, `/` wins, otherwise the first non-system one. The system drive keeps the mount point `/`; `/` and `/var/tmp` open the **current user's home** (`os.path.expanduser("~")`) via the new helper `chemin_affiche()`. Works for every user and needs no hard-coded path or device. |
 | 2 | Mount-point prefix check used a plain `startswith`, so `/bootdisk` or `/sysdata` were hidden because of `/boot` and `/sys`. | New `ignore_mount()` compares whole directories. `/var` is ignored for local disks only (`DISK_IGNORED_PREFIXES`). |
 | 3 | The disk list was replaced on every byte change of used/free space (about every 3 s on the system drive). QML rebuilt all cards, closed the context menu and made the hover flicker. | Comparison uses only what is displayed (`_signature_disques`), ignoring raw `used`/`free`/`total`. |
 | 4 | Network mounts with spaces (`//nas/My Share`) were not matched because only the mount point, not the device field, was unescaped (`\040`). The entry appeared twice. | The device field of `/proc/mounts` is unescaped as well. |
@@ -233,9 +231,9 @@ hidden and everything else works).
 - **Keyboard control:** arrow keys select a drive or location, `Enter` opens, `F5` refreshes, `Esc` clears the
   selection, `Ctrl+C` copies the path of the selection.
 - **Single instance:** a second start brings the existing window to the front (local socket
-  `fenestra-ce-pc-<uid>`). `CEPC_MULTI=1` allows several windows for testing.
-- **QML development mode:** `python3 ce_pc_plasma.py --dump-qml > ce_pc_plasma.qml` writes the UI to a file;
-  `CEPC_QML=ce_pc_plasma.qml python3 ce_pc_plasma.py` loads it from there. The default stays a single-file install.
+  `fenestra-ce-pc-<uid>`). `DRIVEDECK_MULTI=1` allows several windows for testing.
+- **QML development mode:** `python3 drivedeck.py --dump-qml > drivedeck.qml` writes the UI to a file;
+  `DRIVEDECK_QML=drivedeck.qml python3 drivedeck.py` loads it from there. The default stays a single-file install.
 - **German texts** for all new menu entries and messages as built-in fallback (`EXTRA_DE`), used when the gettext
   catalogue has no translation. Other languages show English until a `.mo` entry exists.
 
