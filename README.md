@@ -108,8 +108,10 @@ Everything below is explained in plain words. You do **not** need to be a progra
   "⚠ 90 %".
 - **Disk temperature.** Each drive card shows its current temperature in a small chip (it turns amber and red when
   the disk gets too warm). It is read from the system's sensors, so it works for NVMe drives out of the box. For SATA
-  drives load the kernel module once with `sudo modprobe drivetemp`. Many USB enclosures do not report a temperature,
-  those cards just show no chip.
+  drives load the kernel module once with `sudo modprobe drivetemp`. USB enclosures usually pass the temperature on only
+  through `smartctl`, and that needs **administrator rights** (the SMART dialog asks for them once). DriveDeck never asks
+  for a password in the background, so such cards show no chip unless `smartctl` may run without root on your system
+  (an advanced setup, see the smartmontools documentation). If it can, the chip appears automatically.
 - **Straight to the right settings.** On the cards under *Printers and devices*, **double-click** (or right-click →
   *Open settings*) a game controller, keyboard, mouse, touchpad or drawing tablet and the matching System Settings page
   opens right away. Printers still open their properties on double-click.

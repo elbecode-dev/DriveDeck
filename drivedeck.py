@@ -1012,7 +1012,7 @@ def hat_unterordner(pfad, max_eintraege=5000):
 
 
 def basis_platte(name):
-    """Kernelname der ganzen Platte zu einem Blockgerät : Partition -> Platte, dm/LUKS/LVM -> darunterliegende Platte."""
+    """Kernelname der ganzen Platte zu einem Blockgeraet : Partition -> Platte, dm/LUKS/LVM -> darunterliegende Platte."""
     import glob
     for _ in range(8):
         slaves = glob.glob("/sys/class/block/%s/slaves/*" % name)
@@ -1030,9 +1030,63 @@ def basis_platte(name):
 _TEMP_UDISKS = {}   # Platte -> (Zeitpunkt, °C oder None) : udisks-Rückfall, höchstens einmal pro Minute
 
 
+_TEMP_SMART = {}        # Platte -> (Zeitpunkt, °C oder None) : smartctl-Rückfall (USB-Gehäuse ohne hwmon/udisks-Wert)
+_TEMP_SMART_LAEUFT = set()   # Platten, für die gerade ein smartctl-Lauf im Hintergrund unterwegs ist
+_SMART_TEMP_MUSTER = (   # NVMe, NVMe-Sensor 1, SCSI, ATA 194 (Temperature_Celsius), ATA 190 (Airflow/Case)
+    r"^Temperature:\s+(\d+)\s+Celsius", r"^Temperature Sensor 1:\s+(\d+)\s+Celsius", r"Current Drive Temperature:\s+(\d+)\s*C",
+    r"^\s*194\s+Temperature_Celsius\b[^\n]*?-\s+(\d+)", r"^\s*190\s+(?:Airflow_Temperature_Cel|Temperature_Case)\b[^\n]*?-\s+(\d+)")
+
+
+def smart_temperatur_parsen(text):
+    """Temperatur in °C aus der Ausgabe von smartctl (NVMe, SCSI und ATA), sonst None."""
+    for muster in _SMART_TEMP_MUSTER:
+        m = re.search(muster, text or "", re.IGNORECASE | re.MULTILINE)
+        if m:
+            return float(m.group(1))
+    return None
+
+
+def _smart_temperatur_lesen(platte):
+    """smartctl -A über dieselbe Kaskade wie der SMART-Dialog (SAT, NVMe-Bridges bei USB) ; ohne Root, ohne Rückfrage."""
+    if not shutil.which("smartctl"):
+        return None
+    geraet = "/dev/" + platte
+    for extra in smart_varianten(laufwerk_ist_usb(geraet)):
+        try:
+            r = subprocess.run(["smartctl", "-A", *extra, geraet], capture_output=True, text=True, timeout=8)
+        except (OSError, subprocess.SubprocessError):
+            continue
+        if "permission denied" in (r.stdout + r.stderr).lower():
+            return None   # ohne Root keine Chance : die anderen Varianten würden dasselbe melden
+        if smart_ok(r):
+            wert = smart_temperatur_parsen(r.stdout)
+            if wert is not None:
+                return wert
+    return None
+
+
+def _smart_temperatur(platte):
+    """Zwischengespeicherter Wert ; ein veralteter Eintrag wird im Hintergrund erneuert (nie im Temperatur-Thread warten).
+    Erfolg : 2 Minuten gültig, Misserfolg : 10 Minuten (USB-Gehäuse ohne SMART-Durchreichen nicht ständig neu fragen)."""
+    lu = _TEMP_SMART.get(platte)
+    frisch = lu is not None and time.time() - lu[0] < (120 if lu[1] is not None else 600)
+    if not frisch and platte not in _TEMP_SMART_LAEUFT:
+        _TEMP_SMART_LAEUFT.add(platte)
+
+        def arbeit():
+            try:
+                _TEMP_SMART[platte] = (time.time(), _smart_temperatur_lesen(platte))
+            except Exception:
+                _TEMP_SMART[platte] = (time.time(), None)
+            finally:
+                _TEMP_SMART_LAEUFT.discard(platte)
+        threading.Thread(target=arbeit, daemon=True).start()
+    return lu[1] if lu else None
+
+
 def platten_temperatur(platte):
     """Temperatur der ganzen Platte in °C oder None. Zuerst der Kernel-Sensor (hwmon : NVMe, SATA mit dem Modul
-    drivetemp) – nur eine Datei lesen. Sonst udisks (SMART, in Kelvin) mit Zwischenspeicher."""
+    drivetemp) – nur eine Datei lesen. Sonst udisks (SMART, in Kelvin) mit Zwischenspeicher, zuletzt smartctl (USB-Gehäuse)."""
     import glob
     for datei in sorted(glob.glob("/sys/block/%s/device/hwmon*/temp1_input" % platte)):
         try:
@@ -1042,7 +1096,7 @@ def platten_temperatur(platte):
             continue
     lu = _TEMP_UDISKS.get(platte)
     if lu and time.time() - lu[0] < 60:
-        return lu[1]
+        return lu[1] if lu[1] is not None else _smart_temperatur(platte)
     wert = None
     drive = _udisks_prop("/org/freedesktop/UDisks2/block_devices/" + platte, _UDISKS + ".Block", "Drive")
     if drive and drive != "/":
@@ -1052,6 +1106,8 @@ def platten_temperatur(platte):
                 wert = round(kelvin - 273.15, 1)
                 break
     _TEMP_UDISKS[platte] = (time.time(), wert)
+    if wert is None:   # weder Kernel-Sensor noch udisks (typisch : USB-NVMe/-SATA-Gehäuse) : smartctl, im Hintergrund
+        return _smart_temperatur(platte)
     return wert
 
 

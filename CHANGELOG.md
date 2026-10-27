@@ -152,6 +152,9 @@ hidden and everything else works).
   access; `lsblk` output with `"blockdevices": null` no longer raises.
 - External programs (system monitor, terminal, Dolphin, analyzers, system settings) are now started fully detached: a
   short-lived shell puts them in the background, so they no longer appear as child processes of DriveDeck.
+- Disk temperature: drives without a kernel sensor or udisks value (typically USB NVMe/SATA enclosures) are now also read
+  with `smartctl -A` (SAT and NVMe bridge modes, NVMe/SCSI/ATA formats), in the background and cached. This works only where
+  `smartctl` may run without root; there is no password prompt for it.
 - **Memory trimming.** `gc.collect()` plus glibc `malloc_trim(0)` run in a background thread (`Backend.trimMemory`, at most
   one run at a time and not more often than every 5 s) and then trim the QML component cache. Triggers: after the
   hardware report is built, when the *System information* window closes, and shortly after the main window is minimized.
