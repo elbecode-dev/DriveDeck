@@ -78,7 +78,7 @@ Everything below is explained in plain words. You do **not** need to be a progra
   (about 1430 px or less); they pause while the window is minimised.
 - **Unmount.** *Unmount* in a drive's right-click menu only logs the drive out and leaves it powered on, unlike
   *Safely remove*. It is not offered for system folders (`/`, `/boot`, `/home` …) or optical drives.
-- **System specs (HWiNFO-style).** The *System information* button opens a window with six tabs: *Overview*, *CPU & Board*
+- **System information (HWiNFO-style).** The *System information* button opens a window with six tabs: *Overview*, *CPU & Board*
   (model, family/model/stepping, microcode, caches, governor, board, chipset, BIOS), *GPU & Display* (VRAM, driver and
   version, PCIe link, Wayland/X11, KWin, OpenGL, Vulkan), *Memory*, *System & Drivers* (kernel, key modules with versions,
   PipeWire/ALSA) and *Network* (adapters and drivers). Everything is read in the background and cached for the session.
@@ -86,8 +86,11 @@ Everything below is explained in plain words. You do **not** need to be a progra
   slots and the CPU socket need root: the button *Read slot details (administrator)* runs `dmidecode` through `pkexec`
   after Plasma asks for your password.
 
-<p align="center"><img src="preview-specs.png" alt="System specs window" width="640"></p>
+<p align="center"><img src="preview-specs.png" alt="System information window" width="640"></p>
 
+- **Disk health that works with USB drives.** Many USB enclosures need a special mode before they report SMART data.
+  DriveDeck tries the usual ones for you (SAT, then several NVMe bridge types), asks for your password **only once**
+  when root rights are needed, and explains clearly when an enclosure simply does not pass SMART through.
 - **Tools group.** A ribbon group with **Terminal**, **System monitor** (Plasma System Monitor, otherwise btop or htop)
   and **Analyze storage** (Filelight, otherwise Baobab or ncdu) to find what eats your space. The analysis runs on the
   selected local drive, or on your home folder. Buttons for programs that are not installed are hidden.
@@ -125,7 +128,10 @@ Everything below is explained in plain words. You do **not** need to be a progra
 - The pie chart in the *Properties* window is now a smooth **donut ring** with the percentage in the middle.
 - Usage bars are slimmer and rounded, and **animate** to their value.
 - Cards react more softly to the mouse: they fade a highlight in, the icon grows a little, and the selected card gets
-  an accent strip.
+  an accent strip. Folders, drives, network locations and printers all share **one hover look**: a translucent
+  purple-to-cyan gradient with a glowing gradient border.
+- Section headers ("FOLDERS", "DEVICES AND DRIVES", …) are in capitals with the item count as a small pill and a line that
+  fades out to the right. Divider lines are softer.
 
 ### Small things
 
@@ -134,6 +140,9 @@ Everything below is explained in plain words. You do **not** need to be a progra
   `MAJ_API`.)
 - New menu texts come with **German** translations. Other languages show English for the new entries until someone
   translates them (help is welcome!).
+- Programs started from DriveDeck (Terminal, System monitor, Dolphin, …) run completely on their own and no longer
+  hang under DriveDeck in the process tree.
+- The program gives unused memory back to the system after heavy work (opening the System information window, minimising).
 - Unused leftover code was removed.
 
 ---
@@ -155,8 +164,8 @@ Optional tools switch on extra features:
 | `konsole` | "Open in terminal", Terminal button |
 | `plasma-systemmonitor` / `btop` / `htop` | System monitor button |
 | `filelight` / `baobab` / `ncdu` | "Analyze storage" |
-| `lspci`, `lscpu`, `nvidia-smi`, `glxinfo`, `vulkaninfo`, `pactl` | Details in *System specs* |
-| `dmidecode` + `pkexec` | RAM slots and CPU socket in *System specs* |
+| `lspci`, `lscpu`, `nvidia-smi`, `glxinfo`, `vulkaninfo`, `pactl` | Details in *System information* |
+| `dmidecode` + `pkexec` | RAM slots and CPU socket in *System information* |
 | NumPy (`python-numpy`) | Live read/write graph on the drive cards |
 
 ---
