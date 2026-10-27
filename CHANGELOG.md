@@ -135,6 +135,11 @@ hidden and everything else works).
   state of `sysStats` in QML.
 - Shutdown order: the QML engine is now deleted before the backend, and all QML reads of `backend` properties are guarded
   (`backend && backend.x`), so closing the window no longer logs "Cannot read property … of null".
+- Pre-release audit (timeouts, paths, VMs, threads): subprocess error handlers now catch every `OSError`/`SubprocessError`
+  instead of only "not found" and "timed out"; `openFolder` falls back to `xdg-open` on any `OSError`; `openTerminal`,
+  "Analyze storage" and pinning check folders with a 2 s limit (`ist_ordner`) so a dead NFS/SMB mount cannot freeze the
+  window; the System information overview, the memory trim and the update settings are protected against concurrent
+  access; `lsblk` output with `"blockdevices": null` no longer raises.
 - **Memory trimming.** `gc.collect()` plus glibc `malloc_trim(0)` run in a background thread (`Backend.trimMemory`, at most
   one run at a time and not more often than every 5 s) and then trim the QML component cache. Triggers: after the
   hardware report is built, when the *System information* window closes, and shortly after the main window is minimized.

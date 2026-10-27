@@ -344,7 +344,7 @@ def partitions_non_montees(data):
                 continue
             res.append((dev.get("label") or "", path, fstype, taille_oct, rm_dev, tran_dev == "usb"))
 
-    walk(data.get("blockdevices", []))
+    walk(data.get("blockdevices") or [])
     return res
 
 
@@ -399,7 +399,7 @@ def list_real_disks_lsblk(data=None):
             disks.append((dev.get("label") or "", mountpoint, path, usage, fstype,
                           rm_dev, tran_dev == "usb"))
 
-    walk(data.get("blockdevices", []))
+    walk(data.get("blockdevices") or [])
     return disks
 
 
@@ -615,6 +615,16 @@ def disk_usage_mit_limit(pfad, sek=4):
     t.start()
     t.join(sek)
     return ergebnis[0] if ergebnis else None
+
+
+def ist_ordner(pfad, sek=2.0):
+    """os.path.isdir mit Zeitlimit für Aufrufer im GUI-Thread : auf einem toten NFS/SMB-Mount blockiert stat unbegrenzt.
+    Antwortet der Pfad nicht innerhalb von sek Sekunden, gilt er als nicht erreichbar (False)."""
+    ergebnis = []
+    t = threading.Thread(target=lambda: ergebnis.append(os.path.isdir(pfad)), daemon=True)
+    t.start()
+    t.join(sek)
+    return bool(ergebnis and ergebnis[0])
 
 
 def list_network_mounts():
@@ -1875,7 +1885,15 @@ def _os_name():
 _SPECS_FEST = []   # CPU, Grafik, Mainboard, Sound, System ändern sich im Betrieb nicht : nur einmal lesen
 
 
+_SPECS_SPERRE = threading.Lock()   # zwei gleichzeitige Aufrufe (Dialog schnell zweimal geöffnet) würden _SPECS_FEST doppelt füllen
+
+
 def lire_specs():
+    with _SPECS_SPERRE:
+        return _lire_specs()
+
+
+def _lire_specs():
     """Hardware-Übersicht als Liste von Zeilen {key, en, title, icon, lines}. Der Arbeitsspeicher wird bei jedem Aufruf
     frisch gelesen, alles andere nur beim ersten Mal. Läuft im Hintergrund : lspci braucht einige Millisekunden."""
     if not _SPECS_FEST:
@@ -2310,6 +2328,7 @@ def sammle_netz():
 
 _BERICHT = [None]
 _TRIM = {"laeuft": False, "zuletzt": 0.0}
+_TRIM_SPERRE = threading.Lock()
 
 
 def trim_memory():
@@ -2475,10 +2494,11 @@ class Backend(QObject):
             finally:
                 _TRIM["laeuft"] = False
         jetzt = time.monotonic()
-        if _TRIM["laeuft"] or jetzt - _TRIM["zuletzt"] < 5:
-            return
-        _TRIM["laeuft"] = True
-        _TRIM["zuletzt"] = jetzt
+        with _TRIM_SPERRE:   # Prüfen und Setzen gemeinsam : sonst starten zwei Threads gleichzeitig
+            if _TRIM["laeuft"] or jetzt - _TRIM["zuletzt"] < 5:
+                return
+            _TRIM["laeuft"] = True
+            _TRIM["zuletzt"] = jetzt
         threading.Thread(target=arbeit, daemon=True).start()
 
     def _keepSpecs(self, zeilen):
@@ -2646,7 +2666,7 @@ class Backend(QObject):
         cwd = os.path.expanduser("~")
         if art == "analyze":
             ziel = path or cwd   # bewusst ohne chemin_affiche : « / » soll wirklich « / » untersuchen
-            if not os.path.isdir(ziel):
+            if not ist_ordner(ziel):
                 self.messageRequested.emit(titre, tr("Folder not found"))
                 return
             argv.append(ziel)
@@ -2760,7 +2780,7 @@ class Backend(QObject):
         if not path:
             return
         path = pin_normaliser(path)
-        if not os.path.isdir(path) or any(pin_normaliser(p["path"]) == path for p in self._pins):
+        if any(pin_normaliser(p["path"]) == path for p in self._pins) or not ist_ordner(path):
             return
         self._setPins(self._pins + [{"path": path, "label": label, "icon": icon}])
 
@@ -2907,7 +2927,7 @@ class Backend(QObject):
             lu = lire_derniere_version()
             if lu:
                 self._maj.update({"last": time.time(), "latest": lu[0], "url": lu[1]})
-                enregistrer_maj(self._maj)
+                enregistrer_maj(dict(self._maj))   # Kopie : der Schreibvorgang iteriert, ein anderer Thread kann ändern
         if _version_tuple(self._maj["latest"]) > _version_tuple(APP_VERSION):
             self.updateAvailable.emit(self._maj["latest"], self._maj["url"] or MAJ_PAGE)
 
@@ -2922,7 +2942,7 @@ class Backend(QObject):
     @pyqtSlot(bool)
     def setUpdateCheck(self, actif):
         self._maj["enabled"] = bool(actif)
-        enregistrer_maj(self._maj)
+        enregistrer_maj(dict(self._maj))
 
     def _scanLoop(self):
         # scannersInfo : recherche lente (~10 s), au démarrage puis toutes les 10 minutes ou sur « Actualiser ».
@@ -3081,7 +3101,7 @@ class Backend(QObject):
             self.sharesError.emit(tr("The smbclient program is not installed (package “samba”). "
                                      "Type the share name by hand, or use the “Open” button after adding it."))
             return
-        except subprocess.TimeoutExpired:
+        except (subprocess.SubprocessError, OSError):
             self.sharesError.emit(tr("The server is not responding (timed out)."))
             return
         finally:
@@ -3174,7 +3194,7 @@ class Backend(QObject):
         except FileNotFoundError:
             self.messageRequested.emit(tr("Cannot eject"), tr("Program not found"))
             return
-        except subprocess.TimeoutExpired:
+        except (subprocess.SubprocessError, OSError):
             self.messageRequested.emit(tr("Cannot eject"), tr("unknown error"))
             return
         if r.returncode != 0:
@@ -3199,7 +3219,7 @@ class Backend(QObject):
         except FileNotFoundError:
             self.messageRequested.emit(titre, tr("Program not found"))
             return
-        except subprocess.TimeoutExpired:
+        except (subprocess.SubprocessError, OSError):
             self.messageRequested.emit(titre, tr("unknown error"))
             return
         if r.returncode == 0:
@@ -3227,7 +3247,7 @@ class Backend(QObject):
         except FileNotFoundError:
             self.messageRequested.emit(titre, tr("Program not found"))
             return
-        except subprocess.TimeoutExpired:
+        except (subprocess.SubprocessError, OSError):
             self.messageRequested.emit(titre, tr("unknown error"))
             return
         if r.returncode != 0:
@@ -3243,7 +3263,7 @@ class Backend(QObject):
     def openTerminal(self, path):
         path = chemin_affiche(path)
         titre = tr("Cannot open terminal")
-        if not os.path.isdir(path):
+        if not ist_ordner(path):
             self.messageRequested.emit(titre, tr("Folder not found"))
             return
         for cmd in (["konsole", "--workdir", path], ["xdg-terminal-exec"], ["x-terminal-emulator"]):
@@ -3297,7 +3317,7 @@ class Backend(QObject):
             self.messageRequested.emit(
                 titre, tr("The udisksctl command was not found on this system."))
             return
-        except subprocess.TimeoutExpired:
+        except (subprocess.SubprocessError, OSError):
             self.messageRequested.emit(
                 titre, tr("Unmounting {label} timed out.").format(label=label))
             return
@@ -3318,7 +3338,7 @@ class Backend(QObject):
                     tr("Partial eject"),
                     tr("{label} was unmounted but could not be powered off:\n{detail}\n\n"
                        "You can still unplug it.").format(label=label, detail=detail))
-        except (FileNotFoundError, subprocess.TimeoutExpired):
+        except (OSError, subprocess.SubprocessError):
             pass
 
     @pyqtSlot(str)
@@ -3341,7 +3361,7 @@ class Backend(QObject):
                 tr("The smartctl command was not found.\n\n"
                    "Install the smartmontools package to enable this feature."))
             return
-        except subprocess.TimeoutExpired:
+        except (subprocess.SubprocessError, OSError):
             self.messageRequested.emit(
                 tr("SMART unavailable"), tr("Reading SMART timed out."))
             return
@@ -3356,7 +3376,7 @@ class Backend(QObject):
                     tr("Reading SMART requires root rights, and pkexec "
                        "(graphical elevation) was not found on this system."))
                 return
-            except subprocess.TimeoutExpired:
+            except (subprocess.SubprocessError, OSError):
                 self.messageRequested.emit(
                     tr("SMART unavailable"), tr("Reading SMART timed out."))
                 return
@@ -3405,7 +3425,7 @@ class Backend(QObject):
             try:
                 r = subprocess.run(["udisksctl", "unmount", "-b", device],
                                    capture_output=True, text=True, timeout=15)
-            except (FileNotFoundError, subprocess.TimeoutExpired):
+            except (OSError, subprocess.SubprocessError):
                 self.messageRequested.emit(titre, tr("Unmounting the disk failed."))
                 return
             if r.returncode != 0:
@@ -3429,7 +3449,7 @@ class Backend(QObject):
                 capture_output=True, text=True, timeout=30)
             ok = r.returncode == 0
             detail = r.stderr.strip() or tr("unknown error")
-        except (FileNotFoundError, subprocess.TimeoutExpired):
+        except (OSError, subprocess.SubprocessError):
             detail = tr("gdbus not found or timed out.")
 
         if fs not in a_chaud:
@@ -3442,7 +3462,7 @@ class Backend(QObject):
                         tr("The disk could not be remounted:\n{detail}\n\n"
                            "Unplug it and plug it back in.").format(
                                detail=r.stderr.strip() or tr("unknown error")))
-            except (FileNotFoundError, subprocess.TimeoutExpired):
+            except (OSError, subprocess.SubprocessError):
                 pass
 
         if not ok:
@@ -3459,7 +3479,7 @@ class Backend(QObject):
         path = chemin_affiche(path)
         try:
             lancer(["dolphin", "--new-window", path])
-        except FileNotFoundError:
+        except OSError:   # fehlt oder nicht startbar (auch PermissionError) : Rückfall auf xdg-open
             try:
                 lancer(["xdg-open", path])
             except Exception:
