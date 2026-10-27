@@ -125,6 +125,7 @@ hidden and everything else works).
 - One hover/selection look for all cards (folders, drives, network locations, printers and devices): a new `CardGlow`
   component draws a translucent purple-to-cyan gradient with a glowing border; selected or pressed cards glow stronger.
   This replaces three separate highlight rectangles, one of which used a grey border.
+  The border is a gradient ring (purple → blue → cyan, drawn as a `Shape` with the curve renderer) instead of a single colour.
 - Softer dividers: the line between sidebar and content and the ribbon group separators are fainter.
 
 ### Performance and robustness (review pass)

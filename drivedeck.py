@@ -3500,6 +3500,7 @@ QQC2.ApplicationWindow {
     // Karten-Hervorhebung für alle vier Sektionen : unsichtbar im Ruhezustand, beim Überfahren ein Neon-Verlauf
     // (Lila → Blau → Cyan) mit leuchtendem Rand ; ausgewählt oder gedrückt etwas kräftiger
     component CardGlow: Rectangle {
+        id: glow
         property bool hovered: false
         property bool selected: false
         property bool pressed: false
@@ -3516,8 +3517,38 @@ QQC2.ApplicationWindow {
             GradientStop { position: 0.55; color: Qt.rgba(0.24, 0.48, 1.0, a * 0.8) }
             GradientStop { position: 1.0; color: Qt.rgba(0.0, 0.90, 1.0, a * 0.9) }
         }
-        border.width: 1
-        border.color: strong ? Qt.rgba(0.0, 0.90, 1.0, 0.85) : Qt.rgba(0.69, 0.40, 1.0, 0.6)
+        // Rand als Ring (äußeres minus inneres Rundrechteck, OddEvenFill) mit demselben Verlauf wie die Füllung :
+        // ein Rectangle-Rand kennt nur eine Farbe. CurveRenderer zeichnet die Rundungen exakt und ohne MSAA-Ebene.
+        Shape {
+            id: ring
+            anchors.fill: parent
+            visible: glow.opacity > 0
+            preferredRendererType: Shape.CurveRenderer
+            ShapePath {
+                id: edge
+                readonly property real t: 1.2
+                readonly property real r: glow.radius
+                function rr(x, y, w, h, q) {
+                    return "M" + (x + q) + "," + y + " H" + (x + w - q) + " A" + q + "," + q + " 0 0 1 " + (x + w) + "," + (y + q)
+                         + " V" + (y + h - q) + " A" + q + "," + q + " 0 0 1 " + (x + w - q) + "," + (y + h)
+                         + " H" + (x + q) + " A" + q + "," + q + " 0 0 1 " + x + "," + (y + h - q)
+                         + " V" + (y + q) + " A" + q + "," + q + " 0 0 1 " + (x + q) + "," + y + " Z "
+                }
+                fillRule: ShapePath.OddEvenFill
+                strokeColor: "transparent"
+                fillGradient: LinearGradient {
+                    x1: 0; y1: 0; x2: glow.width; y2: glow.height * 0.6
+                    GradientStop { position: 0.0; color: Qt.rgba(0.80, 0.35, 1.0, glow.strong ? 1.0 : 0.75) }
+                    GradientStop { position: 0.5; color: Qt.rgba(0.28, 0.52, 1.0, glow.strong ? 0.95 : 0.65) }
+                    GradientStop { position: 1.0; color: Qt.rgba(0.0, 0.92, 1.0, glow.strong ? 1.0 : 0.8) }
+                }
+                PathSvg {
+                    path: edge.rr(0, 0, glow.width, glow.height, edge.r)
+                          + edge.rr(edge.t, edge.t, glow.width - 2 * edge.t,
+                                      glow.height - 2 * edge.t, Math.max(0, edge.r - edge.t))
+                }
+            }
+        }
         Rectangle {
             visible: stripe
             width: 3; radius: 1.5
