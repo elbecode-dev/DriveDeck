@@ -147,6 +147,8 @@ hidden and everything else works).
   "Analyze storage" and pinning check folders with a 2 s limit (`ist_ordner`) so a dead NFS/SMB mount cannot freeze the
   window; the System information overview, the memory trim and the update settings are protected against concurrent
   access; `lsblk` output with `"blockdevices": null` no longer raises.
+- External programs (system monitor, terminal, Dolphin, analyzers, system settings) are now started fully detached: a
+  short-lived shell puts them in the background, so they no longer appear as child processes of DriveDeck.
 - **Memory trimming.** `gc.collect()` plus glibc `malloc_trim(0)` run in a background thread (`Backend.trimMemory`, at most
   one run at a time and not more often than every 5 s) and then trim the QML component cache. Triggers: after the
   hardware report is built, when the *System information* window closes, and shortly after the main window is minimized.

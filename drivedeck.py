@@ -1088,11 +1088,15 @@ def chemin_affiche(path):
 
 
 def lancer(cmd, cwd=None):
-    """Lance un programme indépendant de Ce PC et récupère son code de sortie en arrière-plan
-    (sans cela, chaque Dolphin fermé reste un processus zombie jusqu'à la fermeture de Ce PC)."""
-    p = subprocess.Popen(cmd, cwd=cwd, start_new_session=True, stdin=subprocess.DEVNULL,
-                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    threading.Thread(target=p.wait, daemon=True).start()
+    """Startet ein Programm vollständig losgelöst von DriveDeck : eigene Sitzung und kein Kindprozess mehr.
+    start_new_session allein ändert den Elternprozess nicht ; deshalb startet eine kurzlebige Shell das Programm im
+    Hintergrund und endet sofort. Das Programm hängt danach unter dem Sitzungsverwalter (systemd --user) im Prozessbaum,
+    und es bleibt auch kein Zombie zurück. Fehlt das Programm, folgt wie bisher FileNotFoundError."""
+    if shutil.which(cmd[0]) is None:
+        raise FileNotFoundError(cmd[0])
+    p = subprocess.Popen(["sh", "-c", '"$@" </dev/null >/dev/null 2>&1 &', "sh", *cmd], cwd=cwd, start_new_session=True,
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    threading.Thread(target=p.wait, daemon=True).start()   # die Shell endet sofort ; wait räumt sie ab
     return p
 
 
