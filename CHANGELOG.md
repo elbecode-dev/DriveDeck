@@ -179,6 +179,11 @@ hidden and everything else works).
   drives are sampled.
 - The drive cache is written at most once a minute unless the drive list changes (fewer SSD writes).
 - The smoothing kernel is computed once per series length.
+- **Clean shutdown.** Closing the window within the first seconds could end with a crash report (`SIGABRT`): a background
+  thread looked up an icon (`QIcon`) while `QApplication` was being destroyed. Icon names are now resolved once at start in
+  the GUI thread and background threads only read the cache. All background loops stop through a shutdown event, are
+  joined for at most 0.6 s, `QApplication` is destroyed last, and the process exits right after cleanup instead of waiting
+  for pending printer/hardware probes.
 
 ### Visual changes
 

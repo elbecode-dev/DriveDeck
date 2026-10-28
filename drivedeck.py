@@ -241,7 +241,7 @@ def list_user_folders():
         path = get_xdg_user_dir(xdg_type, fallback_name)
         if not path:
             continue
-        icon = next((n for n in icon_names if QIcon.hasThemeIcon(n)), "folder")
+        icon = next((n for n in icon_names if symbol_vorhanden(n)), "folder")
         folders.append({"label": tr(label), "path": path, "icon": icon})
     return folders
 
@@ -405,17 +405,41 @@ def list_real_disks_lsblk(data=None):
 _ICONE_THEME = {}   # nom d'icône -> présent dans le thème ? (le thème ne change pas pendant l'exécution)
 
 
+_ENDE = threading.Event()   # gesetzt, sobald das Programm endet : alle Hintergrund-Schleifen hören dann auf
+
+
+def symbol_vorhanden(n):
+    """Gibt es das Symbol im Thema ? QIcon gehört dem GUI-Thread : Hintergrund-Threads lesen nur den Cache (Symbolnamen
+    werden beim Start vorgewärmt, siehe symbole_vorwaermen). Ein Qt-Aufruf aus einem Thread, während QApplication
+    abgebaut wird, bricht das Programm beim Beenden ab."""
+    if n not in _ICONE_THEME:
+        if threading.current_thread() is not threading.main_thread():
+            return False
+        _ICONE_THEME[n] = QIcon.hasThemeIcon(n)
+    return _ICONE_THEME[n]
+
+
 def disk_icon(names):
     for n in names:
         manual = os.path.join(ICON_CACHE_DIR, f"{n}.png")
         if os.path.isfile(manual):
             return "file://" + manual
     for n in names:
-        if n not in _ICONE_THEME:
-            _ICONE_THEME[n] = QIcon.hasThemeIcon(n)
-        if _ICONE_THEME[n]:
+        if symbol_vorhanden(n):
             return n
     return names[-1]
+
+
+def symbole_vorwaermen():
+    """Alle Symbolnamen des Programms einmal im GUI-Thread nachschlagen (vor dem Start der Hintergrund-Threads)."""
+    namen = ["drive-optical", "media-optical-dvd", "media-optical", "drive-removable-media", "drive-harddisk-root",
+             "drive-harddisk", "folder-network", "network-server", "network-workgroup", "folder-remote", "printer",
+             "scanner", "document-scan", "cpu", "computer", "video-card", "video-display", "audio-card",
+             "audio-speakers", "preferences-system", "memory", "network-wired"]
+    namen += [t[3] for t in _PERIPH_TYPES]
+    namen += [n for spec in USER_FOLDERS_SPEC for n in spec[3]]
+    for n in namen:
+        symbol_vorhanden(n)
 
 
 def disque_present(path):
@@ -2528,10 +2552,7 @@ class Backend(QObject):
         self._privLaeuft = False
         self.statsUpdated.connect(self._setStats)
         # Symbolnamen der Hardware-Übersicht gleich hier (GUI-Thread) auflösen : QIcon gehört nicht in Hintergrund-Threads
-        for namen in (["cpu", "computer"], ["video-card", "video-display", "computer"], ["audio-card", "audio-speakers", "computer"],
-                      ["preferences-system", "computer"], ["memory", "drive-harddisk", "computer"],
-                      ["network-wired", "network-workgroup"]):
-            disk_icon(namen)
+        symbole_vorwaermen()
         self._specs = []
         self.specsReady.connect(self._keepSpecs)
         self._bericht = None
@@ -2549,22 +2570,39 @@ class Backend(QObject):
         self._scanners = charger_cache_scanners()   # scannersInfo : dernière liste connue
         self._scanTrouves = {s["device"] for s in self._scanners}
         self._scanWake = threading.Event()
-        threading.Thread(target=self._scanLoop, daemon=True).start()
+        self._schleifen = []   # die Dauer-Threads : beim Beenden kurz abwarten (shutdown)
+        self._starten(self._scanLoop)
         self._maj = charger_maj()
-        threading.Thread(target=self._verifierMaj, daemon=True).start()
-        threading.Thread(target=self._diskLoop, daemon=True).start()
-        threading.Thread(target=self._netLoop, daemon=True).start()
-        threading.Thread(target=self._printLoop, daemon=True).start()
+        self._starten(self._verifierMaj)
+        self._starten(self._diskLoop)
+        self._starten(self._netLoop)
+        self._starten(self._printLoop)
         self._io = {}
         self.ioUpdated.connect(self._setIo)
         self._temps = {}
         self.tempUpdated.connect(self._setTemps)
-        threading.Thread(target=self._tempLoop, daemon=True).start()
+        self._starten(self._tempLoop)
         self._pins = load_pins()
         self._pinInfos = pin_infos(self._pins, pruefen=False)   # sofort anzeigen ; Erreichbarkeit folgt im Hintergrund
         self._refreshPins()
-        threading.Thread(target=self._ioLoop, daemon=True).start()
-        threading.Thread(target=self._statsLoop, daemon=True).start()
+        self._starten(self._ioLoop)
+        self._starten(self._statsLoop)
+
+    def _starten(self, ziel):
+        t = threading.Thread(target=ziel, daemon=True)
+        self._schleifen.append(t)
+        t.start()
+
+    def shutdown(self, warte=0.6):
+        """Programmende : alle Schleifen wecken und stoppen, höchstens « warte » Sekunden auf sie warten. Danach fasst kein
+        Dauer-Thread mehr Qt an, während QApplication abgebaut wird."""
+        _ENDE.set()
+        self._aktivEvent.set()
+        for ev in (self._diskWake, self._netWake, self._prnWake, self._scanWake):
+            ev.set()
+        ende = time.monotonic() + warte
+        for t in self._schleifen:
+            t.join(max(0.0, ende - time.monotonic()))
 
     @pyqtSlot()
     def loadSpecs(self):
@@ -2582,8 +2620,9 @@ class Backend(QObject):
     def trimMemory(self, verzoegerung=0.0):
         """Speicher im Hintergrund zurückgeben ; höchstens ein Lauf gleichzeitig und nie öfter als alle 5 s."""
         def arbeit():
-            if verzoegerung:
-                time.sleep(verzoegerung)
+            if verzoegerung and _ENDE.wait(verzoegerung):
+                _TRIM["laeuft"] = False
+                return
             try:
                 trim_memory()
                 self.trimmed.emit()
@@ -2693,9 +2732,11 @@ class Backend(QObject):
         # Einmal pro Sekunde : /proc/stat, /proc/meminfo, /proc/net/dev (drei kleine Dateien, kein Prozessstart).
         # CPU und Netz sind Zähler : die Rate ist die Differenz zweier Messungen geteilt durch die Zeit dazwischen.
         vor = None
-        while True:
+        while not _ENDE.is_set():
             if self._bereit():
                 vor = None   # nach der Pause nicht über die Lücke mitteln
+                if _ENDE.is_set():
+                    break
             try:
                 t = time.monotonic()
                 cpu, netz, (ram_gesamt, ram_frei) = lire_cpu(), lire_netz(), lire_ram()
@@ -2711,7 +2752,7 @@ class Backend(QObject):
                 vor = (t, cpu, netz)
             except (OSError, ValueError, IndexError, KeyError):
                 vor = None
-            time.sleep(1)
+            _ENDE.wait(1)
 
     @pyqtSlot(bool)
     def setActive(self, aktiv):
@@ -2791,8 +2832,10 @@ class Backend(QObject):
         # festplattenTemperatur : alle 5 s ; nur ein Signal, wenn sich ein (gerundeter) Wert oder eine Stufe ändert
         zuordnung, stand = {}, None   # Gerät -> Platte : nur neu auflösen, wenn sich die Laufwerksliste ändert
         letzte = None
-        while True:
+        while not _ENDE.is_set():
             self._bereit()
+            if _ENDE.is_set():
+                break
             try:
                 liste = self._disks
                 if liste is not stand:
@@ -2816,7 +2859,7 @@ class Backend(QObject):
                     self.tempUpdated.emit(res)
             except Exception as e:
                 print("[drivedeck] température (boucle) :", e)
-            time.sleep(5)
+            _ENDE.wait(5)
 
     @pyqtProperty("QVariantList", notify=pinsChanged)
     def pins(self):
@@ -2918,9 +2961,11 @@ class Backend(QObject):
         verlauf = {}   # Kernelname -> deque[(Zeitpunkt, gelesen, geschrieben)]
         zuordnung, stand = {}, None   # Gerät -> Kernelname (realpath nur bei geänderter Laufwerksliste)
         letzte = None   # zuletzt gesendetes Ergebnis : ruhende Laufwerke ergeben jede Sekunde dasselbe, dann kein Signal
-        while True:
+        while not _ENDE.is_set():
             if self._bereit():
                 verlauf.clear()   # Lücke in der Zeitreihe : lieber neu beginnen als falsche Raten zeigen
+                if _ENDE.is_set():
+                    break
             try:
                 liste = self._disks
                 if liste is not stand:
@@ -2950,7 +2995,7 @@ class Backend(QObject):
                 print("[drivedeck] io-verlauf :", e)
                 verlauf.clear()
                 stand = None
-            time.sleep(1)
+            _ENDE.wait(1)
 
     @pyqtProperty("QVariantList", notify=networksChanged)
     def networks(self):
@@ -2979,9 +3024,11 @@ class Backend(QObject):
         # (Stick eingesteckt, Laufwerk ein-/ausgehängt) oder alle DISQUES_INTERVALLE s für die Füllstände.
         derniere, dernier = None, 0.0
         forcer = True
-        while True:
+        while not _ENDE.is_set():
             if self._bereit():
                 forcer = True
+                if _ENDE.is_set():
+                    break
             try:
                 etat = etat_montages()
                 delai = DISQUES_INTERVALLE if etat is not None else 3
@@ -3000,8 +3047,10 @@ class Backend(QObject):
 
     def _netLoop(self):
         # emplacements réseau seuls : un NAS éteint ne retarde plus la liste des imprimantes
-        while True:
+        while not _ENDE.is_set():
             self._bereit()
+            if _ENDE.is_set():
+                break
             try:
                 liste = build_network_list()
                 enregistrer_cache_reseau(liste)
@@ -3012,8 +3061,10 @@ class Backend(QObject):
             self._netWake.clear()
 
     def _printLoop(self):
-        while True:
+        while not _ENDE.is_set():
             self._bereit()
+            if _ENDE.is_set():
+                break
             try:
                 imprimantes = list_printers()
                 imprimantes = imprimantes + cartes_scanners(self._scanners, self._scanTrouves, imprimantes) \
@@ -3035,7 +3086,8 @@ class Backend(QObject):
         # miseAJour : prévient d'une version plus récente (déjà connue, ou lue sur GitHub au plus une fois par semaine)
         if not MAJ_API:   # Fork ohne eigenes Repository : nichts prüfen
             return
-        time.sleep(1.5)   # laisse la fenêtre s'afficher d'abord
+        if _ENDE.wait(1.5):   # laisse la fenêtre s'afficher d'abord
+            return
         if not self._maj["enabled"]:   # case décochée dans « À propos » : ni vérification ni bandeau (essai compris)
             return
         test = os.environ.get("DRIVEDECK_MAJ_TEST", "")
@@ -3068,7 +3120,7 @@ class Backend(QObject):
         # scannerVeille : une imprimante en veille ne répond pas toujours ; tant qu'une imprimante est
         # installée et qu'aucun scanner n'a répondu, on réessaie chaque minute (10 fois au plus).
         essais_rapides = 0
-        while True:
+        while not _ENDE.is_set():
             delai = 600
             try:
                 trouves = detecter_scanners()
@@ -6921,8 +6973,22 @@ def main():
     app.sendPostedEvents(None, QEvent.Type.DeferredDelete)
     del engine
     del serveur
+    # Danach die Hintergrund-Threads stoppen, bevor QApplication verschwindet (sonst Abbruch durch Qt-Aufrufe im Thread),
+    # und zuletzt die Anwendung selbst : von Hand statt in der zufälligen Reihenfolge beim Verlassen der Funktion.
+    backend.shutdown()
+    del backend
+    gc.collect()
+    del app
     return code
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    code = main()
+    # Fertig aufgeräumt : sofort beenden. Sonst wartet Python beim Verlassen auf die Arbeiter der ThreadPoolExecutor (Drucker-
+    # und Hardware-Abfragen mit eigenen Zeitgrenzen) und das Fenster ist zwar weg, der Prozess läuft aber noch Sekunden weiter.
+    try:
+        sys.stdout.flush()
+        sys.stderr.flush()
+    except (OSError, ValueError):
+        pass
+    os._exit(code or 0)
