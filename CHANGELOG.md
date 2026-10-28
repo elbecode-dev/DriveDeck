@@ -10,6 +10,22 @@ hidden and everything else works).
 
 ---
 
+## 2.0.0-beta.2 – 2026-10-28 (clean shutdown)
+
+### Fixed
+
+- **Clean shutdown.** Closing the window within the first seconds could end with a crash report (`SIGABRT`): a background
+  thread looked up an icon (`QIcon`) while `QApplication` was being destroyed. Icon names are now resolved once at start in
+  the GUI thread and background threads only read the cache. All background loops stop through a shutdown event, are
+  joined for at most 0.6 s, `QApplication` is destroyed last, and the process exits right after cleanup instead of waiting
+  for pending printer/hardware probes.
+
+### Notes
+
+- `APP_VERSION` is `'2.0.0-beta.2'`; the *About* dialog shows it.
+
+---
+
 ## 2.0.0-beta.1 – 2026-10-28 (DriveDeck: new name, modern look and monitoring)
 
 ### Renamed to DriveDeck
@@ -179,11 +195,6 @@ hidden and everything else works).
   drives are sampled.
 - The drive cache is written at most once a minute unless the drive list changes (fewer SSD writes).
 - The smoothing kernel is computed once per series length.
-- **Clean shutdown.** Closing the window within the first seconds could end with a crash report (`SIGABRT`): a background
-  thread looked up an icon (`QIcon`) while `QApplication` was being destroyed. Icon names are now resolved once at start in
-  the GUI thread and background threads only read the cache. All background loops stop through a shutdown event, are
-  joined for at most 0.6 s, `QApplication` is destroyed last, and the process exits right after cleanup instead of waiting
-  for pending printer/hardware probes.
 
 ### Visual changes
 
@@ -286,7 +297,7 @@ and the duplicate user checks in `addNetwork`.
 
 ## Suggested for the first release
 
-- `APP_VERSION` is `'2.0.0-beta.1'` (DriveDeck is a new major version after Fenestra This PC 1.x). For the final release set
+- `APP_VERSION` is `'2.0.0-beta.2'` (DriveDeck is a new major version after Fenestra This PC 1.x). For the final release set
   `'2.0.0'` and tag `v2.0.0`.
 - Keep the licence file `COPYING` (GPL-3.0) from upstream in the repository.
 - Add this file as `CHANGELOG.md` and mention in the README that the project is a fork of
