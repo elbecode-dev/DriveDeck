@@ -12,7 +12,7 @@ locations, printers and devices in one clean window, and it follows your Plasma 
 
 <p align="center"><img src="preview.png" alt="DriveDeck main window"></p>
 
-**Version 2.0.0-beta.1** – a pre-release: feedback and bug reports are very welcome.
+**Version 2.0.0-beta.1** – feedback and bug reports are very welcome.
 
 ---
 
