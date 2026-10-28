@@ -155,6 +155,10 @@ hidden and everything else works).
 - Disk temperature: drives without a kernel sensor or udisks value (typically USB NVMe/SATA enclosures) are now also read
   with `smartctl -A` (SAT and NVMe bridge modes, NVMe/SCSI/ATA formats), in the background and cached. This works only where
   `smartctl` may run without root; there is no password prompt for it.
+- Final audit pass: the disk, I/O, temperature and update loops now survive a single failing iteration instead of ending
+  silently; thread errors print one line instead of a traceback; `/proc/mounts`, `/proc/diskstats` and `/proc/net/dev` are
+  read tolerant of invalid UTF-8; a race on the NAS free-space cache is gone; the I/O and temperature loops only signal
+  the interface when their values change; the `smbclient` free-space timeout is 20 s.
 - **Memory trimming.** `gc.collect()` plus glibc `malloc_trim(0)` run in a background thread (`Backend.trimMemory`, at most
   one run at a time and not more often than every 5 s) and then trim the QML component cache. Triggers: after the
   hardware report is built, when the *System information* window closes, and shortly after the main window is minimized.

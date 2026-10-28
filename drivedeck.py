@@ -668,7 +668,7 @@ def list_network_mounts():
     mounts = []
     seen = set()
     try:
-        with open("/proc/mounts", "r") as f:
+        with open("/proc/mounts", encoding="utf-8", errors="replace") as f:
             lines = f.readlines()
     except FileNotFoundError:
         return mounts
@@ -793,7 +793,7 @@ def sync_places(locs):
         _sync_places(locs)
 
 
-# Bewusst unverändert : unter diesem KWallet-Ordner liegen die gespeicherten Netzwerk-Passwörter.
+# KWallet-Ordner der gespeicherten Netzwerk-Passwörter
 WALLET_DOSSIER = "DriveDeck"
 _ESPACE = {}          # url -> (heure, valeur ou None) : évite d'interroger le NAS toutes les 3 secondes
 _PORTEFEUILLE = {"ko_jusqu": 0}
@@ -842,8 +842,9 @@ def net_espace(loc):
     """(total, utilisé, libre) en octets d'un partage SMB, ou None. Mis en cache 2 minutes (5 en cas d'échec)."""
     url = net_url(loc)
     maintenant = time.time()
-    if url in _ESPACE and maintenant < _ESPACE[url][0]:
-        return _ESPACE[url][1]
+    memo = _ESPACE.get(url)   # ein einziger Zugriff : ein anderer Thread kann den Eintrag gleichzeitig entfernen
+    if memo and maintenant < memo[0]:
+        return memo[1]
     valeur = None
     mdp = wallet_lire(wallet_cle(loc)) if loc.get("user") else None
     if mdp:
@@ -852,7 +853,7 @@ def net_espace(loc):
         try:
             r = subprocess.run(["smbclient", "//" + loc["host"] + "/" + loc["share"], "-U", loc["user"],
                                 "-c", "ls"], env=env, stdin=subprocess.DEVNULL,
-                               capture_output=True, text=True, timeout=30)
+                               capture_output=True, text=True, timeout=20)
             m = re.search(r"(\d+) blocks of size (\d+)\. (\d+) blocks available", r.stdout or "")
             if m:
                 taille_bloc = int(m.group(2))
@@ -1013,7 +1014,6 @@ def hat_unterordner(pfad, max_eintraege=5000):
 
 def basis_platte(name):
     """Kernelname der ganzen Platte zu einem Blockgeraet : Partition -> Platte, dm/LUKS/LVM -> darunterliegende Platte."""
-    import glob
     for _ in range(8):
         slaves = glob.glob("/sys/class/block/%s/slaves/*" % name)
         if slaves:
@@ -1087,7 +1087,6 @@ def _smart_temperatur(platte):
 def platten_temperatur(platte):
     """Temperatur der ganzen Platte in °C oder None. Zuerst der Kernel-Sensor (hwmon : NVMe, SATA mit dem Modul
     drivetemp) – nur eine Datei lesen. Sonst udisks (SMART, in Kelvin) mit Zwischenspeicher, zuletzt smartctl (USB-Gehäuse)."""
-    import glob
     for datei in sorted(glob.glob("/sys/block/%s/device/hwmon*/temp1_input" % platte)):
         try:
             with open(datei) as f:
@@ -1820,7 +1819,7 @@ def lire_diskstats():
     """{Kernelname: (gelesene Sektoren, geschriebene Sektoren)} aus /proc/diskstats."""
     stats = {}
     try:
-        with open("/proc/diskstats") as f:
+        with open("/proc/diskstats", encoding="utf-8", errors="replace") as f:
             for ligne in f:
                 c = ligne.split()
                 if len(c) >= 10:
@@ -1879,7 +1878,7 @@ _NETZ_ECHT = {}   # Schnittstelle -> hat ein echtes Gerät dahinter (kein lo, Br
 def lire_netz():
     """(empfangene, gesendete Bytes) aller echten Netzwerkkarten seit dem Start, aus /proc/net/dev."""
     rx = tx = 0
-    with open("/proc/net/dev") as f:
+    with open("/proc/net/dev", encoding="utf-8", errors="replace") as f:
         for ligne in list(f)[2:]:
             nom, _, rest = ligne.partition(":")
             nom = nom.strip()
@@ -2791,26 +2790,32 @@ class Backend(QObject):
     def _tempLoop(self):
         # festplattenTemperatur : alle 5 s ; nur ein Signal, wenn sich ein (gerundeter) Wert oder eine Stufe ändert
         zuordnung, stand = {}, None   # Gerät -> Platte : nur neu auflösen, wenn sich die Laufwerksliste ändert
+        letzte = None
         while True:
             self._bereit()
-            liste = self._disks
-            if liste is not stand:
-                zuordnung.clear()
-                stand = liste
-            res = {}
-            for d in list(liste):
-                if d.get("isOptical"):
-                    continue
-                try:
-                    platte = zuordnung.get(d["device"])
-                    if platte is None:
-                        platte = zuordnung[d["device"]] = basis_platte(os.path.basename(os.path.realpath(d["device"])))
-                    grad = platten_temperatur(platte)
-                except Exception:
-                    grad = None
-                if grad is not None:
-                    res[d["device"]] = {"c": grad, "level": temperatur_stufe(platte, grad)}
-            self.tempUpdated.emit(res)
+            try:
+                liste = self._disks
+                if liste is not stand:
+                    zuordnung.clear()
+                    stand = liste
+                res = {}
+                for d in list(liste):
+                    if d.get("isOptical"):
+                        continue
+                    try:
+                        platte = zuordnung.get(d["device"])
+                        if platte is None:
+                            platte = zuordnung[d["device"]] = basis_platte(os.path.basename(os.path.realpath(d["device"])))
+                        grad = platten_temperatur(platte)
+                    except Exception:
+                        grad = None
+                    if grad is not None:
+                        res[d["device"]] = {"c": grad, "level": temperatur_stufe(platte, grad)}
+                if res != letzte:   # unveränderte Temperaturen nicht erneut an die Oberfläche schicken
+                    letzte = res
+                    self.tempUpdated.emit(res)
+            except Exception as e:
+                print("[drivedeck] température (boucle) :", e)
             time.sleep(5)
 
     @pyqtProperty("QVariantList", notify=pinsChanged)
@@ -2912,31 +2917,39 @@ class Backend(QObject):
             return
         verlauf = {}   # Kernelname -> deque[(Zeitpunkt, gelesen, geschrieben)]
         zuordnung, stand = {}, None   # Gerät -> Kernelname (realpath nur bei geänderter Laufwerksliste)
+        letzte = None   # zuletzt gesendetes Ergebnis : ruhende Laufwerke ergeben jede Sekunde dasselbe, dann kein Signal
         while True:
             if self._bereit():
                 verlauf.clear()   # Lücke in der Zeitreihe : lieber neu beginnen als falsche Raten zeigen
-            liste = self._disks
-            if liste is not stand:
-                zuordnung = {d["device"]: nom_noyau(d["device"]) for d in liste}
-                stand = liste
-                verlauf = {k: v for k, v in verlauf.items() if k in zuordnung.values()}
-            t = time.monotonic()
-            gebraucht = set(zuordnung.values())
-            for nom, (lu, ecrit) in lire_diskstats().items():
-                if nom in gebraucht:   # loop*/ram*/zram* gar nicht erst sammeln
-                    verlauf.setdefault(nom, deque(maxlen=IO_FENSTER + 1)).append((t, lu, ecrit))
-            resultat = {}
-            for d in list(liste):
-                h = verlauf.get(zuordnung.get(d["device"]))
-                if not h or len(h) < 2:
-                    continue
-                a = np.array(h, dtype=float)
-                dt = np.diff(a[:, 0])
-                taux = np.clip(np.diff(a[:, 1:], axis=0) * SECTEUR / dt[:, None], 0, None)   # Zähler-Reset -> 0
-                resultat[d["device"]] = {
-                    "read": glaetten(taux[:, 0]).tolist(), "write": glaetten(taux[:, 1]).tolist(),
-                    "readRate": float(taux[-1, 0]), "writeRate": float(taux[-1, 1])}
-            self.ioUpdated.emit(resultat)
+            try:
+                liste = self._disks
+                if liste is not stand:
+                    zuordnung = {d["device"]: nom_noyau(d["device"]) for d in liste}
+                    stand = liste
+                    verlauf = {k: v for k, v in verlauf.items() if k in zuordnung.values()}
+                t = time.monotonic()
+                gebraucht = set(zuordnung.values())
+                for nom, (lu, ecrit) in lire_diskstats().items():
+                    if nom in gebraucht:   # loop*/ram*/zram* gar nicht erst sammeln
+                        verlauf.setdefault(nom, deque(maxlen=IO_FENSTER + 1)).append((t, lu, ecrit))
+                resultat = {}
+                for d in list(liste):
+                    h = verlauf.get(zuordnung.get(d["device"]))
+                    if not h or len(h) < 2:
+                        continue
+                    a = np.array(h, dtype=float)
+                    dt = np.diff(a[:, 0])
+                    taux = np.clip(np.diff(a[:, 1:], axis=0) * SECTEUR / dt[:, None], 0, None)   # Zähler-Reset -> 0
+                    resultat[d["device"]] = {
+                        "read": glaetten(taux[:, 0]).tolist(), "write": glaetten(taux[:, 1]).tolist(),
+                        "readRate": float(taux[-1, 0]), "writeRate": float(taux[-1, 1])}
+                if resultat != letzte:
+                    letzte = resultat
+                    self.ioUpdated.emit(resultat)
+            except Exception as e:   # ein Ausreißer (Gerät verschwunden, seltsamer Zähler) darf den Verlauf nicht dauerhaft beenden
+                print("[drivedeck] io-verlauf :", e)
+                verlauf.clear()
+                stand = None
             time.sleep(1)
 
     @pyqtProperty("QVariantList", notify=networksChanged)
@@ -2969,16 +2982,19 @@ class Backend(QObject):
         while True:
             if self._bereit():
                 forcer = True
-            etat = etat_montages()
-            delai = DISQUES_INTERVALLE if etat is not None else 3
-            if forcer or etat != derniere or time.monotonic() - dernier >= delai:
-                try:
-                    liste = list_real_disks()
-                    enregistrer_cache_disques(liste)
-                    self.disksUpdated.emit(liste)
-                except Exception as e:
-                    print("[drivedeck] disques :", e)
-                derniere, dernier = etat, time.monotonic()
+            try:
+                etat = etat_montages()
+                delai = DISQUES_INTERVALLE if etat is not None else 3
+                if forcer or etat != derniere or time.monotonic() - dernier >= delai:
+                    try:
+                        liste = list_real_disks()
+                        enregistrer_cache_disques(liste)
+                        self.disksUpdated.emit(liste)
+                    except Exception as e:
+                        print("[drivedeck] disques :", e)
+                    derniere, dernier = etat, time.monotonic()
+            except Exception as e:   # die Schleife darf nie enden : sonst bleibt die Laufwerksliste für immer stehen
+                print("[drivedeck] disques (boucle) :", e)
             forcer = self._diskWake.wait(1)
             self._diskWake.clear()
 
@@ -3010,6 +3026,12 @@ class Backend(QObject):
             self._prnWake.clear()
 
     def _verifierMaj(self):
+        try:
+            self._verifierMajWork()
+        except Exception as e:   # kaputte Einstellungsdatei o. Ä. : still weitermachen, kein Traceback im Thread
+            print("[drivedeck] mise à jour :", e)
+
+    def _verifierMajWork(self):
         # miseAJour : prévient d'une version plus récente (déjà connue, ou lue sur GitHub au plus une fois par semaine)
         if not MAJ_API:   # Fork ohne eigenes Repository : nichts prüfen
             return
@@ -3140,7 +3162,6 @@ class Backend(QObject):
         if module not in self.SETTINGS_MODULES:
             return False
         if module not in self._kcm_cache:
-            import glob
             dirs = [os.path.expanduser("~/.local/share")] + (os.environ.get("XDG_DATA_DIRS") or
                                                               "/usr/local/share:/usr/share").split(":")
             treffer = any(os.path.isfile(os.path.join(d, "applications", module + ".desktop")) for d in dirs if d)
@@ -6846,6 +6867,9 @@ def main():
     if "--dump-qml" in sys.argv:   # Oberfläche als .qml-Datei ausgeben (Bearbeitung mit Syntaxfarben)
         sys.stdout.write(QML)
         return 0
+    def thread_fehler(args):   # ein Hintergrund-Thread endet : eine Zeile statt eines Tracebacks, das Programm läuft weiter
+        print("[drivedeck] Thread %s beendet : %s: %s" % (args.thread.name if args.thread else "?", args.exc_type.__name__, args.exc_value))
+    threading.excepthook = thread_fehler
     app = QApplication(sys.argv)
     app.setApplicationName(APP_ID)
     app.setDesktopFileName(APP_ID)   # Plasma ordnet das Fenster über drivedeck.desktop dem Symbol und dem Namen zu
