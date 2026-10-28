@@ -10,7 +10,7 @@ hidden and everything else works).
 
 ---
 
-## 2.0.0-beta.1 – 2026-10-26 (DriveDeck: new name, modern look and monitoring)
+## 2.0.0-beta.1 – 2026-10-28 (DriveDeck: new name, modern look and monitoring)
 
 ### Renamed to DriveDeck
 
@@ -190,13 +190,15 @@ hidden and everything else works).
 
 ### Notes
 
-- New optional dependency: **NumPy** (imported inside the sampler thread, so start-up time is unaffected). `install.sh`
-  prints a hint when it is missing.
+- New optional dependency: **NumPy** (imported once at module level, `HAS_NUMPY`; without it the I/O graph is hidden). `install.sh`
+  installs it when you agree.
 - Checked with a small test harness that loads the QML and listens to the engine warnings (0 warnings), plus
   screenshots of the rendered window. The harness is not part of the repository.
 - A search/filter across all cards was tried and removed again: it only searched inside this window and added little.
 
 ## 1.2.0 – 2026-10-25
+
+*Historical entry: paths and names below refer to the program before the rename to DriveDeck.*
 
 ## Bug fixes
 
@@ -266,6 +268,10 @@ and the duplicate user checks in `addNetwork`.
 
 ## Known limitations
 
+- Drive temperature of USB enclosures (and SMART from the background) needs `smartctl` without root; otherwise only the SMART
+  dialog shows it.
+- Not tested: AMD/Intel graphics and Wi-Fi details in the System information window, a real `pkexec` prompt for the
+  slot details, package installation on Fedora and Debian/Ubuntu.
 - *Disconnect* uses `umount`; without a matching `fstab` entry (`user`/`users` option) it reports a permission error.
 - A network share mounted by IP but configured by host name is still not matched.
 - `removeNetwork` only writes an empty password into KWallet; `kwallet-query` cannot delete entries.
@@ -280,6 +286,5 @@ and the duplicate user checks in `addNetwork`.
 - Keep the licence file `COPYING` (GPL-3.0) from upstream in the repository.
 - Add this file as `CHANGELOG.md` and mention in the README that the project is a fork of
   `naykkalak/fenestra-ce-pc`.
-- Update `install.sh` so that it installs the new version of `ce_pc_plasma.py`.
 
 - Development note: the changes in this fork were created with the help of AI assistants (Claude, Gemini) and tested by the maintainer.

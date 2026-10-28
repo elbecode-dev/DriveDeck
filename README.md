@@ -12,6 +12,8 @@ locations, printers and devices in one clean window, and it follows your Plasma 
 
 <p align="center"><img src="preview.png" alt="DriveDeck main window"></p>
 
+**Version 2.0.0-beta.1** – a pre-release: feedback and bug reports are very welcome.
+
 ---
 
 ## What the program does
@@ -75,7 +77,7 @@ Everything below is explained in plain words. You do **not** need to be a progra
 - **System summary.** Compact live chips at the right end of the ribbon: **CPU** load, **RAM** used / total,
   **Storage** (all mounted local drives together) and network throughput (▲ sent, ▼ received). The bars turn orange at
   80 % and red at 90 %. The chips use the free space on the right and hide themselves when the window is too narrow
-  (about 1430 px or less); they pause while the window is minimised.
+  (about 1460 px or less); they pause while the window is minimised.
 - **Unmount.** *Unmount* in a drive's right-click menu only logs the drive out and leaves it powered on, unlike
   *Safely remove*. It is not offered for system folders (`/`, `/boot`, `/home` …) or optical drives.
 - **System information (HWiNFO-style).** The *System information* button opens a window with six tabs: *Overview*, *CPU & Board*
@@ -206,8 +208,11 @@ To remove it again: `bash uninstall.sh` (keeps your settings) or `bash uninstall
 - A network share that is mounted by IP address but saved by host name is not recognised as the same one.
 - Removing a saved network location only blanks the stored password in KWallet. KWallet's command line tool cannot
   delete entries.
-- Tested on KDE Plasma 6 with a Btrfs system disk. Other setups should work, but have not been tested by the fork
-  maintainer.
+- Drive temperature of USB enclosures needs administrator rights (see *Disk temperature* above), so those cards show no
+  chip by default. The SMART dialog works for them.
+- Tested on KDE Plasma 6 (CachyOS) with a Btrfs system disk and an NVIDIA GPU. Other setups should work, but have not been
+  tested by the fork maintainer. This includes AMD/Intel graphics and Wi-Fi details in the *System information* window, and
+  the package installation on Fedora and Debian/Ubuntu.
 
 ---
 
