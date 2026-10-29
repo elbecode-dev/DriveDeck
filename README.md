@@ -103,7 +103,8 @@ small **live graph** of their read and write speed, and warn you when they are a
 - **Correct name and icon in the task bar.** On Wayland the window now shows its real icon and name instead of
   "python3".
 - **Live read/write graph per drive.** Every drive card shows a small graph of the last minute: green is reading,
-  yellow is writing. Hover it to see the current speed. (Needs NumPy; without it the graph is simply not shown.)
+  yellow is writing. Next to it the current read (▼) and write (▲) speed is shown as numbers, e.g. `450 KB/s` or
+  `12.4 MB/s`. (Needs NumPy; without it graph and numbers are simply not shown.)
 - **"Almost full" warning.** From 80 % usage on, the bar and the ring turn red and the card gets a badge such as
   "⚠ 90 %".
 - **Disk temperature.** Each drive card shows its current temperature in a small chip (it turns amber and red when

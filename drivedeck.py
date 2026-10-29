@@ -4015,6 +4015,18 @@ QQC2.ApplicationWindow {
         }
         return false
     }
+    // rateShort : Durchsatz für die Laufwerkskarten : unter 1 MB/s ganze KB/s (auch « 0 KB/s »), darüber MB/s bzw. GB/s mit einer Nachkommastelle
+    function rateShort(n) {
+        if (!(n > 0))
+            return "0 KB/s"
+        var kb = n / 1024
+        if (kb < 1023.5)
+            return Math.round(kb).toString() + " KB/s"
+        var mb = kb / 1024
+        if (mb < 1023.95)
+            return mb.toFixed(1).replace(".", trDecimal) + " MB/s"
+        return (mb / 1024).toFixed(1).replace(".", trDecimal) + " GB/s"
+    }
     // rateText : Durchsatz lesbar (B/s … GB/s)
     function rateText(n) {
         var u = ["B/s", "KB/s", "MB/s", "GB/s"], i = 0
@@ -6166,46 +6178,93 @@ QQC2.ApplicationWindow {
                                         }
                                     }
 
-                                    // ioVerlauf : Lese-/Schreib-Sparkline der letzten 60 s ; Tooltip mit den Momentanwerten
-                                    Item {
-                                        id: ioBox
-                                        readonly property var io: ((backend && backend.ioStats) ? backend.ioStats : ({}))[modelData.device]
-                                        readonly property real peak: io ? Math.max(1048576, Math.max.apply(null, io.read.concat(io.write))) : 1048576
-                                        function pts(serie) {
-                                            var n = serie.length, out = [], step = width / 59
-                                            for (var i = 0; i < n; i++)
-                                                out.push(Qt.point(width - (n - 1 - i) * step, height - 1 - (height - 3) * serie[i] / peak))
-                                            return out
-                                        }
-                                        visible: io !== undefined && modelData.isUnmounted !== true && modelData.isOptical !== true
-                                        Layout.preferredWidth: 72
-                                        Layout.preferredHeight: 32
+                                    // ioVerlauf : Sparkline der letzten 60 s plus die Momentanwerte als Zahlen (▼ lesen grün, ▲ schreiben gelb).
+                                    // Die Texte sind eigene string-Eigenschaften : ändert sich der Wert nicht, melden sie nichts und das Label
+                                    // wird weder neu gesetzt noch neu gelayoutet (feste Breite, Festbreitschrift, rechtsbündig : kein Springen).
+                                    ColumnLayout {
+                                        id: ioArea
+                                        readonly property var stats: ((backend && backend.ioStats) ? backend.ioStats : ({}))
+                                        readonly property var io: stats[modelData.device]
+                                        readonly property bool anyIo: Object.keys(stats).length > 0   // ohne NumPy gibt es gar keine Werte : dann nichts zeigen
+                                        readonly property string readText: io ? win.rateShort(io.readRate) : "-"
+                                        readonly property string writeText: io ? win.rateShort(io.writeRate) : "-"
+                                        visible: anyIo && modelData.isUnmounted !== true && modelData.isOptical !== true
+                                        Layout.preferredWidth: 82
                                         Layout.alignment: Qt.AlignVCenter
-                                        opacity: ioHover.hovered ? 1.0 : 0.8
+                                        spacing: 2
+                                        opacity: ioHover.hovered ? 1.0 : 0.85
                                         Behavior on opacity { NumberAnimation { duration: 140 } }
-                                        Rectangle {
-                                            anchors.fill: parent
-                                            radius: 6
-                                            color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.05)
-                                        }
-                                        Shape {
-                                            anchors.fill: parent
-                                            preferredRendererType: Shape.CurveRenderer
-                                            ShapePath {
-                                                strokeColor: Kirigami.Theme.positiveTextColor
-                                                strokeWidth: 1.5; fillColor: "transparent"; joinStyle: ShapePath.RoundJoin
-                                                PathPolyline { path: ioBox.io ? ioBox.pts(ioBox.io.read) : [] }
+                                        Item {
+                                            id: ioBox
+                                            readonly property var io: ioArea.io
+                                            readonly property real peak: io ? Math.max(1048576, Math.max.apply(null, io.read.concat(io.write))) : 1048576
+                                            function pts(serie) {
+                                                var n = serie.length, out = [], step = width / 59
+                                                for (var i = 0; i < n; i++)
+                                                    out.push(Qt.point(width - (n - 1 - i) * step, height - 1 - (height - 3) * serie[i] / peak))
+                                                return out
                                             }
-                                            ShapePath {
-                                                strokeColor: Kirigami.Theme.neutralTextColor
-                                                strokeWidth: 1.5; fillColor: "transparent"; joinStyle: ShapePath.RoundJoin
-                                                PathPolyline { path: ioBox.io ? ioBox.pts(ioBox.io.write) : [] }
+                                            visible: io !== undefined
+                                            Layout.fillWidth: true
+                                            Layout.preferredHeight: 26
+                                            Rectangle {
+                                                anchors.fill: parent
+                                                radius: 6
+                                                color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.05)
+                                            }
+                                            Shape {
+                                                anchors.fill: parent
+                                                preferredRendererType: Shape.CurveRenderer
+                                                ShapePath {
+                                                    strokeColor: Kirigami.Theme.positiveTextColor
+                                                    strokeWidth: 1.5; fillColor: "transparent"; joinStyle: ShapePath.RoundJoin
+                                                    PathPolyline { path: ioBox.io ? ioBox.pts(ioBox.io.read) : [] }
+                                                }
+                                                ShapePath {
+                                                    strokeColor: Kirigami.Theme.neutralTextColor
+                                                    strokeWidth: 1.5; fillColor: "transparent"; joinStyle: ShapePath.RoundJoin
+                                                    PathPolyline { path: ioBox.io ? ioBox.pts(ioBox.io.write) : [] }
+                                                }
+                                            }
+                                        }
+                                        RowLayout {   // Leserate
+                                            Layout.fillWidth: true
+                                            spacing: 4
+                                            QQC2.Label {
+                                                text: "\u25BC"
+                                                font.pointSize: win.badgeFont.pointSize
+                                                color: Kirigami.Theme.positiveTextColor
+                                            }
+                                            QQC2.Label {
+                                                Layout.fillWidth: true
+                                                horizontalAlignment: Text.AlignRight
+                                                text: ioArea.readText
+                                                font.family: Kirigami.Theme.fixedWidthFont.family
+                                                font.pointSize: win.badgeFont.pointSize
+                                                color: Kirigami.Theme.textColor
+                                            }
+                                        }
+                                        RowLayout {   // Schreibrate
+                                            Layout.fillWidth: true
+                                            spacing: 4
+                                            QQC2.Label {
+                                                text: "\u25B2"
+                                                font.pointSize: win.badgeFont.pointSize
+                                                color: Kirigami.Theme.neutralTextColor
+                                            }
+                                            QQC2.Label {
+                                                Layout.fillWidth: true
+                                                horizontalAlignment: Text.AlignRight
+                                                text: ioArea.writeText
+                                                font.family: Kirigami.Theme.fixedWidthFont.family
+                                                font.pointSize: win.badgeFont.pointSize
+                                                color: Kirigami.Theme.textColor
                                             }
                                         }
                                         HoverHandler { id: ioHover }
-                                        QQC2.ToolTip.visible: ioHover.hovered && ioBox.io !== undefined
+                                        QQC2.ToolTip.visible: ioHover.hovered && ioArea.io !== undefined
                                         QQC2.ToolTip.delay: 300
-                                        QQC2.ToolTip.text: ioBox.io ? ("\u25BC " + win.rateText(ioBox.io.readRate) + "   \u25B2 " + win.rateText(ioBox.io.writeRate)) : ""
+                                        QQC2.ToolTip.text: ioArea.io ? ("\u25BC " + win.rateText(ioArea.io.readRate) + "   \u25B2 " + win.rateText(ioArea.io.writeRate)) : ""
                                     }
                                 }
                                 CardGlow {

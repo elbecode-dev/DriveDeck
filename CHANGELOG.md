@@ -10,6 +10,18 @@ hidden and everything else works).
 
 ---
 
+## Unreleased
+
+### Changed
+
+- **Read/write speed as numbers on the drive cards.** Below the I/O sparkline two compact labels show the current rates:
+  green ▼ for reading, yellow ▲ for writing, in the fixed-width font so the digits do not jump. Below 1 MB/s the value is
+  shown in whole KB/s (`0 KB/s` when idle), from 1 MB/s on in MB/s, from 1 GB/s on in GB/s with one decimal. A drive without
+  values shows `-`. The values still come from `ioStats`; the texts are separate string properties, so a label is only
+  touched when its text really changes.
+
+---
+
 ## 2.0.0-beta.2 – 2026-10-28 (clean shutdown)
 
 ### Fixed
