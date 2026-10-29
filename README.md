@@ -35,8 +35,6 @@ small **live graph** of their read and write speed, and warn you when they are a
 
 ## What's different in this fork
 
-Everything below is explained in plain words. You do **not** need to be a programmer to read it.
-
 ### Problems that are fixed
 
 | What went wrong before | What happens now |
