@@ -10,15 +10,19 @@ hidden and everything else works).
 
 ---
 
-## Unreleased
+## 2.0.0-beta.3 – 2026-10-29 (read/write speed on the drive cards)
 
 ### Changed
 
 - **Read/write speed as numbers on the drive cards.** Below the I/O sparkline two compact labels show the current rates:
-  green ▼ for reading, yellow ▲ for writing, in the fixed-width font so the digits do not jump. Below 1 MB/s the value is
+  green ▼ for reading, ▲ in the theme's neutral colour (as the write line) for writing, in the fixed-width font so the digits do not jump. Below 1 MB/s the value is
   shown in whole KB/s (`0 KB/s` when idle), from 1 MB/s on in MB/s, from 1 GB/s on in GB/s with one decimal. A drive without
   values shows `-`. The values still come from `ioStats`; the texts are separate string properties, so a label is only
   touched when its text really changes.
+
+### Notes
+
+- `APP_VERSION` is `'2.0.0-beta.3'`; the *About* dialog shows it. `preview.png` was rendered again.
 
 ---
 
@@ -309,7 +313,7 @@ and the duplicate user checks in `addNetwork`.
 
 ## Suggested for the first release
 
-- `APP_VERSION` is `'2.0.0-beta.2'` (DriveDeck is a new major version after Fenestra This PC 1.x). For the final release set
+- `APP_VERSION` is `'2.0.0-beta.3'` (DriveDeck is a new major version after Fenestra This PC 1.x). For the final release set
   `'2.0.0'` and tag `v2.0.0`.
 - Keep the licence file `COPYING` (GPL-3.0) from upstream in the repository.
 - Add this file as `CHANGELOG.md` and mention in the README that the project is a fork of
