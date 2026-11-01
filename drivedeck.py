@@ -1351,15 +1351,19 @@ _ENCRE_CACHE = {}
 
 
 def niveaux_encre(nom, cible=None):
-    """Niveaux d'encre : d'abord ceux que CUPS connaît, sinon ceux que l'imprimante donne directement. Gardés 20 s."""   # encreDirecte
+    """Niveaux d'encre : d'abord ceux que l'imprimante donne directement, sinon ceux que CUPS connaît. Gardés 20 s."""   # encreDirecte
     if not re.fullmatch(r"[A-Za-z0-9_.-]+", nom):
         return []
     memo = _ENCRE_CACHE.get(nom)
     if memo and time.time() - memo[0] < 20:
         return memo[1]
-    res = _encre_url("ipp://localhost/printers/" + nom)
-    if not res and cible and cible[1] == 631:
+    # Erst den Drucker selbst fragen : die Werte, die CUPS zur Warteschlange führt, stammen aus dem letzten Auftrag bzw. einem
+    # Treiber und können veraltet oder falsch sein (z. B. 60 / 0 / 0 / ? statt 99 / 26 / 23 / 24). CUPS ist nur der Rückfall.
+    res = []
+    if cible and cible[1] == 631:
         res = _encre_url("ipp://%s:%d/ipp/print" % (cible[0], cible[1]))
+    if not res:
+        res = _encre_url("ipp://localhost/printers/" + nom)
     _ENCRE_CACHE[nom] = (time.time(), res)
     return res
 
@@ -6859,7 +6863,7 @@ QQC2.ApplicationWindow {
 """
 
 
-APP_VERSION = '2.0.0-beta.3'
+APP_VERSION = '2.0.0-beta.4'
 APP_AUTEUR = """Original Copyright (C) 2026 naykkalak
 Modified and maintained by Christian (2026), with help from his son Leon"""
 APP_LICENCE = 'GPL-3.0-or-later'

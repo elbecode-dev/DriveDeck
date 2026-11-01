@@ -10,6 +10,22 @@ hidden and everything else works).
 
 ---
 
+## 2.0.0-beta.4 – 2026-11-01 (ink levels)
+
+### Fixed
+
+- **Wrong ink levels.** DriveDeck asked CUPS first and only asked the printer itself when CUPS knew nothing. The values CUPS
+  keeps for a queue come from the last job or a driver and can be stale or wrong (for example 60 / 0 / 0 / unknown instead of
+  the real 99 / 26 / 23 / 24 %, with the yellow cartridge missing). The printer is now asked directly first
+  (`ipp://<address>:631/ipp/print`) and CUPS is only the fallback, for example when the address is unknown or the printer does
+  not answer. The result is still cached for 20 s.
+
+### Notes
+
+- `APP_VERSION` is `'2.0.0-beta.4'`; the *About* dialog shows it.
+
+---
+
 ## 2.0.0-beta.3 – 2026-10-29 (read/write speed on the drive cards)
 
 ### Changed
@@ -313,7 +329,7 @@ and the duplicate user checks in `addNetwork`.
 
 ## Suggested for the first release
 
-- `APP_VERSION` is `'2.0.0-beta.3'` (DriveDeck is a new major version after Fenestra This PC 1.x). For the final release set
+- `APP_VERSION` is `'2.0.0-beta.4'` (DriveDeck is a new major version after Fenestra This PC 1.x). For the final release set
   `'2.0.0'` and tag `v2.0.0`.
 - Keep the licence file `COPYING` (GPL-3.0) from upstream in the repository.
 - Add this file as `CHANGELOG.md` and mention in the README that the project is a fork of
