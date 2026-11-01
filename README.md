@@ -72,10 +72,11 @@ small **live graph** of their read and write speed, and warn you when they are a
   - On drives: *Mount*, *Unmount*, *Open in terminal*, *Analyze storage*, *Copy path* (folder cards and the Quick access pane
     also offer *Analyze storage*)
   - On network locations: *Disconnect*, *Open in terminal*, *Copy path*
-- **System summary.** Compact live chips at the right end of the ribbon: **CPU** load, **RAM** used / total,
-  **Storage** (all mounted local drives together) and network throughput (▲ sent, ▼ received). The bars turn orange at
-  80 % and red at 90 %. The chips use the free space on the right and hide themselves when the window is too narrow
-  (about 1460 px or less); they pause while the window is minimised.
+- **System summary.** Four live chips in a softly tinted panel at the right end of the ribbon, each with an icon and a
+  name: **CPU** load, **RAM** used / total, **Storage** (all mounted local drives together) and **Network** throughput
+  (▲ sent, ▼ received). The thin usage bars use the purple-to-cyan gradient of the cards and turn amber at 80 % and red at
+  90 %. The chips use the free space on the right, show only the used part when they get narrow and hide themselves
+  when the window is too narrow (about 1460 px or less); they pause while the window is minimised.
 - **Unmount.** *Unmount* in a drive's right-click menu only logs the drive out and leaves it powered on, unlike
   *Safely remove*. It is not offered for system folders (`/`, `/boot`, `/home` …) or optical drives.
 - **System information (HWiNFO-style).** The *System information* button opens a window with six tabs: *Overview*, *CPU & Board*

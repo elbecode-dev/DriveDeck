@@ -4019,6 +4019,14 @@ QQC2.ApplicationWindow {
         }
         return false
     }
+    // rateMini : Durchsatz so knapp wie möglich (« 812B », « 2,4K », « 1,1G »), z. B. für den Netz-Chip in der Systemübersicht
+    function rateMini(n) {
+        var u = ["B", "K", "M", "G"], i = 0
+        if (!(n > 0))
+            n = 0
+        while (n >= 1024 && i < 3) { n /= 1024; i++ }
+        return (i === 0 ? Math.round(n) : n.toFixed(1)).toString().replace(".", trDecimal) + u[i]
+    }
     // rateShort : Durchsatz für die Laufwerkskarten : unter 1 MB/s ganze KB/s (auch « 0 KB/s »), darüber MB/s bzw. GB/s mit einer Nachkommastelle
     function rateShort(n) {
         if (!(n > 0))
@@ -5441,82 +5449,117 @@ QQC2.ApplicationWindow {
                             var ue = tb.substring(tb.lastIndexOf(" "))
                             return (ta.substring(ta.lastIndexOf(" ")) === ue ? ta.slice(0, ta.length - ue.length) : ta) + " / " + tb
                         }
-                        readonly property var chips: !ready ? [] : [
-                            { l: "CPU", f: st.cpu / 100, t: st.cpu + " %" },
-                            { l: "RAM", f: st.ramTotal > 0 ? st.ramUsed / st.ramTotal : 0, t: pair(st.ramUsed, st.ramTotal) },
-                            { l: "Storage", f: st.diskTotal > 0 ? st.diskUsed / st.diskTotal : 0, t: pair(st.diskUsed, st.diskTotal) },
-                            { l: "", f: -1, t: "" }
-                        ]
+                        // Die Werte stehen als einzelne Eigenschaften hier und nicht als neues Array pro Sekunde : die vier Chips bleiben bestehen,
+                        // nur ihre Texte und Balken ändern sich (und nur, wenn sich der Wert wirklich ändert).
+                        readonly property real fCpu: ready ? st.cpu / 100 : 0
+                        readonly property real fRam: ready && st.ramTotal > 0 ? st.ramUsed / st.ramTotal : 0
+                        readonly property real fDisk: ready && st.diskTotal > 0 ? st.diskUsed / st.diskTotal : 0
+                        readonly property string tCpu: ready ? st.cpu + " %" : ""
+                        readonly property string tRam: ready ? pair(st.ramUsed, st.ramTotal) : ""
+                        readonly property string sRam: ready ? win.taille(st.ramUsed) : ""     // kurz : nur der belegte Teil
+                        readonly property string tDisk: ready ? pair(st.diskUsed, st.diskTotal) : ""
+                        readonly property string sDisk: ready ? win.taille(st.diskUsed) : ""
+                        readonly property string tUp: ready ? win.rateText(st.up) : ""
+                        readonly property string tDown: ready ? win.rateText(st.down) : ""
+                        // Netz : « ▲ 2,4K/s  ▼ 3,3K/s » in zwei Farben ; bei schmalen Chips ohne « /s » (der Tooltip zeigt die vollen Werte)
+                        function netText(kurz) {
+                            if (!ready)
+                                return ""
+                            var e = kurz ? "" : "/s"
+                            return "<font color='" + Kirigami.Theme.neutralTextColor + "'>\u25B2 " + win.rateMini(st.up) + e + "</font>&nbsp;&nbsp;"
+                                 + "<font color='" + Kirigami.Theme.positiveTextColor + "'>\u25BC " + win.rateMini(st.down) + e + "</font>"
+                        }
+                        function fracAt(i) { return i === 0 ? fCpu : (i === 1 ? fRam : (i === 2 ? fDisk : -1)) }
+                        function textAt(i, kurz) { return i === 0 ? tCpu : (i === 1 ? (kurz ? sRam : tRam) : (kurz ? sDisk : tDisk)) }
 
+                        // Telemetrie-Chips in einem leicht getönten Sub-Panel (2 × 2) : CPU, RAM, Speicher und Netz
                         Item {
+                            id: livePanel
                             Layout.fillWidth: true
                             Layout.preferredHeight: 84
                             visible: liveGrp.roomy && liveGrp.ready
-                            Column {
-                                x: 6
-                                y: 1
-                                width: parent.width - 12
-                                spacing: 1
+                            // Chipbreite : reicht sie nicht für « 822 GB / 1,2 TB », zeigen die Chips nur den belegten Teil
+                            readonly property real chipW: (width - 10 - 4) / 2
+                            readonly property bool kurz: chipW < 114
+                            CardGlow {   // dasselbe Violett-Blau-Cyan wie das Hover der Karten, nur zurückgenommen
+                                anchors.fill: parent
+                                radius: 12
+                                hovered: true
+                                opacity: 0.5
+                            }
+                            GridLayout {
+                                anchors.fill: parent
+                                anchors.margins: 5
+                                columns: 2
+                                rowSpacing: 4
+                                columnSpacing: 4
                                 Repeater {
-                                    model: liveGrp.chips
+                                    model: 4
                                     delegate: Rectangle {
-                                        width: parent.width
-                                        height: 20   // höher als die Schrift : Balken und Text lassen sich besser ablesen
-                                        radius: 10
-                                        color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.07)
-                                        readonly property bool isNet: modelData.f < 0
-                                        readonly property real f: Math.max(0, Math.min(1, modelData.f))
-                                        QQC2.Label {
-                                            visible: !parent.isNet
-                                            x: 9
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            width: 46
-                                            text: modelData.l
+                                        id: chip
+                                        readonly property bool isNet: index === 3
+                                        readonly property real f: Math.max(0, Math.min(1, liveGrp.fracAt(index)))
+                                        readonly property bool hot: f >= 0.9
+                                        readonly property bool warm: f >= 0.8
+                                        Layout.fillWidth: true
+                                        Layout.fillHeight: true
+                                        Layout.preferredWidth: 1
+                                        Layout.preferredHeight: 1
+                                        radius: 8
+                                        color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.06)
+                                        border.width: 1
+                                        border.color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.10)
+                                        Kirigami.Icon {
+                                            id: chipIcon
+                                            source: index === 0 ? liveIcons.cpu : (index === 1 ? liveIcons.ram : (index === 2 ? liveIcons.disk : liveIcons.net))
+                                            x: 6
+                                            y: 3
+                                            width: 13
+                                            height: width
+                                        }
+                                        QQC2.Label {   // CPU / RAM / Storage / Network : alle vier mit Bezeichnung
+                                            x: 23
+                                            y: 2
+                                            text: index === 0 ? "CPU" : (index === 1 ? "RAM" : (index === 2 ? "Storage" : "Network"))
                                             font: win.badgeFont
                                             opacity: 0.75
                                             color: Kirigami.Theme.textColor
                                         }
-                                        Rectangle {   // Mini-Fortschrittsbalken : ab 80 % orange, ab 90 % rot (wie die Laufwerkskarten)
-                                            visible: !parent.isNet
-                                            x: 56
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            width: Math.max(24, parent.width - 184)   // der Balken nimmt den freien Platz
-                                            height: 7
-                                            radius: 3.5
-                                            color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.16)
-                                            Rectangle {
-                                                width: parent.width * parent.parent.f
-                                                height: parent.height
-                                                radius: parent.radius
-                                                color: parent.parent.f >= 0.9 ? Kirigami.Theme.negativeTextColor
-                                                     : (parent.parent.f >= 0.8 ? Kirigami.Theme.neutralTextColor : Kirigami.Theme.highlightColor)
-                                                Behavior on width { NumberAnimation { duration: 400; easing.type: Easing.OutCubic } }
-                                            }
-                                        }
-                                        QQC2.Label {
-                                            visible: !parent.isNet
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            x: parent.width - 120
-                                            width: 112
-                                            text: modelData.t
-                                            elide: Text.ElideRight
-                                            horizontalAlignment: Text.AlignRight
-                                            font: win.badgeFont
+                                        QQC2.Label {   // Wert : Festbreitschrift, rechtsbündig, damit nichts springt ; schrumpft nur im Extremfall
+                                            y: 14
+                                            width: implicitWidth
+                                            x: parent.width - 6 - width
+                                            transformOrigin: Item.Right
+                                            scale: Math.min(1, (parent.width - 12) / implicitWidth)   // zu breit (z. B. 999,9M/s beidseitig) : verkleinern statt überlaufen
+                                            textFormat: chip.isNet ? Text.RichText : Text.PlainText   // Netz : ▲ und ▼ in zwei Farben
+                                            text: chip.isNet ? liveGrp.netText(livePanel.kurz) : liveGrp.textAt(index, livePanel.kurz)
+                                            font.family: Kirigami.Theme.fixedWidthFont.family
+                                            font.pointSize: win.badgeFont.pointSize
                                             color: Kirigami.Theme.textColor
                                         }
-                                        Row {   // Netz : ▲ gesendet (orange) ▼ empfangen (grün)
-                                            visible: parent.isNet
-                                            anchors.centerIn: parent
-                                            spacing: 10
-                                            QQC2.Label {
-                                                text: "\u25B2 " + win.rateText(liveGrp.st.up)
-                                                font: win.badgeFont
-                                                color: Kirigami.Theme.neutralTextColor
-                                            }
-                                            QQC2.Label {
-                                                text: "\u25BC " + win.rateText(liveGrp.st.down)
-                                                font: win.badgeFont
-                                                color: Kirigami.Theme.positiveTextColor
+                                        HoverHandler { id: chipHover }
+                                        QQC2.ToolTip.visible: chip.isNet && chipHover.hovered && liveGrp.ready
+                                        QQC2.ToolTip.delay: 300
+                                        QQC2.ToolTip.text: "\u25B2 " + liveGrp.tUp + "   \u25BC " + liveGrp.tDown
+                                        Rectangle {   // Auslastung : Verlauf Violett → Blau → Cyan, ab 80 % bernstein, ab 90 % rot
+                                            visible: !chip.isNet
+                                            x: 6
+                                            y: parent.height - 6
+                                            width: parent.width - 12
+                                            height: 3
+                                            radius: 1.5
+                                            color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.14)
+                                            Rectangle {
+                                                width: parent.width * chip.f
+                                                height: parent.height
+                                                radius: parent.radius
+                                                Behavior on width { NumberAnimation { duration: 400; easing.type: Easing.OutCubic } }
+                                                gradient: Gradient {
+                                                    orientation: Gradient.Horizontal
+                                                    GradientStop { position: 0.0; color: chip.hot ? win.gaugeRed : (chip.warm ? "#f5a623" : Qt.rgba(0.69, 0.26, 1.0, 0.95)) }
+                                                    GradientStop { position: 0.55; color: chip.hot ? win.gaugeRed : (chip.warm ? "#f5a623" : Qt.rgba(0.24, 0.48, 1.0, 0.95)) }
+                                                    GradientStop { position: 1.0; color: chip.hot ? win.gaugeRed : (chip.warm ? "#f5a623" : Qt.rgba(0.0, 0.90, 1.0, 0.95)) }
+                                                }
                                             }
                                         }
                                     }
@@ -6889,6 +6932,14 @@ def about_info():
             "icon": ("file://" + icone) if icone else ""}
 
 
+def live_icons():
+    """Symbole der vier Telemetrie-Chips im Ribbon (im GUI-Thread aufgelöst : QIcon-Abfragen gehören nicht in Threads)."""
+    return {"cpu": disk_icon(["cpu", "computer"]),
+            "ram": disk_icon(["memory", "drive-harddisk", "computer"]),
+            "disk": disk_icon(["drive-harddisk-root", "drive-harddisk"]),
+            "net": disk_icon(["network-wired", "network-workgroup"])}
+
+
 def bar_icons_ruban():
     """Icônes du mode complet de la barre (rubanWindows) : jeu coloré windows-modern, sinon icône du thème."""
     svg = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">\n<path d="M12 4.5C16.1421 4.5 19.5 7.85786 19.5 12C19.5 16.1421 16.1421 19.5 12 19.5C7.85786 19.5 4.5 16.1421 4.5 12C4.5 11.6236 4.52772 11.2538 4.58123 10.8923C4.64845 10.4382 4.31609 10 3.85708 10C3.48623 10 3.161 10.2562 3.10471 10.6228C3.03576 11.0718 3 11.5317 3 12C3 16.9706 7.02944 21 12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3C9.69494 3 7.59227 3.86656 6 5.29168V4.25C6 3.83579 5.66421 3.5 5.25 3.5C4.83579 3.5 4.5 3.83579 4.5 4.25V7.25C4.5 7.66421 4.83579 8 5.25 8H8.25C8.66421 8 9 7.66421 9 7.25C9 6.83579 8.66421 6.5 8.25 6.5H6.90093C8.23907 5.25883 10.0309 4.5 12 4.5Z" fill="#1e88e5"/>\n</svg>\n'
@@ -7024,6 +7075,7 @@ def main():
     engine.rootContext().setContextProperty("winInit", load_window_state())
     engine.rootContext().setContextProperty("badgeOffline", badge_offline())
     engine.rootContext().setContextProperty("badgeHealth", badge_health())
+    engine.rootContext().setContextProperty("liveIcons", live_icons())
     backend.trimmed.connect(engine.trimComponentCache)   # queued : läuft im GUI-Thread
     engine.loadData(qml.encode("utf-8"))
     if not engine.rootObjects():

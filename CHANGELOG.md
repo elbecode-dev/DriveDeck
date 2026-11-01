@@ -10,6 +10,22 @@ hidden and everything else works).
 
 ---
 
+## Unreleased
+
+### Changed
+
+- **New look for the system summary.** The three thin bars and the lone network pill are replaced by four telemetry chips
+  in a 2 × 2 grid inside a softly tinted panel (the card glow, toned down: purple → blue → cyan). Every chip has an icon
+  from the icon theme and a name (**CPU**, **RAM**, **Storage**, **Network**), the value in the fixed-width font so the
+  digits do not jump, and a thin usage bar in the purple-to-cyan gradient (amber from 80 %, red from 90 %). The network
+  chip shows `▲ 2.4K/s  ▼ 3.2K/s` in two colours (full values in the tooltip); a value that is too wide for its chip is
+  scaled down instead of overflowing. On narrow chips only the used part is shown (`9.0 GB` instead of `9.0 / 29.2 GB`).
+  The group still has no preferred width and still hides below ~190 px.
+- The chips are created once; only their texts and bars change (and only when a value changes) instead of rebuilding all
+  chips every second. `preview.png` was rendered again.
+
+---
+
 ## 2.0.0-beta.4 – 2026-11-01 (ink levels)
 
 ### Fixed
