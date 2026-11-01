@@ -10,7 +10,7 @@ hidden and everything else works).
 
 ---
 
-## Unreleased
+## 2.0.0-beta.5 – 2026-11-02 (new system summary)
 
 ### Changed
 
@@ -23,6 +23,7 @@ hidden and everything else works).
   The group still has no preferred width and still hides below ~190 px.
 - The chips are created once; only their texts and bars change (and only when a value changes) instead of rebuilding all
   chips every second. `preview.png` was rendered again.
+- `APP_VERSION` is `'2.0.0-beta.5'`; the *About* dialog shows it.
 
 ---
 
@@ -345,7 +346,7 @@ and the duplicate user checks in `addNetwork`.
 
 ## Suggested for the first release
 
-- `APP_VERSION` is `'2.0.0-beta.4'` (DriveDeck is a new major version after Fenestra This PC 1.x). For the final release set
+- `APP_VERSION` is `'2.0.0-beta.5'` (DriveDeck is a new major version after Fenestra This PC 1.x). For the final release set
   `'2.0.0'` and tag `v2.0.0`.
 - Keep the licence file `COPYING` (GPL-3.0) from upstream in the repository.
 - Add this file as `CHANGELOG.md` and mention in the README that the project is a fork of
