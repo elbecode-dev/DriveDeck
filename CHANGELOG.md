@@ -10,6 +10,27 @@ hidden and everything else works).
 
 ---
 
+## 2.0.0-beta.6 – 2026-11-02 (context menus, Skanpage fix)
+
+### Added
+
+- **Right-click menus in "Printers and devices".** Printers: *Properties*, *Set as default printer* (only if it is not the
+  default yet, `lpoptions -d`, no administrator rights), *Print test page* (only if online), *Open settings*, *Copy name*.
+  Scanners: *Scan…* and *Copy name*. Keyboards, mice, gamepads: *Open settings* (matching System Settings module) and
+  *Copy name*. Only names of printers that DriveDeck itself shows are passed to `lp` / `lpoptions`.
+- The test page is the real CUPS test page: the `testprint` banner template is sent with
+  `document-format=application/vnd.cups-pdf-banner`, so CUPS fills in printer name, driver, job ID etc. (needs `lp` and
+  the `bannertopdf` filter from cups-filters).
+
+### Fixed
+
+- **Skanpage not found.** Double-clicking a scanner showed "Program not found" when Skanpage is installed as a Flatpak.
+  DriveDeck now tries `skanpage`, `flatpak run org.kde.skanpage` (detected via the exported `.desktop` file or
+  `flatpak info`), `simple-scan`, `kooka`, `xsane`, and shows the message only if none exists (with a hint to install
+  `skanpage` or `simple-scan`).
+
+---
+
 ## 2.0.0-beta.5 – 2026-11-02 (new system summary)
 
 ### Changed
@@ -23,7 +44,7 @@ hidden and everything else works).
   The group still has no preferred width and still hides below ~190 px.
 - The chips are created once; only their texts and bars change (and only when a value changes) instead of rebuilding all
   chips every second. `preview.png` was rendered again.
-- `APP_VERSION` is `'2.0.0-beta.5'`; the *About* dialog shows it.
+- `APP_VERSION` is `'2.0.0-beta.6'`; the *About* dialog shows it.
 
 ---
 
@@ -346,7 +367,7 @@ and the duplicate user checks in `addNetwork`.
 
 ## Suggested for the first release
 
-- `APP_VERSION` is `'2.0.0-beta.5'` (DriveDeck is a new major version after Fenestra This PC 1.x). For the final release set
+- `APP_VERSION` is `'2.0.0-beta.6'` (DriveDeck is a new major version after Fenestra This PC 1.x). For the final release set
   `'2.0.0'` and tag `v2.0.0`.
 - Keep the licence file `COPYING` (GPL-3.0) from upstream in the repository.
 - Add this file as `CHANGELOG.md` and mention in the README that the project is a fork of
