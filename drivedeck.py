@@ -161,6 +161,14 @@ EXTRA_DE = {
     "System monitor": "Systemmonitor",
     "Analyze storage": "Speicher analysieren",
     "Cannot start tool": "Programm lässt sich nicht starten",
+    "Scan…": "Scannen …",
+    "Copy name": "Namen kopieren",
+    "Set as default printer": "Als Standarddrucker festlegen",
+    "Print test page": "Testseite drucken",
+    "Cannot set default printer": "Standarddrucker lässt sich nicht festlegen",
+    "Cannot print test page": "Testseite lässt sich nicht drucken",
+    "No scanning program was found on this computer. Please install “skanpage” or “simple-scan”.":
+        "Auf diesem Computer wurde kein Scan-Programm gefunden. Bitte installiere „skanpage“ oder „simple-scan“.",
 }
 
 
@@ -1174,6 +1182,35 @@ def lancer(cmd, cwd=None):
                          stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     threading.Thread(target=p.wait, daemon=True).start()   # die Shell endet sofort ; wait räumt sie ab
     return p
+
+
+def flatpak_installiert(app_id):
+    """Ist diese Flatpak-Anwendung installiert? Erst die exportierte .desktop-Datei (kein Prozessstart),
+    dann « flatpak info » (kurz befristet)."""
+    for d in (os.path.expanduser("~/.local/share/flatpak"), "/var/lib/flatpak"):
+        if os.path.isfile(os.path.join(d, "exports/share/applications", app_id + ".desktop")):
+            return True
+    if shutil.which("flatpak") is None:
+        return False
+    try:
+        return subprocess.run(["flatpak", "info", app_id], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                              stderr=subprocess.DEVNULL, timeout=5).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def befehl_fuer(name):
+    """Startbefehl für ein Programm oder None. Scanner : Skanpage nativ, Skanpage als Flatpak, simple-scan, kooka, xsane."""
+    if name != "skanpage":
+        return [name] if shutil.which(name) else None
+    if shutil.which("skanpage"):
+        return ["skanpage"]
+    if shutil.which("flatpak") and flatpak_installiert("org.kde.skanpage"):
+        return ["flatpak", "run", "org.kde.skanpage"]
+    for alt in ("simple-scan", "kooka", "xsane"):
+        if shutil.which(alt):
+            return [alt]
+    return None
 
 
 def host_reachable(host, port=445, timeout=0.8):
@@ -3202,10 +3239,18 @@ class Backend(QObject):
         if name not in ("systemsettings", "kinfocenter", "skanpage"):
             return
         try:
-            lancer([name])
+            cmd = befehl_fuer(name)
+            if cmd is None:
+                raise FileNotFoundError(name)
+            lancer(cmd)
         except OSError:
-            self.messageRequested.emit(tr("Program not found"),
-                                       tr("The program “{name}” is not installed on this computer.").format(name=name))
+            if name == "skanpage":
+                self.messageRequested.emit(tr("Program not found"),
+                                           tr("No scanning program was found on this computer. "
+                                              "Please install “skanpage” or “simple-scan”."))
+            else:
+                self.messageRequested.emit(tr("Program not found"),
+                                           tr("The program “{name}” is not installed on this computer.").format(name=name))
 
     # einstellungsSprung : nur diese Module der Systemeinstellungen dürfen geöffnet werden
     SETTINGS_MODULES = {"kcm_gamecontroller", "kcm_keyboard", "kcm_mouse", "kcm_touchpad", "kcm_tablet",
@@ -3428,6 +3473,57 @@ class Backend(QObject):
             self.messageRequested.emit(titre, (r.stderr or "").strip() or tr("unknown error"))
         self._netWake.set()
         self._diskWake.set()
+
+    @pyqtSlot(str)
+    def copyText(self, text):
+        QApplication.clipboard().setText(text)
+
+    def _druckerName(self, name):
+        """Nur Namen echter Druckerwarteschlangen, die DriveDeck selbst anzeigt (nie freier Text an lp / lpoptions)."""
+        return name if any(d.get("name") == name and not d.get("indicator") and not d.get("scanner")
+                           for d in self._printers) else ""
+
+    @pyqtSlot(str)
+    def setDefaultPrinter(self, name):
+        """Macht diese Warteschlange zum Standarddrucker des Benutzers (lpoptions -d, ohne Administratorrechte)."""
+        name = self._druckerName(name)
+        if not name:
+            return
+        titre = tr("Cannot set default printer")
+        try:
+            r = subprocess.run(["lpoptions", "-d", name], capture_output=True, text=True, timeout=10)
+        except (subprocess.SubprocessError, OSError):
+            self.messageRequested.emit(titre, tr("Program not found"))
+            return
+        if r.returncode != 0:
+            self.messageRequested.emit(titre, (r.stderr or "").strip() or tr("unknown error"))
+        self._prnWake.set()
+
+    @pyqtSlot(str)
+    def printTestPage(self, name):
+        name = self._druckerName(name)
+        if not name:
+            return
+        titre = tr("Cannot print test page")
+        # « testprint » ist eine Banner-Vorlage : mit diesem Dokumentformat füllt CUPS (bannertopdf) Druckername, Treiber,
+        # Auftragsnummer usw. unter der Grafik ein, genau wie die Testseite der CUPS-Weboberfläche
+        seite = next((f for f in [os.path.join(os.environ.get("CUPS_DATADIR", ""), "testprint")] +
+                      [os.path.join(d, "cups/data/testprint") for d in ("/usr/share", "/usr/local/share", "/usr/lib")]
+                      if os.path.isfile(f)), "")
+        if not seite:
+            self.messageRequested.emit(titre, tr("unknown error"))
+            return
+        try:
+            r = subprocess.run(["lp", "-d", name, "-o", "document-format=application/vnd.cups-pdf-banner", seite], capture_output=True, text=True, timeout=15)
+        except (subprocess.SubprocessError, OSError):
+            self.messageRequested.emit(titre, tr("Program not found"))
+            return
+        if r.returncode != 0:
+            self.messageRequested.emit(titre, (r.stderr or "").strip() or tr("unknown error"))
+
+    @pyqtSlot(result=bool)
+    def hasScanApp(self):
+        return befehl_fuer("skanpage") is not None
 
     @pyqtSlot(str)
     def copyPath(self, path):
@@ -6844,24 +6940,48 @@ QQC2.ApplicationWindow {
                                             backend.openSettings(settingsMod)   // Controller, Maus, Tastatur … -> Systemeinstellungen
                                     }
                                     onClicked: function(mouse) {
-                                        if (mouse.button === Qt.RightButton && (!modelData.indicator
-                                                || (settingsMod !== "" && ((backend && backend.hasSettings) ? backend.hasSettings(settingsMod) : false))))
+                                        if (mouse.button === Qt.RightButton)
                                             printerMenu.popup()
                                     }
                                 }
                                 QQC2.Menu {
                                     id: printerMenu
+                                    readonly property bool isPrinter: !modelData.indicator
                                     QQC2.MenuItem {
-                                        visible: !modelData.indicator
+                                        visible: modelData.scanner === true && backend.hasScanApp()
+                                        text: win.trad("Scan…")
+                                        icon.name: "document-scan"
+                                        onTriggered: backend.launchApp("skanpage")
+                                    }
+                                    QQC2.MenuItem {
+                                        visible: printerMenu.isPrinter
                                         text: win.trad("Properties")
                                         icon.name: "document-properties"
                                         onTriggered: win.showPrinter(modelData)
                                     }
                                     QQC2.MenuItem {
+                                        visible: printerMenu.isPrinter && modelData.statusText.indexOf(win.trad("Default")) < 0
+                                        text: win.trad("Set as default printer")
+                                        icon.name: "emblem-default"
+                                        onTriggered: backend.setDefaultPrinter(modelData.name)
+                                    }
+                                    QQC2.MenuItem {
+                                        visible: printerMenu.isPrinter && modelData.offline !== true
+                                        text: win.trad("Print test page")
+                                        icon.name: "document-print"
+                                        onTriggered: backend.printTestPage(modelData.name)
+                                    }
+                                    QQC2.MenuSeparator { visible: settingsMod !== "" && ((backend && backend.hasSettings) ? backend.hasSettings(settingsMod) : false) }
+                                    QQC2.MenuItem {
                                         visible: settingsMod !== "" && ((backend && backend.hasSettings) ? backend.hasSettings(settingsMod) : false)
                                         text: win.trad("Open settings")
                                         icon.name: "configure"
                                         onTriggered: backend.openSettings(settingsMod)
+                                    }
+                                    QQC2.MenuItem {
+                                        text: win.trad("Copy name")
+                                        icon.name: "edit-copy"
+                                        onTriggered: backend.copyText(modelData.name)
                                     }
                                 }
                             }
