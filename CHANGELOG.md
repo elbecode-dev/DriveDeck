@@ -10,6 +10,21 @@ hidden and everything else works).
 
 ---
 
+## 2.0.0-beta.7 – 2026-11-02 (robustness on other hardware)
+
+### Fixed
+
+- **Whole disk of a device** (SMART, safe removal): now resolved through sysfs, so virtual disks (`vda`, `xvda`, `hda`) and
+  LUKS / LVM / RAID volumes no longer run `smartctl` or `power-off` on a partition or mapper device. Without a sysfs entry
+  the name patterns now also know `vd*`, `xvd*` and `hd*`.
+- **Ink colours of other makers**: cartridge colours given as names (`cyan`, `magenta` …) instead of `#RRGGBB`, as allowed by
+  the IPP standard, are now shown in colour; otherwise a colour word in the cartridge name is used, last resort grey.
+- **Graphics card without `lspci`** (no `pciutils`): vendor and driver are read from `/sys/class/drm` (cached values only,
+  they do not wake a sleeping GPU). The exact model name still needs `lspci`.
+- **Processor name on ARM** (no `model name` in `/proc/cpuinfo`): taken from `lscpu`, then the device tree.
+
+---
+
 ## 2.0.0-beta.6 – 2026-11-02 (context menus, Skanpage fix)
 
 ### Added
@@ -44,7 +59,7 @@ hidden and everything else works).
   The group still has no preferred width and still hides below ~190 px.
 - The chips are created once; only their texts and bars change (and only when a value changes) instead of rebuilding all
   chips every second. `preview.png` was rendered again.
-- `APP_VERSION` is `'2.0.0-beta.6'`; the *About* dialog shows it.
+- `APP_VERSION` is `'2.0.0-beta.7'`; the *About* dialog shows it.
 
 ---
 
@@ -367,7 +382,7 @@ and the duplicate user checks in `addNetwork`.
 
 ## Suggested for the first release
 
-- `APP_VERSION` is `'2.0.0-beta.6'` (DriveDeck is a new major version after Fenestra This PC 1.x). For the final release set
+- `APP_VERSION` is `'2.0.0-beta.7'` (DriveDeck is a new major version after Fenestra This PC 1.x). For the final release set
   `'2.0.0'` and tag `v2.0.0`.
 - Keep the licence file `COPYING` (GPL-3.0) from upstream in the repository.
 - Add this file as `CHANGELOG.md` and mention in the README that the project is a fork of
