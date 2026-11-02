@@ -161,6 +161,7 @@ EXTRA_DE = {
     "System monitor": "Systemmonitor",
     "Analyze storage": "Speicher analysieren",
     "Cannot start tool": "Programm lässt sich nicht starten",
+    "Graphics adapter": "Grafikadapter",
     "Scan…": "Scannen …",
     "Copy name": "Namen kopieren",
     "Set as default printer": "Als Standarddrucker festlegen",
@@ -294,8 +295,13 @@ def nom_emplacement(loc):
 
 
 def get_base_disk_device(device):
+    """Ganze Platte zu einem Gerät (/dev/sdb1 -> /dev/sdb). Zuerst über sysfs (auch vda, xvda, hda, md, dm/LUKS/LVM),
+    nur ohne sysfs-Eintrag über die Namensmuster."""
     base = os.path.basename(device)
-    m = re.match(r"^(sd[a-z]+|nvme\d+n\d+|mmcblk\d+)", base)
+    name = os.path.basename(os.path.realpath(device))
+    if os.path.isdir("/sys/class/block/" + name):
+        return "/dev/" + basis_platte(name)
+    m = re.match(r"^(sd[a-z]+|vd[a-z]+|xvd[a-z]+|hd[a-z]+|nvme\d+n\d+|mmcblk\d+)", base)
     return "/dev/" + m.group(1) if m else device
 
 
@@ -1405,6 +1411,26 @@ def niveaux_encre(nom, cible=None):
     return res
 
 
+_COULEURS_ENCRE = (("cyan", "#00B8E6"), ("magenta", "#E6007E"), ("yellow", "#FFD500"), ("black", "#222222"),
+                   ("schwarz", "#222222"), ("gelb", "#FFD500"), ("noir", "#222222"), ("jaune", "#FFD500"),
+                   ("gray", "#808080"), ("grey", "#808080"), ("red", "#E53935"), ("green", "#43A047"), ("blue", "#1E88E5"),
+                   ("orange", "#FB8C00"))
+
+
+def couleur_encre(valeur, nom=""):
+    """Farbe einer Patrone : « #RRGGBB » oder (PWG-Standard) ein Farbname wie « cyan » ; Canon, Brother, HP usw. melden
+    je nach Modell das eine oder das andere. Sonst Rückgriff auf ein Farbwort im Patronennamen, zuletzt Grau."""
+    v = (valeur or "").strip().strip('"')
+    if re.fullmatch(r"#[0-9A-Fa-f]{6}", v):
+        return v
+    for text in (v, nom or ""):
+        t = text.lower()
+        for wort, hexa in _COULEURS_ENCRE:
+            if wort in t:
+                return hexa
+    return "#808080"
+
+
 def _encre_url(url):
     """Niveaux d'encre lus à cette adresse IPP : [{name, color, level, low}]. Liste vide si inconnus ou si ipptool est absent."""
     if not os.path.isfile(IPPTOOL_TEST):
@@ -1434,7 +1460,7 @@ def _encre_url(url):
             seuil = int(bas[i])
         except (IndexError, ValueError):
             seuil = 0
-        couleur = couleurs[i] if i < len(couleurs) and re.fullmatch(r"#[0-9A-Fa-f]{6}", couleurs[i]) else "#808080"
+        couleur = couleur_encre(couleurs[i] if i < len(couleurs) else "", n)
         res.append({"name": n, "color": couleur, "level": niveau, "low": niveau <= seuil})
     return res
 
@@ -1983,8 +2009,31 @@ def _hersteller(v):
     return re.sub(r"[ ,]+(Inc\.?|Corporation|Corp\.?|Co\.?,? Ltd\.?|Ltd\.?|GmbH)$", "", v.strip(), flags=re.I)
 
 
+_PCI_HERSTELLER = {"0x10de": "NVIDIA", "0x1002": "AMD", "0x1022": "AMD", "0x8086": "Intel", "0x1414": "Microsoft",
+                   "0x15ad": "VMware", "0x1234": "QEMU", "0x1af4": "Red Hat (virtio)", "0x80ee": "VirtualBox"}
+
+
+def gpus_sysfs():
+    """Grafikkarten ohne lspci (pciutils fehlt) : [{slot, hersteller, treiber}] aus /sys/class/drm. Gelesen werden nur
+    zwischengespeicherte Kennwerte (vendor, class), die ein schlafendes Gerät nicht wecken."""
+    res = []
+    for d in sorted(glob.glob("/sys/class/drm/card[0-9]*")):
+        if "-" in os.path.basename(d):
+            continue
+        dev = os.path.join(d, "device")
+        vendor = (_lire_texte(dev + "/vendor") or "").strip().lower()
+        if not vendor:
+            continue
+        treiber = os.path.basename(os.path.realpath(dev + "/driver")) if os.path.exists(dev + "/driver") else ""
+        res.append({"slot": os.path.basename(os.path.realpath(dev)).removeprefix("0000:"),
+                    "hersteller": _PCI_HERSTELLER.get(vendor, vendor), "treiber": treiber})
+    return res
+
+
 def pci_geraete(klassen):
     """[(Hersteller, Gerät, Treiber)] der PCI-Geräte dieser Klassen, aus « lspci -vmmk » (Klartextnamen der pci.ids)."""
+    if shutil.which("lspci") is None and "VGA compatible controller" in klassen:
+        return [(g["hersteller"], tr("Graphics adapter"), g["treiber"]) for g in gpus_sysfs()]
     try:
         out = subprocess.run(["lspci", "-vmmk"], capture_output=True, text=True, timeout=5,
                              env=dict(os.environ, LC_ALL="C")).stdout
@@ -2028,6 +2077,9 @@ def _cpu_info():
         ghz = int(_lire_texte("/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq") or 0) / 1e6
     except ValueError:
         pass
+    if not modell:   # ARM : /proc/cpuinfo kennt kein « model name » ; lscpu oder der Gerätename aus dem Device Tree
+        modell = (re.search(r"^Model name:\s*(.+)$", _ausgabe(["lscpu"], timeout=4) if shutil.which("lscpu") else "", re.M)
+                  or [None, ""])[1].strip() or (_lire_texte("/proc/device-tree/model") or "").strip("\x00 \n")
     return modell or platform_cpu(), len(kerne) or threads or (os.cpu_count() or 0), threads or (os.cpu_count() or 0), ghz
 
 
@@ -2152,6 +2204,9 @@ def modul_version(name, tief=True):
 def pci_karten(klassen):
     """Ausführliche PCI-Einträge dieser Klassen aus « lspci -vmmk » : Liste von Dictionaries."""
     res = []
+    if shutil.which("lspci") is None and "VGA compatible controller" in klassen:
+        return [{"slot": g["slot"], "hersteller": g["hersteller"], "modell": tr("Graphics adapter"), "roh": "",
+                 "unter": "", "treiber": g["treiber"], "module": []} for g in gpus_sysfs()]
     for block in _ausgabe(["lspci", "-vmmk"], timeout=5).split("\n\n"):
         f, module = {}, []
         for ligne in block.splitlines():
