@@ -171,6 +171,7 @@ EXTRA_DE = {
     "Quick actions": "Schnellaktionen",
     "SSD optimization": "SSD-Optimierung",
     "SSD optimization failed": "SSD-Optimierung fehlgeschlagen",
+    "The operation took too long and was stopped.": "Der Vorgang dauerte zu lange und wurde abgebrochen.",
     "running…": "läuft …",
     "System info": "Systeminfo",
     "Installed": "Installiert",
@@ -1015,6 +1016,8 @@ def speichere_einstellungen(einst):
         tmp = PREFS_CONFIG + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(einst, f, indent=2)
+            f.flush()
+            os.fsync(f.fileno())   # erst auf die Platte, dann ersetzen : ein Stromausfall hinterlässt nie eine leere Datei
         os.replace(tmp, PREFS_CONFIG)
     except OSError as e:
         print("[drivedeck] Einstellungen :", e)
@@ -1319,15 +1322,16 @@ def papierkorb_info(frist=1.5):
     Sekunden Abbruch (riesiger Papierkorb) : dann ist « vollständig » False und die Größe ein Mindestwert."""
     ende = time.monotonic() + frist
     anzahl = groesse = 0
+    stapel = []
     try:
         with os.scandir(os.path.join(TRASH_DIR, "files")) as it:
-            oben = list(it)
+            for e in it:
+                anzahl += 1
+                stapel.append(e)
+                if anzahl % 500 == 0 and time.monotonic() > ende:   # auch das Auflisten selbst hat eine Zeitgrenze
+                    return anzahl, 0, False
     except OSError:
         return 0, 0, True
-    stapel = []
-    for e in oben:
-        anzahl += 1
-        stapel.append(e)
     while stapel:
         if time.monotonic() > ende:
             return anzahl, groesse, False
@@ -3109,9 +3113,14 @@ class Backend(QObject):
 
         def arbeit():
             try:
-                r = subprocess.run(["pkexec", "fstrim", "--all", "--verbose"], capture_output=True, text=True, timeout=900,
-                                   env=ENV_C)
+                # « timeout » läuft als Root neben fstrim und beendet es wirklich ; bei Python allein stirbt nur pkexec
+                warte = ["timeout", "--kill-after=10", "900"] if shutil.which("timeout") else []
+                r = subprocess.run(["pkexec", *warte, "fstrim", "--all", "--verbose"], capture_output=True, text=True,
+                                   timeout=960, env=ENV_C)
                 if r.returncode in (126, 127) and not r.stdout.strip():   # Rückfrage abgebrochen oder nicht berechtigt
+                    return
+                if r.returncode in (124, 137) and not r.stdout.strip():
+                    self.messageRequested.emit(tr("SSD optimization failed"), tr("The operation took too long and was stopped."))
                     return
                 text = (r.stdout.strip() or r.stderr.strip() or tr("unknown error"))
                 self.messageRequested.emit(titre if r.returncode == 0 else tr("SSD optimization failed"), text)
@@ -3606,6 +3615,10 @@ class Backend(QObject):
         # Seuls ces programmes peuvent être lancés (barre, et Skanpage depuis la carte d'un scanner)
         if name not in ("systemsettings", "kinfocenter", "skanpage"):
             return
+        # im Hintergrund : die Suche nach Skanpage kann « flatpak info » aufrufen, und die Oberfläche soll nie darauf warten
+        threading.Thread(target=self._appStarten, args=(name,), daemon=True).start()
+
+    def _appStarten(self, name):
         try:
             cmd = befehl_fuer(name)
             if cmd is None:
@@ -3855,8 +3868,10 @@ class Backend(QObject):
     def setDefaultPrinter(self, name):
         """Macht diese Warteschlange zum Standarddrucker des Benutzers (lpoptions -d, ohne Administratorrechte)."""
         name = self._druckerName(name)
-        if not name:
-            return
+        if name:
+            threading.Thread(target=self._standardDrucker, args=(name,), daemon=True).start()
+
+    def _standardDrucker(self, name):
         titre = tr("Cannot set default printer")
         try:
             r = subprocess.run(["lpoptions", "-d", name], capture_output=True, text=True, timeout=10)
@@ -3870,8 +3885,10 @@ class Backend(QObject):
     @pyqtSlot(str)
     def printTestPage(self, name):
         name = self._druckerName(name)
-        if not name:
-            return
+        if name:
+            threading.Thread(target=self._testseite, args=(name,), daemon=True).start()
+
+    def _testseite(self, name):
         titre = tr("Cannot print test page")
         # « testprint » ist eine Banner-Vorlage : mit diesem Dokumentformat füllt CUPS (bannertopdf) Druckername, Treiber,
         # Auftragsnummer usw. unter der Grafik ein, genau wie die Testseite der CUPS-Weboberfläche
@@ -3889,9 +3906,15 @@ class Backend(QObject):
         if r.returncode != 0:
             self.messageRequested.emit(titre, (r.stderr or "").strip() or tr("unknown error"))
 
+    _SCAN_APP = [0.0, False]   # (Zeitpunkt, Ergebnis) : QML fragt bei jedem Neuaufbau einer Scannerkarte
+
     @pyqtSlot(result=bool)
     def hasScanApp(self):
-        return befehl_fuer("skanpage") is not None
+        """Gibt es ein Scan-Programm ? 30 s gemerkt ; nur der erste Aufruf kann « flatpak info » starten (höchstens 5 s)."""
+        jetzt = time.monotonic()
+        if jetzt - Backend._SCAN_APP[0] > 30:
+            Backend._SCAN_APP[:] = [jetzt, befehl_fuer("skanpage") is not None]
+        return Backend._SCAN_APP[1]
 
     @pyqtSlot(str)
     def copyPath(self, path):
@@ -4043,15 +4066,6 @@ class Backend(QObject):
             output = hinweis_text + "\n\n" + output
         self.smartReady.emit("SMART - " + base, output)
 
-    @pyqtSlot(str, result=str)
-    def getLabel(self, device):
-        try:
-            return subprocess.check_output(
-                ["lsblk", "-no", "LABEL", device],
-                stderr=subprocess.DEVNULL, text=True, timeout=5).strip()
-        except Exception:
-            return ""
-
     @pyqtSlot(str, str, str)
     def renameDevice(self, device, fstype, label):
         threading.Thread(target=self._rename, args=(device, fstype, label),
@@ -4159,7 +4173,7 @@ QQC2.ApplicationWindow {
     // minRuban : la fenêtre ne descend pas sous la largeur du ruban (elle dépend de la langue)
     // Die Gruppen rechts von « Anzeigen » (Übersicht, Info & Filter, Schnellaktionen) zählen nicht mit : sie erscheinen nur, wenn
     // Platz ist. Sonst würde ihr Erscheinen die Mindestbreite anheben und das Fenster nie wieder schmaler werden lassen.
-    minimumWidth: Math.max(740, ribbonRow.x + liveSep.x + liveSep.width + 14 + 20)
+    minimumWidth: 800
     width: Math.max(minimumWidth, winInit.w > 0 ? winInit.w : 850)   // tailleInitiale
     // minHauteur : avec le ruban, il faut voir la première rangée de disques en entier
     minimumHeight: 520
@@ -4320,14 +4334,22 @@ QQC2.ApplicationWindow {
     readonly property bool singleClick: (backend && backend.singleClick) === true
     onActiveChanged: if (active && backend && backend.refreshClickMode) backend.refreshClickMode()
     property double lastActivation: 0
+    // Schriftgrösse des Ribbons : die Zeilenhöhe der kleinen Schrift bestimmt Höhe der Schaltflächen und des Ribbons
+    TextMetrics { id: lineMetrics; font: win.badgeFont; text: "Ag" }
+    readonly property real lineH: lineMetrics.height
+    // fontGrow : 1 bei der Standardschrift (Zeilenhöhe 13,2 px), grösser bei grösserer Schrift ; Ribbon und Schaltflächen wachsen mit
+    readonly property real fontGrow: Math.max(1.0, lineH / 13.2)
+    readonly property real ribbonBtnH: Math.round(84 * fontGrow)
+    readonly property real ribbonH: Math.round(118 * fontGrow)
+    readonly property real sepGap: Kirigami.Units.largeSpacing * 2   // Abstand links und rechts der Ribbon-Trennlinien (16 px)
     // rechterPlatz : so viel Breite bleibt rechts von « Anzeigen » ; danach richtet sich, welche Gruppen erscheinen
     // (Reihenfolge von links : Schnellaktionen, Systeminfo, Systemübersicht ; es fallen erst die Schnellaktionen weg, dann die
     // Systeminfo, zuletzt die Systemübersicht). Keine Gruppe erhöht
     // die Mindestbreite des Fensters, und die Systemübersicht füllt immer den Rest : keine leere Fläche.
-    readonly property real tailW: ribbonRow.width - (liveSep.x + liveSep.width + 14)
+    readonly property real tailW: ribbonRow.width - (liveSep.x + liveSep.width + sepGap)
     readonly property real infoW: 330
     readonly property real quickW: 276
-    readonly property real sepW: 29
+    readonly property real sepW: 1 + 2 * sepGap
     readonly property bool showInfo: tailW >= 190 + infoW + sepW
     readonly property bool showQuick: tailW >= 190 + infoW + quickW + 2 * sepW
     function sizeShort(b) {
@@ -4354,7 +4376,7 @@ QQC2.ApplicationWindow {
         property int minW: 72
         signal activated()
         width: Math.max(minW, qbWord.width + 16)
-        height: 84
+        height: win.ribbonBtnH
         TextMetrics {
             id: qbWord
             font: win.badgeFont
@@ -4382,7 +4404,7 @@ QQC2.ApplicationWindow {
             x: 4
             y: 46
             width: parent.width - 8
-            height: qb.sub !== "" ? 16 : 34
+            height: qb.sub !== "" ? win.lineH + 3 : win.ribbonBtnH - 50
             text: qb.title
             wrapMode: Text.Wrap
             horizontalAlignment: Text.AlignHCenter
@@ -4396,7 +4418,7 @@ QQC2.ApplicationWindow {
         QQC2.Label {
             visible: qb.sub !== ""
             x: 4
-            y: 62
+            y: 46 + win.lineH + 3
             width: parent.width - 8
             horizontalAlignment: Text.AlignHCenter
             elide: Text.ElideRight
@@ -4492,7 +4514,7 @@ QQC2.ApplicationWindow {
     // auch bei anderer Sprache oder Schriftgröße (die Gruppe « Standort » wird dann breiter oder schmaler)
     property var firstGrp: null
     property var firstSep: null
-    readonly property real sideWidth: (firstGrp && firstSep) ? Math.max(180, Math.round(ribbonRow.x + firstGrp.x + firstSep.x + 1)) : 240
+    readonly property real sideWidth: (firstGrp && firstSep) ? Math.max(180, Math.round(ribbonFlick.x + ribbonRow.x + firstGrp.x + firstSep.x + 1)) : 240
     property string sideSelKey: ""   // zuletzt angeklickte Zeile der Seitenleiste (bleibt, bis eine andere angeklickt wird)
     property var treeOpen: ({})
     property var treeKids: ({})
@@ -5731,7 +5753,7 @@ QQC2.ApplicationWindow {
                     spacing: 2
                     QQC2.Label {
                         text: "DriveDeck"
-                        font.pixelSize: 22
+                        font.pointSize: Kirigami.Theme.defaultFont.pointSize * 2
                         font.bold: true
                     }
                     QQC2.Label {
@@ -5804,7 +5826,7 @@ QQC2.ApplicationWindow {
             Kirigami.Theme.colorSet: Kirigami.Theme.Header
             Kirigami.Theme.inherit: false
             Layout.fillWidth: true
-            Layout.preferredHeight: 118
+            Layout.preferredHeight: win.ribbonH + (ribbonHBar.visible ? 10 : 0)
             readonly property var sel: win.selEntry
             readonly property bool canOpen: sel !== null && sel.available !== false
             readonly property bool canProps: sel !== null && sel.isUnmounted !== true
@@ -5844,14 +5866,35 @@ QQC2.ApplicationWindow {
                 spacing: 0
 
                 // Groupes du ruban
-                RowLayout {
-                    id: ribbonRow
+                // Schmaler als die festen Gruppen (Standort bis Anzeigen) : das Ribbon lässt sich waagerecht schieben (Mausrad,
+                // Ziehen), statt das Fenster breiter zu zwingen. Die Gruppen rechts davon erscheinen nur, wenn Platz ist.
+                Flickable {
+                    id: ribbonFlick
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     Layout.topMargin: 6
                     Layout.leftMargin: 10
                     Layout.rightMargin: 10
                     Layout.bottomMargin: 4
+                    clip: true
+                    contentWidth: ribbonRow.width
+                    contentHeight: height
+                    flickableDirection: Flickable.HorizontalFlick
+                    boundsBehavior: Flickable.StopAtBounds
+                    interactive: contentWidth > width
+                    QQC2.ScrollBar.horizontal: ribbonHBar
+                    WheelHandler {
+                        enabled: ribbonFlick.contentWidth > ribbonFlick.width
+                        acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+                        onWheel: function(ev) {
+                            ribbonFlick.contentX = Math.max(0, Math.min(ribbonFlick.contentWidth - ribbonFlick.width,
+                                                                        ribbonFlick.contentX - (ev.angleDelta.y !== 0 ? ev.angleDelta.y : ev.angleDelta.x)))
+                        }
+                    }
+                RowLayout {
+                    id: ribbonRow
+                    height: ribbonFlick.height
+                    width: Math.max(ribbonFlick.width, liveSep.x + liveSep.width + win.sepGap)
                     spacing: 0
 
                     Repeater {
@@ -5893,7 +5936,7 @@ QQC2.ApplicationWindow {
                                                 : (modelData.a === "props" ? barRoot.canProps : true)
                                             // Breite : Vorgabe, mindestens aber das längste Wort + Rand (sonst bricht « Systemeinstellungen » mitten im Wort)
                                             width: Math.max(modelData.w, longestWord.width + 16)
-                                            height: 84
+                                            height: win.ribbonBtnH
                                             TextMetrics {
                                                 id: longestWord
                                                 font: win.badgeFont
@@ -5939,7 +5982,7 @@ QQC2.ApplicationWindow {
                                                 x: 4
                                                 y: 46
                                                 width: parent.width - 8
-                                                height: 34
+                                                height: win.ribbonBtnH - 50
                                                 text: modelData.t
                                                 wrapMode: Text.Wrap
                                                 horizontalAlignment: Text.AlignHCenter
@@ -5994,7 +6037,7 @@ QQC2.ApplicationWindow {
                         // casesAfficher : 1re colonne Dossiers / Périphériques / Réseau, Imprimantes à droite
                         // de Dossiers ; la 1re ligne est au niveau des icônes des boutons (y = 8)
                         Item {
-                            Layout.preferredHeight: 84
+                            Layout.preferredHeight: win.ribbonBtnH
                             Layout.preferredWidth: casesGrid.implicitWidth + 8
                             Grid {
                                 id: casesGrid
@@ -6055,7 +6098,7 @@ QQC2.ApplicationWindow {
                                         horizontalAlignment: Text.AlignHCenter
                                         verticalAlignment: Text.AlignVCenter
                                         text: "\u26A0"
-                                        font.pixelSize: 13
+                                        font.pointSize: win.badgeFont.pointSize * 1.15
                                         color: "#f5a623"
                                     }
                                     QQC2.Popup {
@@ -6137,8 +6180,8 @@ QQC2.ApplicationWindow {
                         Layout.fillHeight: true
                         Layout.topMargin: 6
                         Layout.bottomMargin: 6
-                        Layout.leftMargin: 14   // mehr Luft zwischen « Anzeigen » und der Systemübersicht
-                        Layout.rightMargin: 14
+                        Layout.leftMargin: win.sepGap
+                        Layout.rightMargin: win.sepGap
                         color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
                                        Kirigami.Theme.textColor.b, 0.2)
                     }
@@ -6153,7 +6196,7 @@ QQC2.ApplicationWindow {
                         spacing: 2
                         Item {
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 84
+                            Layout.preferredHeight: win.ribbonBtnH
                             Row {
                                 anchors.horizontalCenter: parent.horizontalCenter
                                 spacing: 2
@@ -6197,8 +6240,8 @@ QQC2.ApplicationWindow {
                         Layout.fillHeight: true
                         Layout.topMargin: 6
                         Layout.bottomMargin: 6
-                        Layout.leftMargin: 14
-                        Layout.rightMargin: 14
+                        Layout.leftMargin: win.sepGap
+                        Layout.rightMargin: win.sepGap
                         color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.2)
                     }
                     // systeminfo : Distributions-Logo, Laufzeit, Installationsdatum, System und Kernel/Plasma
@@ -6211,7 +6254,7 @@ QQC2.ApplicationWindow {
                         spacing: 2
                         Item {
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 84
+                            Layout.preferredHeight: win.ribbonBtnH
                             RowLayout {
                                 anchors.fill: parent
                                 spacing: 12
@@ -6239,10 +6282,15 @@ QQC2.ApplicationWindow {
                                             spacing: 6
                                             Kirigami.Icon { source: modelData.i; Layout.preferredWidth: 14; Layout.preferredHeight: 14 }
                                             QQC2.Label {
+                                                id: infoLabel
                                                 Layout.fillWidth: true
                                                 elide: Text.ElideRight
                                                 font: win.badgeFont
                                                 text: modelData.t
+                                                HoverHandler { id: infoHover }
+                                                QQC2.ToolTip.visible: infoHover.hovered && infoLabel.truncated
+                                                QQC2.ToolTip.delay: 400
+                                                QQC2.ToolTip.text: modelData.t
                                             }
                                         }
                                     }
@@ -6264,8 +6312,8 @@ QQC2.ApplicationWindow {
                         Layout.fillHeight: true
                         Layout.topMargin: 6
                         Layout.bottomMargin: 6
-                        Layout.leftMargin: 14
-                        Layout.rightMargin: 14
+                        Layout.leftMargin: win.sepGap
+                        Layout.rightMargin: win.sepGap
                         color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.2)
                     }
 
@@ -6315,7 +6363,7 @@ QQC2.ApplicationWindow {
                         Item {
                             id: livePanel
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 84
+                            Layout.preferredHeight: win.ribbonBtnH
                             visible: liveGrp.roomy && liveGrp.ready
                             // Chipbreite : reicht sie nicht für « 822 GB / 1,2 TB », zeigen die Chips nur den belegten Teil
                             readonly property real chipW: (width - 10 - 4) / 2
@@ -6353,11 +6401,11 @@ QQC2.ApplicationWindow {
                                             source: index === 0 ? liveIcons.cpu : (index === 1 ? liveIcons.ram : (index === 2 ? liveIcons.disk : liveIcons.net))
                                             x: 6
                                             y: 3
-                                            width: 13
+                                            width: Math.round(win.lineH)
                                             height: width
                                         }
                                         QQC2.Label {   // CPU / RAM / Storage / Network : alle vier mit Bezeichnung
-                                            x: 23
+                                            x: 10 + chipIcon.width
                                             y: 2
                                             text: index === 0 ? "CPU" : (index === 1 ? "RAM" : (index === 2 ? "Storage" : "Network"))
                                             font: win.badgeFont
@@ -6365,7 +6413,7 @@ QQC2.ApplicationWindow {
                                             color: Kirigami.Theme.textColor
                                         }
                                         QQC2.Label {   // Wert : Festbreitschrift, rechtsbündig, damit nichts springt ; schrumpft nur im Extremfall
-                                            y: 14
+                                            y: Math.round(win.lineH) + 1
                                             width: implicitWidth
                                             x: parent.width - 6 - width
                                             transformOrigin: Item.Right
@@ -6416,6 +6464,18 @@ QQC2.ApplicationWindow {
                         }
                     }
 
+                }
+                }
+                // eigene Leiste unter dem Ribbon : sie liegt nicht über den Gruppentiteln
+                QQC2.ScrollBar {
+                    id: ribbonHBar
+                    Layout.fillWidth: true
+                    Layout.leftMargin: 10
+                    Layout.rightMargin: 10
+                    Layout.preferredHeight: visible ? 10 : 0
+                    visible: ribbonFlick.contentWidth > ribbonFlick.width + 1
+                    orientation: Qt.Horizontal
+                    policy: QQC2.ScrollBar.AlwaysOn
                 }
             }
         }

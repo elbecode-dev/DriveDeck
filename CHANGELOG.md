@@ -10,6 +10,30 @@ hidden and everything else works).
 
 ---
 
+## Unreleased
+
+### Fixed
+
+- **No more waiting in the window for external programs.** *Print test page*, *Set as default printer* and starting a scan
+  program (which may call `flatpak info`) now run in the background, so a stuck CUPS or Flatpak can no longer freeze the
+  window for up to 15 seconds. Whether a scan program exists is remembered for 30 seconds instead of being looked up for
+  every scanner card again. The unused `getLabel` function was removed.
+- **Trash size:** the time limit now also covers listing the first level of the trash, so a trash with a huge number of files
+  cannot hold the background thread up.
+- **Ribbon and larger fonts.** The height of the ribbon, its buttons and the summary chips now follows the line height of
+  the system font (unchanged with the standard font), so captions are no longer cut off with a larger font size.
+- **Narrow windows.** The window no longer has a minimum width of about 1220 px. Below that the ribbon can be scrolled
+  sideways (mouse wheel, drag or the thin scroll bar under it). The groups to the right of *Show* still appear only when
+  there is room, as before.
+- **SSD optimization** now runs `fstrim` under `timeout` (as root), so after 15 minutes the program itself is stopped and not
+  only the password helper; a message says so.
+- The settings file is written to disk (`fsync`) before it replaces the old one.
+- **Spacing and fonts.** The gaps beside the ribbon separators come from `Kirigami.Units` (16 px), the ⚠ and the About
+  title use the system font size instead of fixed pixels, and the lines of the system info show their full text in a tooltip
+  when they are shortened.
+
+---
+
 ## 2.0.0-beta.8.2 – 2026-11-06 (click mode, update check)
 
 ### Changed
