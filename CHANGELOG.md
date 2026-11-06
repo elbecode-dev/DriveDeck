@@ -16,7 +16,7 @@ hidden and everything else works).
 
 - **Click mode** (feature request "Compatibility with global single/double click setting" by Sadi58). Folders, drives, network locations and the cards in "Printers and devices" open with a **double click**
   by default. One click is used only if the desktop explicitly says so (`[KDE] SingleClick=true` in `kdeglobals`; on
-  other desktops Qt's `QStyleHints`). A missing or unreadable entry means double click. `~/.config/drivedeck/einstellungen.json`
+  other desktops Qt's `QStyleHints`). A missing or unreadable entry means double click. `~/.config/drivedeck/settings.json`
   can force it with `"click_mode": "system"` (default), `"double"` or `"single"`. The setting is read again whenever the
   window gets focus; a double click never opens a second window in single-click mode.
 - **Adjustable warning threshold** (feature request "Free space warning threshold setting" by Sadi58) in the ribbon group *Show* ("Warning threshold…" at the bottom of the second column, opens a small slider window): 1 to 50 %, default 20 %, saved
@@ -39,6 +39,7 @@ hidden and everything else works).
 
 ### Other
 
+- The settings file is called `settings.json` (an `einstellungen.json` from an earlier build is taken over automatically).
 - `APP_VERSION` is `'2.0.0-beta.8'`; the *About* dialog shows it. `preview.png` was rendered again (2200 px wide, so the new
   ribbon groups are visible).
 

@@ -89,7 +89,7 @@ small **live graph** of their read and write speed, and warn you when they are a
     version, and the **kernel and Plasma version**.
 - **Single or double click – as your desktop says.** Folders, drives, network locations and devices open with a
   **double click** by default, and with one click if your desktop explicitly uses single-click (KDE: *System Settings →
-  Workspace Behavior → General Behavior*). You can also force it in `~/.config/drivedeck/einstellungen.json` with
+  Workspace Behavior → General Behavior*). You can also force it in `~/.config/drivedeck/settings.json` with
   `"click_mode": "double"` or `"single"`. *(Idea by Sadi58.)*
 - **Adjustable "almost full" warning.** In the ribbon group *Show*, **Warning threshold…** opens a slider (1 to 50 %
   free space, default 20 %). The bars and ⚠ badges change at once and the value is remembered. *(Idea by

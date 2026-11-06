@@ -974,7 +974,8 @@ def badge_offline():
 
 SECT_CONFIG = os.path.join(CONFIG_DIR, "rubriques.json")   # rubriquesMemo
 SECTIONS = ("folders", "disks", "net", "printers", "quick")
-PREFS_CONFIG = os.path.join(CONFIG_DIR, "einstellungen.json")   # persönliche Einstellungen (Warnschwelle)
+PREFS_CONFIG = os.path.join(CONFIG_DIR, "settings.json")   # persönliche Einstellungen (Klickmodus, Warnschwelle)
+_PREFS_ALT = os.path.join(CONFIG_DIR, "einstellungen.json")   # Name in 2.0.0-beta.8 : wird einmalig übernommen
 WARN_MIN, WARN_MAX, WARN_STD = 1, 50, 20   # Warnschwelle : freier Platz in Prozent, ab dem Jauge und Badge warnen
 
 
@@ -990,7 +991,12 @@ CLICK_MODES = ("system", "double", "single")
 
 
 def lade_einstellungen():
-    """Persönliche Einstellungen aus einstellungen.json : {"warn_threshold_percent", "click_mode"} – ungültig = Standard."""
+    """Persönliche Einstellungen aus settings.json : {"warn_threshold_percent", "click_mode"} – ungültig = Standard."""
+    try:
+        if not os.path.exists(PREFS_CONFIG) and os.path.exists(_PREFS_ALT):
+            os.replace(_PREFS_ALT, PREFS_CONFIG)
+    except OSError:
+        pass
     try:
         with open(PREFS_CONFIG, encoding="utf-8") as f:
             data = json.load(f)
@@ -3477,7 +3483,7 @@ class Backend(QObject):
 
     @pyqtProperty(str, notify=clickModeChanged)
     def clickMode(self):
-        """"system" (folgt dem Desktop, im Zweifel Doppelklick), "double" oder "single" ; steht in einstellungen.json."""
+        """"system" (folgt dem Desktop, im Zweifel Doppelklick), "double" oder "single" ; steht in settings.json."""
         return self._einst["click_mode"]
 
     @pyqtSlot(str)
