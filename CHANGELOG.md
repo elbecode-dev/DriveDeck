@@ -10,13 +10,23 @@ hidden and everything else works).
 
 ---
 
-## Unreleased
+## 2.0.0-beta.8.2 – 2026-11-06 (click mode, update check)
 
 ### Changed
 
 - **Click mode also reads the system-wide default.** If `~/.config/kdeglobals` has no `SingleClick` entry, DriveDeck now looks
   at `/etc/xdg/kdeglobals` (the default a distribution sets for all users); the user's own entry still wins, and without any
   entry the double click stays the default. Taken from the patch that Sadi58 sent for the single/double-click request.
+- The settings file is `settings.json` (it was `einstellungen.json` in 2.0.0-beta.8; an old file is taken over automatically).
+
+### Fixed
+
+- **Update check with versions like `beta.8.2`.** Only the first number after `beta.` was compared, so `2.0.0-beta.8.2`
+  counted as the same version as `2.0.0-beta.8` and nobody would have been told about it. All numbers count now.
+
+### Other
+
+- `APP_VERSION` is `'2.0.0-beta.8.2'`; the *About* dialog shows it.
 
 ---
 
@@ -427,7 +437,7 @@ and the duplicate user checks in `addNetwork`.
 
 ## Suggested for the first release
 
-- `APP_VERSION` is `'2.0.0-beta.8'` (DriveDeck is a new major version after Fenestra This PC 1.x). For the final release set
+- `APP_VERSION` is `'2.0.0-beta.8.2'` (DriveDeck is a new major version after Fenestra This PC 1.x). For the final release set
   `'2.0.0'` and tag `v2.0.0`.
 - Keep the licence file `COPYING` (GPL-3.0) from upstream in the repository.
 - Add this file as `CHANGELOG.md` and mention in the README that the project is a fork of
