@@ -12,7 +12,7 @@ locations, printers and devices in one clean window, and it follows your Plasma 
 
 <p align="center"><img src="preview.png" alt="DriveDeck main window"></p>
 
-**Version 2.0.0-beta.7** – feedback and bug reports are very welcome.
+**Version 2.0.0-beta.8** – feedback and bug reports are very welcome.
 
 ---
 
@@ -20,7 +20,7 @@ locations, printers and devices in one clean window, and it follows your Plasma 
 
 Open it and you see everything about your computer in one place:
 
-- **Folders** – Desktop, Documents, Pictures, Music, Downloads, Videos. One click opens them in Dolphin.
+- **Folders** – Desktop, Documents, Pictures, Music, Downloads, Videos. A double click opens them in Dolphin (one click if your desktop is set to single-click).
 - **Drives** – internal disks, USB sticks, memory cards and CD/DVD drives, each with a bar that shows how full
   they are. You can eject USB sticks safely, rename them and check the disk health.
 - **Network locations** – add a shared folder from another computer or NAS (SMB) without a terminal. Passwords are
@@ -72,11 +72,28 @@ small **live graph** of their read and write speed, and warn you when they are a
   - On drives: *Mount*, *Unmount*, *Open in terminal*, *Analyze storage*, *Copy path* (folder cards and the Quick access pane
     also offer *Analyze storage*)
   - On network locations: *Disconnect*, *Open in terminal*, *Copy path*
-- **System summary.** Four live chips in a softly tinted panel at the right end of the ribbon, each with an icon and a
+  - On printers: *Properties*, *Set as default printer*, *Print test page* (the real CUPS test page), *Open settings*, *Copy name*.
+    On scanners: *Scan…* (Skanpage, also as a Flatpak, otherwise simple-scan, kooka or xsane) and *Copy name*. On keyboards,
+    mice and game controllers: *Open settings* and *Copy name*
+- **System summary.** Four live chips in a softly tinted panel at the far right end of the ribbon, each with an icon and a
   name: **CPU** load, **RAM** used / total, **Storage** (all mounted local drives together) and **Network** throughput
   (▲ sent, ▼ received). The thin usage bars use the purple-to-cyan gradient of the cards and turn amber at 80 % and red at
-  90 %. The chips use the free space on the right, show only the used part when they get narrow and hide themselves
-  when the window is too narrow (about 1540 px or less); the *System info* and *Quick actions* groups need about 1830 and 2130 px; they pause while the window is minimised.
+  90 %. The panel stretches over all the free width, shows only the used part when the chips get narrow and hides itself
+  when the window is too narrow (about 1540 px or less). It pauses while the window is minimised.
+- **Quick actions and system info in the ribbon.** With a wide window two more groups appear in front of the summary
+  (about 1830 px for *System info*, about 2130 px for *Quick actions*; they never raise the minimum window width):
+  - *Quick actions*: **Trash** (opens it and shows its size), **Terminal** and **SSD optimization** (runs `fstrim` on all
+    mounted drives after asking, and Plasma asks for your password).
+  - *System info*: the **logo of your distribution** (read from `os-release`, so it works for CachyOS, Arch, Ubuntu, Fedora
+    … alike), the **uptime**, the approximate **installation date**, your computer name with the distribution and
+    version, and the **kernel and Plasma version**.
+- **Single or double click – as your desktop says.** Folders, drives, network locations and devices open with a
+  **double click** by default, and with one click if your desktop explicitly uses single-click (KDE: *System Settings →
+  Workspace Behavior → General Behavior*). You can also force it in `~/.config/drivedeck/einstellungen.json` with
+  `"click_mode": "double"` or `"single"`. *(Idea by Sadi58.)*
+- **Adjustable "almost full" warning.** In the ribbon group *Show*, **Warning threshold…** opens a slider (1 to 50 %
+  free space, default 20 %). The bars and ⚠ badges change at once and the value is remembered. *(Idea by
+  Sadi58.)*
 - **Unmount.** *Unmount* in a drive's right-click menu only logs the drive out and leaves it powered on, unlike
   *Safely remove*. It is not offered for system folders (`/`, `/boot`, `/home` …) or optical drives.
 - **System information (HWiNFO-style).** The *System information* button opens a window with six tabs: *Overview*, *CPU & Board*
@@ -92,7 +109,7 @@ small **live graph** of their read and write speed, and warn you when they are a
 - **Disk health that works with USB drives.** Many USB enclosures need a special mode before they report SMART data.
   DriveDeck tries the usual ones for you (SAT, then several NVMe bridge types), asks for your password **only once**
   when root rights are needed, and explains clearly when an enclosure simply does not pass SMART through.
-- **Tools group.** A ribbon group with **Terminal**, **System monitor** (Plasma System Monitor, otherwise btop or htop)
+- **Tools group.** A ribbon group with **System monitor** (Plasma System Monitor, otherwise btop or htop)
   and **Analyze storage** (Filelight, otherwise Baobab or ncdu) to find what eats your space. The analysis runs on the
   selected local drive, or on your home folder. Buttons for programs that are not installed are hidden.
 - **Use it with the keyboard.** The arrow keys move through **everything**: folders, drives, network locations,
@@ -106,15 +123,15 @@ small **live graph** of their read and write speed, and warn you when they are a
 - **Live read/write graph per drive.** Every drive card shows a small graph of the last minute: green is reading,
   yellow is writing. Next to it the current read (▼) and write (▲) speed is shown as numbers, e.g. `450 KB/s` or
   `12.4 MB/s`. (Needs NumPy; without it graph and numbers are simply not shown.)
-- **"Almost full" warning.** From 80 % usage on, the bar and the ring turn red and the card gets a badge such as
-  "⚠ 90 %".
+- **"Almost full" warning.** When less than 20 % is free (adjustable, see above), the bar and the ring turn red and the card
+  gets a badge such as "⚠ 90 %".
 - **Disk temperature.** Each drive card shows its current temperature in a small chip (it turns amber and red when
   the disk gets too warm). It is read from the system's sensors, so it works for NVMe drives out of the box. For SATA
   drives load the kernel module once with `sudo modprobe drivetemp`. USB enclosures usually pass the temperature on only
   through `smartctl`, and that needs **administrator rights** (the SMART dialog asks for them once). DriveDeck never asks
   for a password in the background, so such cards show no chip unless `smartctl` may run without root on your system
   (an advanced setup, see the smartmontools documentation). If it can, the chip appears automatically.
-- **Straight to the right settings.** On the cards under *Printers and devices*, **double-click** (or right-click →
+- **Straight to the right settings.** On the cards under *Printers and devices*, **double-click** (or one click, see *Single or double click*; or right-click →
   *Open settings*) a game controller, keyboard, mouse, touchpad or drawing tablet and the matching System Settings page
   opens right away. Printers still open their properties on double-click.
 - **Ink levels at a glance.** A printer card now shows a small bar for each ink cartridge in its own colour, so you no

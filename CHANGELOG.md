@@ -10,7 +10,7 @@ hidden and everything else works).
 
 ---
 
-## Unreleased
+## 2.0.0-beta.8 – 2026-11-06 (ribbon, click mode, warning threshold)
 
 ### Added
 
@@ -32,7 +32,15 @@ hidden and everything else works).
     else the usual `distributor-logo-<id>` files), plus uptime, installation
     date (approximate: the oldest birth time of `/etc/machine-id` and `/`), host name with distribution and version, and
     kernel and Plasma version.
+
+### Fixed
+
 - **Message boxes** (for example the SSD optimization result): the OK button no longer overlaps long text.
+
+### Other
+
+- `APP_VERSION` is `'2.0.0-beta.8'`; the *About* dialog shows it. `preview.png` was rendered again (2200 px wide, so the new
+  ribbon groups are visible).
 
 ---
 
@@ -408,7 +416,7 @@ and the duplicate user checks in `addNetwork`.
 
 ## Suggested for the first release
 
-- `APP_VERSION` is `'2.0.0-beta.7'` (DriveDeck is a new major version after Fenestra This PC 1.x). For the final release set
+- `APP_VERSION` is `'2.0.0-beta.8'` (DriveDeck is a new major version after Fenestra This PC 1.x). For the final release set
   `'2.0.0'` and tag `v2.0.0`.
 - Keep the licence file `COPYING` (GPL-3.0) from upstream in the repository.
 - Add this file as `CHANGELOG.md` and mention in the README that the project is a fork of
