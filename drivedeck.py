@@ -162,6 +162,24 @@ EXTRA_DE = {
     "Analyze storage": "Speicher analysieren",
     "Cannot start tool": "Programm lässt sich nicht starten",
     "Graphics adapter": "Grafikadapter",
+    "Warning threshold…": "Warnschwelle…",
+    "Warning threshold for free space": "Warnschwelle für freien Speicherplatz",
+    "Red gauge and ⚠ symbol from this much free space or less.":
+        "Rote Anzeige und ⚠-Symbol ab diesem Rest-Speicherplatz.",
+    "Trash": "Papierkorb",
+    "Empty": "Leer",
+    "Quick actions": "Schnellaktionen",
+    "SSD optimization": "SSD-Optimierung",
+    "SSD optimization failed": "SSD-Optimierung fehlgeschlagen",
+    "running…": "läuft …",
+    "System info": "Systeminfo",
+    "Installed": "Installiert",
+    "Uptime": "Laufzeit",
+    "Continue?": "Fortfahren?",
+    "Cannot open trash": "Papierkorb lässt sich nicht öffnen",
+    "The fstrim and pkexec programs are required.": "Die Programme fstrim und pkexec werden benötigt.",
+    "DriveDeck runs “fstrim” on all mounted drives that support it. This needs administrator rights and can take a while.":
+        "DriveDeck führt „fstrim“ auf allen eingebundenen Laufwerken aus, die es unterstützen. Das braucht Administratorrechte und kann etwas dauern.",
     "Scan…": "Scannen …",
     "Copy name": "Namen kopieren",
     "Set as default printer": "Als Standarddrucker festlegen",
@@ -956,6 +974,72 @@ def badge_offline():
 
 SECT_CONFIG = os.path.join(CONFIG_DIR, "rubriques.json")   # rubriquesMemo
 SECTIONS = ("folders", "disks", "net", "printers", "quick")
+PREFS_CONFIG = os.path.join(CONFIG_DIR, "einstellungen.json")   # persönliche Einstellungen (Warnschwelle)
+WARN_MIN, WARN_MAX, WARN_STD = 1, 50, 20   # Warnschwelle : freier Platz in Prozent, ab dem Jauge und Badge warnen
+
+
+def warn_begrenzen(wert):
+    """Warnschwelle als ganze Zahl in WARN_MIN..WARN_MAX ; ungültige Werte ergeben den Standard."""
+    try:
+        return max(WARN_MIN, min(WARN_MAX, int(wert)))
+    except (TypeError, ValueError):
+        return WARN_STD
+
+
+CLICK_MODES = ("system", "double", "single")
+
+
+def lade_einstellungen():
+    """Persönliche Einstellungen aus einstellungen.json : {"warn_threshold_percent", "click_mode"} – ungültig = Standard."""
+    try:
+        with open(PREFS_CONFIG, encoding="utf-8") as f:
+            data = json.load(f)
+        if not isinstance(data, dict):
+            data = {}
+    except (OSError, ValueError):
+        data = {}
+    modus = data.get("click_mode")
+    return {"warn_threshold_percent": warn_begrenzen(data.get("warn_threshold_percent", WARN_STD)),
+            "click_mode": modus if modus in CLICK_MODES else "system"}
+
+
+def speichere_einstellungen(einst):
+    try:
+        os.makedirs(CONFIG_DIR, exist_ok=True)
+        tmp = PREFS_CONFIG + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(einst, f, indent=2)
+        os.replace(tmp, PREFS_CONFIG)
+    except OSError as e:
+        print("[drivedeck] Einstellungen :", e)
+
+
+def einfachklick_system():
+    """Meldet der Desktop ausdrücklich « Öffnen mit einem Klick » ? Nur ein ausdrücklicher Eintrag zählt : unter KDE
+    « [KDE] SingleClick=true » in kdeglobals. Fehlt er oder ist er unlesbar, gilt der Doppelklick. Auf anderen
+    Desktops fragt Qt die Plattform (QStyleHints). Wirft nie ; kostet höchstens eine kleine Datei."""
+    try:
+        cfg = configparser.ConfigParser(strict=False, interpolation=None)
+        cfg.read(os.path.expanduser("~/.config/kdeglobals"), encoding="utf-8")
+        if cfg.has_option("KDE", "SingleClick"):
+            return cfg.get("KDE", "SingleClick").strip().lower() == "true"
+    except Exception:
+        return False
+    if "KDE" in os.environ.get("XDG_CURRENT_DESKTOP", "").upper():
+        return False
+    try:
+        return bool(QApplication.styleHints().singleClickActivation())
+    except Exception:
+        return False
+
+
+def einfachklick_aktiv(modus="system"):
+    """Gilt der Einzelklick ? « single » / « double » sind feste Wahl, « system » folgt dem Desktop (im Zweifel Doppelklick)."""
+    if modus == "single":
+        return True
+    if modus == "double":
+        return False
+    return einfachklick_system()
 
 
 def load_sections():
@@ -1217,6 +1301,85 @@ def befehl_fuer(name):
         if shutil.which(alt):
             return [alt]
     return None
+
+
+TRASH_DIR = os.path.expanduser("~/.local/share/Trash")
+
+
+def papierkorb_info(frist=1.5):
+    """(Anzahl, Bytes, vollständig) des Papierkorbs im Persönlichen Ordner. Nur lstat, keine Symlinks verfolgen ; nach « frist »
+    Sekunden Abbruch (riesiger Papierkorb) : dann ist « vollständig » False und die Größe ein Mindestwert."""
+    ende = time.monotonic() + frist
+    anzahl = groesse = 0
+    try:
+        with os.scandir(os.path.join(TRASH_DIR, "files")) as it:
+            oben = list(it)
+    except OSError:
+        return 0, 0, True
+    stapel = []
+    for e in oben:
+        anzahl += 1
+        stapel.append(e)
+    while stapel:
+        if time.monotonic() > ende:
+            return anzahl, groesse, False
+        e = stapel.pop()
+        try:
+            st = e.stat(follow_symlinks=False)
+            groesse += st.st_blocks * 512 if hasattr(st, "st_blocks") else st.st_size
+            if e.is_dir(follow_symlinks=False):
+                with os.scandir(e.path) as it:
+                    stapel.extend(it)
+        except OSError:
+            continue
+    return anzahl, groesse, True
+
+
+def _logo_datei(namen):
+    """Pfad der Distributions-Grafik : os-release nennt sie als Symbolname (LOGO=cachyos) ; manche Distributionen legen sie
+    lose unter /usr/share/icons oder /usr/share/pixmaps ab, die meisten im Symbolthema (dann findet QML sie über den Namen)."""
+    ordner = ("/usr/share/icons", "/usr/share/pixmaps", "/usr/share/icons/hicolor/scalable/apps",
+              "/usr/share/icons/hicolor/256x256/apps", os.path.expanduser("~/.local/share/icons"))
+    for n in namen:
+        for d in ordner:
+            for ext in (".svg", ".png"):
+                f = os.path.join(d, n + ext)
+                if os.path.isfile(f):
+                    return f
+    return ""
+
+
+def system_info():
+    """Schneller Teil (nur Dateien) : Rechnername, Distribution, Version, Kernel und Logo der Distribution."""
+    felder = {}
+    for ligne in (_lire_texte("/etc/os-release") or "").splitlines():
+        k, _, v = ligne.partition("=")
+        felder[k] = v.strip().strip('"')
+    kennung = felder.get("ID", "linux").lower()
+    logo = felder.get("LOGO", "")
+    namen = [n for n in (logo, "distributor-logo-" + kennung, kennung + "-logo", kennung) if n]
+    u = os.uname()
+    return {"host": socket.gethostname(), "os": felder.get("NAME", "Linux"), "osId": kennung,
+            "osVersion": felder.get("VERSION_ID") or felder.get("BUILD_ID", ""),
+            "kernel": u.release.split("-")[0], "arch": u.machine,
+            "logoName": logo or ("distributor-logo-" + kennung), "logoFile": _logo_datei(namen),
+            "plasma": "", "installed": 0}
+
+
+def system_info_spaeter():
+    """Langsamer Teil (zwei kurze Programmaufrufe, im Hintergrund) : Plasma-Version und Zeitpunkt der Installation (ungefähr :
+    das älteste Geburtsdatum von /etc/machine-id und /, soweit das Dateisystem es kennt)."""
+    plasma = ""
+    if shutil.which("plasmashell"):
+        m = re.search(r"(\d+\.\d+[\d.]*)", _ausgabe(["plasmashell", "--version"], timeout=4))
+        plasma = m.group(1) if m else ""
+    zeiten = []
+    if shutil.which("stat"):
+        for pfad in ("/etc/machine-id", "/"):
+            t = _ausgabe(["stat", "-c", "%W", pfad], timeout=3).strip()
+            if t.isdigit() and int(t) > 0:
+                zeiten.append(int(t))
+    return {"plasma": plasma, "installed": min(zeiten) if zeiten else 0}
 
 
 def host_reachable(host, port=445, timeout=0.8):
@@ -1950,6 +2113,15 @@ def lire_cpu():
     return werte[3] + werte[4], sum(werte)
 
 
+def laufzeit():
+    """Sekunden seit dem Start des Systems (/proc/uptime), 0 wenn nicht lesbar."""
+    try:
+        with open("/proc/uptime") as f:
+            return int(float(f.read().split()[0]))
+    except (OSError, ValueError, IndexError):
+        return 0
+
+
 def lire_ram():
     """(gesamt, verfügbar) in Bytes aus /proc/meminfo ; « verfügbar » zählt Cache mit, den der Kernel jederzeit freigibt."""
     info = {}
@@ -2622,6 +2794,11 @@ class Backend(QObject):
     updateAvailable = pyqtSignal(str, str)   # miseAJour : (version, adresse de la page)
     printersChanged = pyqtSignal()
     ioChanged = pyqtSignal()
+    clickModeChanged = pyqtSignal()
+    trashChanged = pyqtSignal()
+    sysInfoChanged = pyqtSignal()
+    trimChanged = pyqtSignal()
+    warnThresholdChanged = pyqtSignal()
     pinsChanged = pyqtSignal()
     tempChanged = pyqtSignal()
     tempUpdated = pyqtSignal(dict)
@@ -2669,6 +2846,9 @@ class Backend(QObject):
         self._schleifen = []   # die Dauer-Threads : beim Beenden kurz abwarten (shutdown)
         self._starten(self._scanLoop)
         self._maj = charger_maj()
+        self._einst = lade_einstellungen()
+        self._einfachklick = einfachklick_aktiv(self._einst["click_mode"])
+        self._warn = self._einst["warn_threshold_percent"]
         self._starten(self._verifierMaj)
         self._starten(self._diskLoop)
         self._starten(self._netLoop)
@@ -2683,6 +2863,19 @@ class Backend(QObject):
         self._refreshPins()
         self._starten(self._ioLoop)
         self._starten(self._statsLoop)
+        self._sysInfo = system_info()
+
+        def nachladen():
+            try:
+                self._sysInfo = dict(self._sysInfo, **system_info_spaeter())
+                self.sysInfoChanged.emit()
+            except Exception as e:
+                print("[drivedeck] Systeminfo :", e)
+        threading.Thread(target=nachladen, daemon=True).start()
+        self._trash = {"count": 0, "bytes": 0, "complete": True}
+        self._trashWake = threading.Event()
+        self._starten(self._trashLoop)
+        self._trimLaeuft = False
 
     def _starten(self, ziel):
         t = threading.Thread(target=ziel, daemon=True)
@@ -2694,7 +2887,7 @@ class Backend(QObject):
         Dauer-Thread mehr Qt an, während QApplication abgebaut wird."""
         _ENDE.set()
         self._aktivEvent.set()
-        for ev in (self._diskWake, self._netWake, self._prnWake, self._scanWake):
+        for ev in (self._diskWake, self._netWake, self._prnWake, self._scanWake, self._trashWake):
             ev.set()
         ende = time.monotonic() + warte
         for t in self._schleifen:
@@ -2844,11 +3037,82 @@ class Backend(QObject):
                         "cpu": max(0, min(100, round(100 * (1 - d_idle / d_ges)))) if d_ges > 0 else 0,   # d_ges <= 0 : Standby/Zählersprung
                         "ramUsed": ram_gesamt - ram_frei, "ramTotal": ram_gesamt,
                         "down": max(netz[0] - vor[2][0], 0) / dt, "up": max(netz[1] - vor[2][1], 0) / dt,
-                        "diskUsed": belegt, "diskTotal": gesamt})
+                        "diskUsed": belegt, "diskTotal": gesamt, "uptime": laufzeit()})
                 vor = (t, cpu, netz)
             except (OSError, ValueError, IndexError, KeyError):
                 vor = None
             _ENDE.wait(1)
+
+    def _trashLoop(self):
+        # papierkorbGroesse : alle 60 s (und nach dem Öffnen) im Hintergrund ; nur lstat, mit Zeitgrenze
+        while not _ENDE.is_set():
+            if self._bereit() and _ENDE.is_set():
+                break
+            try:
+                n, b, voll = papierkorb_info()
+                neu = {"count": n, "bytes": b, "complete": voll}
+                if neu != self._trash:
+                    self._trash = neu
+                    self.trashChanged.emit()
+            except Exception as e:
+                print("[drivedeck] Papierkorb :", e)
+            self._trashWake.wait(60)
+            self._trashWake.clear()
+
+    @pyqtProperty("QVariantMap", notify=sysInfoChanged)
+    def sysInfo(self):
+        return self._sysInfo
+
+    @pyqtProperty("QVariantMap", notify=trashChanged)
+    def trash(self):
+        """{count, bytes, complete} : Dateien im Papierkorb und ihre Größe (bei riesigem Papierkorb ein Mindestwert)."""
+        return self._trash
+
+    @pyqtSlot()
+    def openTrash(self):
+        try:
+            lancer(["dolphin", "--new-window", "trash:/"])
+        except OSError:
+            try:
+                lancer(["xdg-open", "trash:/"])
+            except Exception:
+                self.messageRequested.emit(tr("Cannot open trash"), tr("Program not found"))
+        self._trashWake.set()
+
+    @pyqtProperty(bool, notify=trimChanged)
+    def trimRunning(self):
+        return self._trimLaeuft
+
+    @pyqtProperty(bool, constant=True)
+    def trimSupported(self):
+        return bool(shutil.which("fstrim") and shutil.which("pkexec"))
+
+    @pyqtSlot()
+    def trimSsd(self):
+        """TRIM aller eingebundenen Dateisysteme, die es können (« fstrim --all »). Braucht Administratorrechte : pkexec fragt."""
+        if self._trimLaeuft:
+            return
+        titre = tr("SSD optimization")
+        if not self.trimSupported:
+            self.messageRequested.emit(titre, tr("The fstrim and pkexec programs are required."))
+            return
+        self._trimLaeuft = True
+        self.trimChanged.emit()
+
+        def arbeit():
+            try:
+                r = subprocess.run(["pkexec", "fstrim", "--all", "--verbose"], capture_output=True, text=True, timeout=900,
+                                   env=ENV_C)
+                if r.returncode in (126, 127) and not r.stdout.strip():   # Rückfrage abgebrochen oder nicht berechtigt
+                    return
+                text = (r.stdout.strip() or r.stderr.strip() or tr("unknown error"))
+                self.messageRequested.emit(titre if r.returncode == 0 else tr("SSD optimization failed"), text)
+            except (OSError, subprocess.SubprocessError):
+                self.messageRequested.emit(titre, tr("unknown error"))
+            finally:
+                self._trimLaeuft = False
+                self.trimChanged.emit()
+        threading.Thread(target=arbeit, daemon=True).start()
 
     @pyqtSlot(bool)
     def setActive(self, aktiv):
@@ -2857,7 +3121,7 @@ class Backend(QObject):
         self._aktiv = aktiv
         if aktiv:
             self._aktivEvent.set()
-            for ev in (self._diskWake, self._netWake, self._prnWake):
+            for ev in (self._diskWake, self._netWake, self._prnWake, self._trashWake):
                 ev.set()   # sofort frische Werte statt Stand von vor der Pause
         else:
             self._aktivEvent.clear()
@@ -3197,6 +3461,47 @@ class Backend(QObject):
                 enregistrer_maj(dict(self._maj))   # Kopie : der Schreibvorgang iteriert, ein anderer Thread kann ändern
         if _version_tuple(self._maj["latest"]) > _version_tuple(APP_VERSION):
             self.updateAvailable.emit(self._maj["latest"], self._maj["url"] or MAJ_PAGE)
+
+    @pyqtProperty(bool, notify=clickModeChanged)
+    def singleClick(self):
+        """Öffnen mit einem Klick (Systemeinstellung des Desktops) ; Doppelklick bleibt sonst die Regel."""
+        return self._einfachklick
+
+    @pyqtSlot()
+    def refreshClickMode(self):
+        """Neu lesen, wenn das Fenster den Fokus bekommt : eine Änderung in den Systemeinstellungen gilt ohne Neustart."""
+        neu = einfachklick_aktiv(self._einst["click_mode"])
+        if neu != self._einfachklick:
+            self._einfachklick = neu
+            self.clickModeChanged.emit()
+
+    @pyqtProperty(str, notify=clickModeChanged)
+    def clickMode(self):
+        """"system" (folgt dem Desktop, im Zweifel Doppelklick), "double" oder "single" ; steht in einstellungen.json."""
+        return self._einst["click_mode"]
+
+    @pyqtSlot(str)
+    def setClickMode(self, modus):
+        if modus not in CLICK_MODES or modus == self._einst["click_mode"]:
+            return
+        self._einst["click_mode"] = modus
+        speichere_einstellungen(self._einst)
+        self._einfachklick = einfachklick_aktiv(modus)
+        self.clickModeChanged.emit()
+
+    @pyqtProperty(int, notify=warnThresholdChanged)
+    def warnThreshold(self):
+        """Warnschwelle in Prozent freien Platzes (1 bis 25, Standard 20)."""
+        return self._warn
+
+    @pyqtSlot(int)
+    def setWarnThreshold(self, prozent):
+        prozent = warn_begrenzen(prozent)
+        if prozent != self._warn:
+            self._warn = prozent
+            self._einst["warn_threshold_percent"] = prozent
+            speichere_einstellungen(self._einst)
+            self.warnThresholdChanged.emit()
 
     @pyqtProperty(bool, constant=True)
     def updateCheck(self):
@@ -3844,7 +4149,9 @@ QQC2.ApplicationWindow {
     visible: true
     title: "DriveDeck"
     // minRuban : la fenêtre ne descend pas sous la largeur du ruban (elle dépend de la langue)
-    minimumWidth: Math.max(740, ribbonRow.implicitWidth + 20)
+    // Die Gruppen rechts von « Anzeigen » (Übersicht, Info & Filter, Schnellaktionen) zählen nicht mit : sie erscheinen nur, wenn
+    // Platz ist. Sonst würde ihr Erscheinen die Mindestbreite anheben und das Fenster nie wieder schmaler werden lassen.
+    minimumWidth: Math.max(740, ribbonRow.x + liveSep.x + liveSep.width + 14 + 20)
     width: Math.max(minimumWidth, winInit.w > 0 ? winInit.w : 850)   // tailleInitiale
     // minHauteur : avec le ruban, il faut voir la première rangée de disques en entier
     minimumHeight: 520
@@ -3999,7 +4306,128 @@ QQC2.ApplicationWindow {
         return s.replace("({n})", "").replace("（{n}）", "").trim()
     }
     // seuilAlerte : au-delà de cette occupation (fraction du disque), les jauges passent au rouge et la carte affiche « ⚠ »
-    readonly property real alertFrac: 0.8
+    // einstellbar (Ribbon « Anzeigen », 1 bis 50 % frei, Standard 20 %) ; alertFrac bleibt der Anteil des BELEGTEN Platzes
+    readonly property real alertFrac: 1 - ((backend && backend.warnThreshold) ? backend.warnThreshold : 20) / 100
+    // einfachKlick : Öffnen mit einem Klick, wenn der Desktop es so eingestellt hat ; sonst Doppelklick wie bisher
+    readonly property bool singleClick: (backend && backend.singleClick) === true
+    onActiveChanged: if (active && backend && backend.refreshClickMode) backend.refreshClickMode()
+    property double lastActivation: 0
+    // rechterPlatz : so viel Breite bleibt rechts von « Anzeigen » ; danach richtet sich, welche Gruppen erscheinen
+    // (Reihenfolge von links : Schnellaktionen, Systeminfo, Systemübersicht ; es fallen erst die Schnellaktionen weg, dann die
+    // Systeminfo, zuletzt die Systemübersicht). Keine Gruppe erhöht
+    // die Mindestbreite des Fensters, und die Systemübersicht füllt immer den Rest : keine leere Fläche.
+    readonly property real tailW: ribbonRow.width - (liveSep.x + liveSep.width + 14)
+    readonly property real infoW: 330
+    readonly property real quickW: 276
+    readonly property real sepW: 29
+    readonly property bool showInfo: tailW >= 190 + infoW + sepW
+    readonly property bool showQuick: tailW >= 190 + infoW + quickW + 2 * sepW
+    function sizeShort(b) {
+        var l = Qt.locale()
+        if (b < 1048576)
+            return Math.max(1, Math.round(b / 1024)) + " KB"
+        if (b < 1073741824)
+            return Number(b / 1048576).toLocaleString(l, "f", 1) + " MB"
+        return Number(b / 1073741824).toLocaleString(l, "f", 1) + " GB"
+    }
+    function uptimeText(sec) {
+        if (!sec)
+            return "–"
+        var d = Math.floor(sec / 86400), h = Math.floor(sec % 86400 / 3600), m = Math.floor(sec % 3600 / 60)
+        return (d > 0 ? d + " d " : "") + h + " h " + m + " min"
+    }
+    // Schaltfläche der rechten Ribbon-Gruppen : gleiche Maße und Hover wie die Schaltflächen links, mit optionalem Untertext
+    component QuickBtn: Item {
+        id: qb
+        property string title: ""
+        property string sub: ""
+        property string iconName: ""
+        property bool usable: true
+        property int minW: 72
+        signal activated()
+        width: Math.max(minW, qbWord.width + 16)
+        height: 84
+        TextMetrics {
+            id: qbWord
+            font: win.badgeFont
+            text: qb.title.split(" ").reduce(function(a, w) { return w.length > a.length ? w : a }, "")
+        }
+        Rectangle {
+            anchors.fill: parent
+            radius: 5
+            visible: qb.usable && (qbMouse.containsMouse || qbMouse.pressed)
+            color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
+                           Kirigami.Theme.highlightColor.b, qbMouse.pressed ? 0.28 : 0.14)
+            border.width: 1
+            border.color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
+                                  Kirigami.Theme.highlightColor.b, 0.5)
+        }
+        Kirigami.Icon {
+            x: (parent.width - width) / 2
+            y: 8
+            width: 32
+            height: 32
+            source: qb.iconName
+            opacity: qb.usable ? 1.0 : 0.45
+        }
+        QQC2.Label {
+            x: 4
+            y: 46
+            width: parent.width - 8
+            height: qb.sub !== "" ? 16 : 34
+            text: qb.title
+            wrapMode: Text.Wrap
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignTop
+            elide: Text.ElideRight
+            maximumLineCount: qb.sub !== "" ? 1 : 2
+            font: win.badgeFont
+            color: Kirigami.Theme.textColor
+            opacity: qb.usable ? 1.0 : 0.45
+        }
+        QQC2.Label {
+            visible: qb.sub !== ""
+            x: 4
+            y: 62
+            width: parent.width - 8
+            horizontalAlignment: Text.AlignHCenter
+            elide: Text.ElideRight
+            text: qb.sub
+            font: win.badgeFont
+            color: Kirigami.Theme.textColor
+            opacity: 0.65
+        }
+        MouseArea {
+            id: qbMouse
+            anchors.fill: parent
+            enabled: qb.usable
+            hoverEnabled: true
+            onClicked: qb.activated()
+        }
+    }
+    // Logo der Distribution : das Bild, das os-release nennt (LOGO=…), unverändert und in Originalfarben
+    component DistroLogo: Item {
+        id: dl
+        property string logo: ""
+        width: 76
+        height: 76
+        Kirigami.Icon {
+            anchors.centerIn: parent
+            width: 68
+            height: 68
+            source: dl.logo
+            isMask: false
+            fallback: "distributor-logo"
+        }
+    }
+    // Bei Einfachklick löst jeder Klick aus ; ein Doppelklick darf aber kein zweites Fenster öffnen
+    function activationAllowed() {
+        var n = Date.now()
+        if (n - lastActivation < 500)
+            return false
+        lastActivation = n
+        return true
+    }
     // couleursJauge : bleu des jauges normales et rouge des jauges en alerte (fixes)
     readonly property color gaugeBlue: "#1e88e5"
     readonly property color gaugeRed: "#d92b2b"
@@ -4744,11 +5172,13 @@ QQC2.ApplicationWindow {
         modal: true
         anchors.centerIn: QQC2.Overlay.overlay
         standardButtons: QQC2.Dialog.Ok
-        width: 400
-        QQC2.Label {
+        width: 440
+        // contentItem statt Kind-Element : der Dialog kennt so die Höhe des umbrochenen Textes (der Knopf überlappte ihn)
+        contentItem: QQC2.Label {
             id: msgLabel
-            width: parent.width
             wrapMode: Text.Wrap
+            topPadding: 6
+            bottomPadding: 6
         }
     }
     Connections {
@@ -5237,6 +5667,31 @@ QQC2.ApplicationWindow {
         }
     }
 
+    // trimDialog : TRIM braucht Administratorrechte und kann dauern, deshalb erst nach Rückfrage
+    QQC2.Dialog {
+        id: trimDialog
+        modal: true
+        anchors.centerIn: QQC2.Overlay.overlay
+        title: win.trad("SSD optimization")
+        width: 440
+        standardButtons: QQC2.Dialog.Ok | QQC2.Dialog.Cancel
+        contentItem: ColumnLayout {
+            spacing: 8
+            QQC2.Label {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                text: win.trad("DriveDeck runs “fstrim” on all mounted drives that support it. This needs administrator rights and can take a while.")
+            }
+            QQC2.Label {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                opacity: 0.75
+                text: win.trad("Continue?")
+            }
+        }
+        onAccepted: backend.trimSsd()
+    }
+
     // aProposDialog : fenêtre « À propos de DriveDeck »
     QQC2.Dialog {
         id: aboutDialog
@@ -5400,7 +5855,6 @@ QQC2.ApplicationWindow {
                             { g: win.trad("Network"), items: [
                                 { t: win.trad("Add a network location"), i: "add", a: "add", w: 112 } ] },
                             { g: win.trad("Tools"), items: [
-                                { t: win.trad("Terminal"), i: "utilities-terminal", a: "terminal", w: 72 },
                                 { t: win.trad("System monitor"), i: "utilities-system-monitor", a: "monitor", w: 104 },
                                 { t: win.trad("Analyze storage"), i: "filelight", a: "analyze", w: 90 } ] },
                             { g: win.trad("System"), items: [
@@ -5559,6 +6013,105 @@ QQC2.ApplicationWindow {
                                         onToggled: win[modelData.k + "Shown"] = checked
                                     }
                                 }
+                                // warnschwelle : sechste Zelle (Spalte 2, unten). Ein echter Kontrollkasten (gleiche Maße, Schrift und Ausrichtung
+                                // wie die anderen), dessen Häkchen-Feld durch ein ⚠ ersetzt ist ; Klick öffnet das Regler-Fenster
+                                QQC2.CheckBox {
+                                    id: warnRow
+                                    topPadding: 0
+                                    bottomPadding: 0
+                                    checkable: false
+                                    font: win.badgeFont
+                                    text: win.trad("Warning threshold…")
+                                    // Ein Klick auf den Eintrag bei offenem Fenster schließt es schon als « Klick daneben » : kein sofortiges Wiederöffnen
+                                    onClicked: (Date.now() - warnPopup.closedAt < 250) ? undefined : warnPopup.open()
+                                    Component.onCompleted: if (indicator) indicator.opacity = 0
+                                    // Hover wie bei den Karten : zarte Akzentfläche, Text in der Akzentfarbe ; offen = bleibt hervorgehoben
+                                    background: Rectangle {
+                                        radius: 4
+                                        color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
+                                                       Kirigami.Theme.highlightColor.b, (warnRow.hovered || warnPopup.visible) ? 0.22 : 0)
+                                        Behavior on color { ColorAnimation { duration: 120 } }
+                                    }
+                                    contentItem: QQC2.Label {
+                                        leftPadding: warnRow.indicator ? warnRow.indicator.width + warnRow.spacing : 0
+                                        text: warnRow.text
+                                        font: warnRow.font
+                                        verticalAlignment: Text.AlignVCenter
+                                        color: (warnRow.hovered || warnPopup.visible) ? Kirigami.Theme.highlightColor : Kirigami.Theme.textColor
+                                    }
+                                    QQC2.Label {
+                                        x: warnRow.indicator ? warnRow.indicator.x : 0
+                                        y: warnRow.indicator ? warnRow.indicator.y : 0
+                                        width: warnRow.indicator ? warnRow.indicator.width : 18
+                                        height: warnRow.indicator ? warnRow.indicator.height : 18
+                                        horizontalAlignment: Text.AlignHCenter
+                                        verticalAlignment: Text.AlignVCenter
+                                        text: "\u26A0"
+                                        font.pixelSize: 13
+                                        color: "#f5a623"
+                                    }
+                                    QQC2.Popup {
+                                        id: warnPopup
+                                        // im Überlagerungs-Layer des Fensters : liegt über allem (auch der Systemübersicht), deckend
+                                        parent: QQC2.Overlay.overlay
+                                        z: 99
+                                        // modal ohne Abdunkeln : ein Klick irgendwo im Fenster (auch auf eine Karte oder den Eintrag selbst) schließt nur das Fenster
+                                        modal: true
+                                        dim: false
+                                        property double closedAt: 0
+                                        onClosed: closedAt = Date.now()
+                                        padding: 12
+                                        width: 290
+                                        onAboutToShow: {
+                                            var p = warnRow.mapToItem(QQC2.Overlay.overlay, 0, warnRow.height + 6)
+                                            x = Math.max(8, Math.min(p.x, QQC2.Overlay.overlay.width - width - 8))
+                                            y = p.y
+                                        }
+                                        background: Rectangle {
+                                            radius: 6
+                                            color: Kirigami.Theme.backgroundColor
+                                            border.width: 1
+                                            border.color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.25)
+                                        }
+                                        closePolicy: QQC2.Popup.CloseOnEscape | QQC2.Popup.CloseOnPressOutside
+                                        contentItem: ColumnLayout {
+                                            spacing: 8
+                                            QQC2.Label {
+                                                Layout.fillWidth: true
+                                                wrapMode: Text.Wrap
+                                                font.bold: true
+                                                text: win.trad("Warning threshold for free space")
+                                            }
+                                            RowLayout {
+                                                Layout.fillWidth: true
+                                                spacing: 10
+                                                QQC2.Slider {
+                                                    id: warnSlider
+                                                    Layout.fillWidth: true
+                                                    from: 1
+                                                    to: 50
+                                                    stepSize: 1
+                                                    snapMode: QQC2.Slider.SnapAlways
+                                                    value: (backend && backend.warnThreshold) ? backend.warnThreshold : 20
+                                                    onMoved: backend.setWarnThreshold(Math.round(value))
+                                                }
+                                                QQC2.Label {
+                                                    Layout.preferredWidth: 38
+                                                    horizontalAlignment: Text.AlignRight
+                                                    font: win.badgeFont
+                                                    text: Math.round(warnSlider.value) + " %"
+                                                }
+                                            }
+                                            QQC2.Label {
+                                                Layout.fillWidth: true
+                                                wrapMode: Text.Wrap
+                                                opacity: 0.75
+                                                font: win.badgeFont
+                                                text: win.trad("Red gauge and ⚠ symbol from this much free space or less.")
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                         Item { Layout.fillHeight: true }   // titresAlignes (1.1)
@@ -5571,14 +6124,141 @@ QQC2.ApplicationWindow {
                         }
                     }
                     Rectangle {
+                        id: liveSep
                         Layout.preferredWidth: 1
                         Layout.fillHeight: true
                         Layout.topMargin: 6
                         Layout.bottomMargin: 6
-                        Layout.leftMargin: 8
-                        Layout.rightMargin: 8
+                        Layout.leftMargin: 14   // mehr Luft zwischen « Anzeigen » und der Systemübersicht
+                        Layout.rightMargin: 14
                         color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
                                        Kirigami.Theme.textColor.b, 0.2)
+                    }
+
+
+                    ColumnLayout {
+                        visible: win.showQuick
+                        Layout.fillHeight: true
+                        Layout.preferredWidth: win.quickW
+                        Layout.minimumWidth: win.quickW
+                        Layout.maximumWidth: win.quickW
+                        spacing: 2
+                        Item {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 84
+                            Row {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                spacing: 2
+                                QuickBtn {
+                                    title: win.trad("Trash")
+                                    sub: (backend && backend.trash && backend.trash.count > 0)
+                                         ? ((backend.trash.complete ? "" : "≥ ") + win.sizeShort(backend.trash.bytes)) : win.trad("Empty")
+                                    iconName: (backend && backend.trash && backend.trash.count > 0) ? "user-trash-full" : "user-trash"
+                                    minW: 84
+                                    onActivated: backend.openTrash()
+                                }
+                                QuickBtn {
+                                    title: win.trad("Terminal")
+                                    iconName: "utilities-terminal"
+                                    usable: ((backend && backend.tools) ? backend.tools : ({})).terminal !== false
+                                    onActivated: backend.launchTool("terminal", "")
+                                }
+                                QuickBtn {
+                                    title: win.trad("SSD optimization")
+                                    sub: (backend && backend.trimRunning) ? win.trad("running…") : ""
+                                    iconName: "drive-harddisk"
+                                    minW: 100
+                                    usable: backend && backend.trimSupported && !backend.trimRunning
+                                    onActivated: trimDialog.open()
+                                }
+                            }
+                        }
+                        Item { Layout.fillHeight: true }
+                        QQC2.Label {
+                            Layout.alignment: Qt.AlignHCenter
+                            text: win.trad("Quick actions")
+                            font: win.badgeFont
+                            opacity: 0.75
+                            color: Kirigami.Theme.textColor
+                        }
+                    }
+
+                    Rectangle {
+                        visible: win.showQuick
+                        Layout.preferredWidth: 1
+                        Layout.fillHeight: true
+                        Layout.topMargin: 6
+                        Layout.bottomMargin: 6
+                        Layout.leftMargin: 14
+                        Layout.rightMargin: 14
+                        color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.2)
+                    }
+                    // systeminfo : Distributions-Logo, Laufzeit, Installationsdatum, System und Kernel/Plasma
+                    ColumnLayout {
+                        visible: win.showInfo
+                        Layout.fillHeight: true
+                        Layout.preferredWidth: win.infoW
+                        Layout.minimumWidth: win.infoW
+                        Layout.maximumWidth: win.infoW
+                        spacing: 2
+                        Item {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 84
+                            RowLayout {
+                                anchors.fill: parent
+                                spacing: 12
+                                DistroLogo {
+                                    logo: (backend && backend.sysInfo && backend.sysInfo.logoFile) ? ("file://" + backend.sysInfo.logoFile)
+                                          : ((backend && backend.sysInfo) ? backend.sysInfo.logoName : "")
+                                    Layout.alignment: Qt.AlignVCenter
+                                }
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    Layout.alignment: Qt.AlignVCenter
+                                    spacing: 3
+                                    readonly property var si: (backend && backend.sysInfo) ? backend.sysInfo : ({})
+                                    Repeater {
+                                        model: [
+                                            { i: "chronometer", t: win.trad("Uptime") + ": " + win.uptimeText((backend && backend.sysStats) ? backend.sysStats.uptime : 0) },
+                                            { i: "view-calendar", t: (parent.si.installed > 0)
+                                                ? (win.trad("Installed") + ": " + new Date(parent.si.installed * 1000).toLocaleDateString(Qt.locale(), Locale.ShortFormat)
+                                                   + " · " + Math.floor((Date.now() / 1000 - parent.si.installed) / 86400) + " d") : "" },
+                                            { i: "computer", t: parent.si.host ? (parent.si.host + " · " + parent.si.os + (parent.si.osVersion ? " " + parent.si.osVersion : "")) : "" },
+                                            { i: "applications-system", t: parent.si.kernel ? ("Kernel " + parent.si.kernel + (parent.si.plasma ? " · Plasma " + parent.si.plasma : "")) : "" }
+                                        ]
+                                        delegate: RowLayout {
+                                            visible: modelData.t !== ""
+                                            spacing: 6
+                                            Kirigami.Icon { source: modelData.i; Layout.preferredWidth: 14; Layout.preferredHeight: 14 }
+                                            QQC2.Label {
+                                                Layout.fillWidth: true
+                                                elide: Text.ElideRight
+                                                font: win.badgeFont
+                                                text: modelData.t
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        Item { Layout.fillHeight: true }
+                        QQC2.Label {
+                            Layout.alignment: Qt.AlignHCenter
+                            text: win.trad("System info")
+                            font: win.badgeFont
+                            opacity: 0.75
+                            color: Kirigami.Theme.textColor
+                        }
+                    }
+                    Rectangle {
+                        visible: win.showInfo
+                        Layout.preferredWidth: 1
+                        Layout.fillHeight: true
+                        Layout.topMargin: 6
+                        Layout.bottomMargin: 6
+                        Layout.leftMargin: 14
+                        Layout.rightMargin: 14
+                        color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.2)
                     }
 
                     // liveUebersicht : kompakte Telemetrie-Chips im freien Platz rechts. Die Gruppe bestimmt die Mindestbreite
@@ -5589,7 +6269,7 @@ QQC2.ApplicationWindow {
                         Layout.fillHeight: true
                         Layout.preferredWidth: 0
                         Layout.minimumWidth: 0
-                        Layout.maximumWidth: 280
+                        Layout.maximumWidth: 100000   // dehnbar : füllt den Platz, den die Gruppen rechts daneben übrig lassen
                         spacing: 2
                         readonly property var st: ((backend && backend.sysStats) ? backend.sysStats : ({}))
                         readonly property bool ready: st !== null && st !== undefined && st.cpu !== undefined
@@ -5727,6 +6407,7 @@ QQC2.ApplicationWindow {
                             color: Kirigami.Theme.textColor
                         }
                     }
+
                 }
             }
         }
@@ -6128,10 +6809,15 @@ QQC2.ApplicationWindow {
                                     hoverEnabled: true
                                     acceptedButtons: Qt.LeftButton | Qt.RightButton
                                     onPressed: { win.selectedKey = "folder:" + modelData.path; keyHandler.forceActiveFocus() }
-                                    onDoubleClicked: backend.openFolder(modelData.path)
+                                    onDoubleClicked: function(mouse) {
+                                        if (!win.singleClick && mouse.button === Qt.LeftButton)
+                                            backend.openFolder(modelData.path)
+                                    }
                                     onClicked: function(mouse) {
                                         if (mouse.button === Qt.RightButton)
                                             folderMenu.popup()
+                                        else if (win.singleClick && mouse.button === Qt.LeftButton && win.activationAllowed())
+                                            backend.openFolder(modelData.path)
                                     }
                                 }
                                 QQC2.Menu {
@@ -6482,12 +7168,14 @@ QQC2.ApplicationWindow {
                                         keyHandler.forceActiveFocus()
                                     }
                                     onDoubleClicked: function(mouse) {
-                                        if (mouse.button === Qt.LeftButton)
+                                        if (!win.singleClick && mouse.button === Qt.LeftButton)
                                             backend.openFolder(modelData.mountpoint)
                                     }
                                     onClicked: function(mouse) {
                                         if (mouse.button === Qt.RightButton)
                                             diskMenu.popup()
+                                        else if (win.singleClick && mouse.button === Qt.LeftButton && win.activationAllowed())
+                                            backend.openFolder(modelData.mountpoint)
                                     }
                                 }
                                 QQC2.Menu {
@@ -6758,9 +7446,7 @@ QQC2.ApplicationWindow {
                                         win.selectedKey = modelData.mountpoint
                                         keyHandler.forceActiveFocus()
                                     }
-                                    onDoubleClicked: function(mouse) {
-                                        if (mouse.button !== Qt.LeftButton)
-                                            return
+                                    function activate() {
                                         if (offline) {
                                             msgDialog.title = win.trad("Location unavailable")
                                             msgLabel.text = win.trad("“{name}” is not responding. Check that it is turned on and connected to the network.").replace("{name}", modelData.label)
@@ -6769,9 +7455,15 @@ QQC2.ApplicationWindow {
                                             backend.openFolder(modelData.mountpoint)
                                         }
                                     }
+                                    onDoubleClicked: function(mouse) {
+                                        if (!win.singleClick && mouse.button === Qt.LeftButton)
+                                            activate()
+                                    }
                                     onClicked: function(mouse) {
                                         if (mouse.button === Qt.RightButton)
                                             netMenu.popup()
+                                        else if (win.singleClick && mouse.button === Qt.LeftButton && win.activationAllowed())
+                                            activate()
                                     }
                                 }
                                 QQC2.Menu {
@@ -6984,9 +7676,7 @@ QQC2.ApplicationWindow {
                                     hoverEnabled: true
                                     acceptedButtons: Qt.LeftButton | Qt.RightButton
                                     onPressed: win.selectedKey = modelData.key
-                                    onDoubleClicked: function(mouse) {
-                                        if (mouse.button !== Qt.LeftButton)
-                                            return
+                                    function activate() {
                                         if (modelData.scanner === true)   // scannersInfo (1.1) : numériser avec Skanpage
                                             backend.launchApp("skanpage")
                                         else if (!modelData.indicator)
@@ -6994,9 +7684,15 @@ QQC2.ApplicationWindow {
                                         else if (settingsMod !== "" && ((backend && backend.hasSettings) ? backend.hasSettings(settingsMod) : false))
                                             backend.openSettings(settingsMod)   // Controller, Maus, Tastatur … -> Systemeinstellungen
                                     }
+                                    onDoubleClicked: function(mouse) {
+                                        if (!win.singleClick && mouse.button === Qt.LeftButton)
+                                            activate()
+                                    }
                                     onClicked: function(mouse) {
                                         if (mouse.button === Qt.RightButton)
                                             printerMenu.popup()
+                                        else if (win.singleClick && mouse.button === Qt.LeftButton && win.activationAllowed())
+                                            activate()
                                     }
                                 }
                                 QQC2.Menu {

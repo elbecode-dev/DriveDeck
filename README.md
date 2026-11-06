@@ -76,7 +76,7 @@ small **live graph** of their read and write speed, and warn you when they are a
   name: **CPU** load, **RAM** used / total, **Storage** (all mounted local drives together) and **Network** throughput
   (▲ sent, ▼ received). The thin usage bars use the purple-to-cyan gradient of the cards and turn amber at 80 % and red at
   90 %. The chips use the free space on the right, show only the used part when they get narrow and hide themselves
-  when the window is too narrow (about 1460 px or less); they pause while the window is minimised.
+  when the window is too narrow (about 1540 px or less); the *System info* and *Quick actions* groups need about 1830 and 2130 px; they pause while the window is minimised.
 - **Unmount.** *Unmount* in a drive's right-click menu only logs the drive out and leaves it powered on, unlike
   *Safely remove*. It is not offered for system folders (`/`, `/boot`, `/home` …) or optical drives.
 - **System information (HWiNFO-style).** The *System information* button opens a window with six tabs: *Overview*, *CPU & Board*

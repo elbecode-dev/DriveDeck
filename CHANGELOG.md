@@ -10,6 +10,32 @@ hidden and everything else works).
 
 ---
 
+## Unreleased
+
+### Added
+
+- **Click mode** (feature request "Compatibility with global single/double click setting" by Sadi58). Folders, drives, network locations and the cards in "Printers and devices" open with a **double click**
+  by default. One click is used only if the desktop explicitly says so (`[KDE] SingleClick=true` in `kdeglobals`; on
+  other desktops Qt's `QStyleHints`). A missing or unreadable entry means double click. `~/.config/drivedeck/einstellungen.json`
+  can force it with `"click_mode": "system"` (default), `"double"` or `"single"`. The setting is read again whenever the
+  window gets focus; a double click never opens a second window in single-click mode.
+- **Adjustable warning threshold** (feature request "Free space warning threshold setting" by Sadi58) in the ribbon group *Show* ("Warning threshold…" at the bottom of the second column, opens a small slider window): 1 to 50 %, default 20 %, saved
+  as `"warn_threshold_percent"` in the same file. It replaces the fixed 80 % used space for the red gauge and the warning
+  badge and applies immediately. The system summary now hides below about 1540 px (was 1460 px).
+- **The right end of the ribbon is no longer empty.** Two new groups sit between *Show* and the system summary, which now
+  stretches to fill the free width at the far right. They appear only when the window is wide enough (the summary goes
+  last, then *System info*, then *Quick actions*) and never raise the window's minimum width:
+  - **Quick actions:** *Trash* (opens `trash:/`; shows the size of `~/.local/share/Trash`, read in the background every
+    minute with a time limit, `≥` if it is huge), *Terminal* (moved here from *Tools*), *SSD optimization* (`pkexec fstrim
+    --all --verbose` after a confirmation; the result is shown in a message).
+  - **System info:** the logo of your distribution in its original colours (the icon named by `LOGO=` in `/etc/os-release`,
+    else the usual `distributor-logo-<id>` files), plus uptime, installation
+    date (approximate: the oldest birth time of `/etc/machine-id` and `/`), host name with distribution and version, and
+    kernel and Plasma version.
+- **Message boxes** (for example the SSD optimization result): the OK button no longer overlaps long text.
+
+---
+
 ## 2.0.0-beta.7 – 2026-11-02 (robustness on other hardware)
 
 ### Fixed
