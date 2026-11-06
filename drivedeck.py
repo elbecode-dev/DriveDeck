@@ -3494,20 +3494,6 @@ class Backend(QObject):
             self._einfachklick = neu
             self.clickModeChanged.emit()
 
-    @pyqtProperty(str, notify=clickModeChanged)
-    def clickMode(self):
-        """"system" (folgt dem Desktop, im Zweifel Doppelklick), "double" oder "single" ; steht in settings.json."""
-        return self._einst["click_mode"]
-
-    @pyqtSlot(str)
-    def setClickMode(self, modus):
-        if modus not in CLICK_MODES or modus == self._einst["click_mode"]:
-            return
-        self._einst["click_mode"] = modus
-        speichere_einstellungen(self._einst)
-        self._einfachklick = einfachklick_aktiv(modus)
-        self.clickModeChanged.emit()
-
     @pyqtProperty(int, notify=warnThresholdChanged)
     def warnThreshold(self):
         """Warnschwelle in Prozent freien Platzes (1 bis 25, Standard 20)."""
@@ -4216,7 +4202,6 @@ QQC2.ApplicationWindow {
         // Rand als Ring (äußeres minus inneres Rundrechteck, OddEvenFill) mit demselben Verlauf wie die Füllung :
         // ein Rectangle-Rand kennt nur eine Farbe. CurveRenderer zeichnet die Rundungen exakt und ohne MSAA-Ebene.
         Shape {
-            id: ring
             anchors.fill: parent
             visible: glow.opacity > 0
             preferredRendererType: Shape.CurveRenderer
@@ -5838,7 +5823,7 @@ QQC2.ApplicationWindow {
         anchors.fill: parent
         spacing: 0
 
-        // barreRuban : barre de commandes en ruban (le mode simple a été retiré)
+        // barreRuban : barre de commandes en ruban
         Item {
             id: barRoot
             // couleursBarre : couleurs « En-tête » du thème (comme la bande des menus de Dolphin)
@@ -6113,7 +6098,6 @@ QQC2.ApplicationWindow {
                         }
                     }
                     Rectangle {
-                        id: liveSep
                         Layout.preferredWidth: 1
                         Layout.fillHeight: true
                         Layout.topMargin: Kirigami.Units.largeSpacing
@@ -6178,7 +6162,6 @@ QQC2.ApplicationWindow {
                         }
                     }
                     Rectangle {
-                        id: sysSep
                         Layout.preferredWidth: 1
                         Layout.fillHeight: true
                         Layout.topMargin: Kirigami.Units.largeSpacing
@@ -6211,6 +6194,13 @@ QQC2.ApplicationWindow {
                                     QuickBtn { title: win.trad("System information"); iconName: "info"; minW: 100; onActivated: barRoot.runCmd("specs") }
                                     QuickBtn { title: win.trad("System Settings"); iconName: "settings"; minW: 100; onActivated: barRoot.runCmd("settings") }
                                     QuickBtn { title: win.trad("About"); iconName: "about"; minW: 84; onActivated: barRoot.runCmd("about") }
+                                }
+                                // Luft vor der Info-Karte : schiebt sie bei freiem Platz etwas nach rechts (wirkt mittiger), schrumpft auf 0
+                                Item {
+                                    visible: win.showInfo
+                                    Layout.fillWidth: true
+                                    Layout.preferredWidth: 0
+                                    Layout.maximumWidth: Kirigami.Units.largeSpacing * 6
                                 }
                                 // Info-Karte (nach den Schaltflächen, vor der Telemetrie) : Logo der Distribution, Laufzeit, Installation, Rechner, Kernel und Plasma
                                 RowLayout {
@@ -7821,7 +7811,7 @@ def live_icons():
 
 
 def bar_icons_ruban():
-    """Icônes du mode complet de la barre (rubanWindows) : jeu coloré windows-modern, sinon icône du thème."""
+    """Icônes de la barre de commandes : jeu coloré windows-modern, sinon icône du thème."""
     svg = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">\n<path d="M12 4.5C16.1421 4.5 19.5 7.85786 19.5 12C19.5 16.1421 16.1421 19.5 12 19.5C7.85786 19.5 4.5 16.1421 4.5 12C4.5 11.6236 4.52772 11.2538 4.58123 10.8923C4.64845 10.4382 4.31609 10 3.85708 10C3.48623 10 3.161 10.2562 3.10471 10.6228C3.03576 11.0718 3 11.5317 3 12C3 16.9706 7.02944 21 12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3C9.69494 3 7.59227 3.86656 6 5.29168V4.25C6 3.83579 5.66421 3.5 5.25 3.5C4.83579 3.5 4.5 3.83579 4.5 4.25V7.25C4.5 7.66421 4.83579 8 5.25 8H8.25C8.66421 8 9 7.66421 9 7.25C9 6.83579 8.66421 6.5 8.25 6.5H6.90093C8.23907 5.25883 10.0309 4.5 12 4.5Z" fill="#1e88e5"/>\n</svg>\n'
     actualiser = ""
     chemin = os.path.join(CACHE_DIR, "actualiser.svg")
@@ -7838,8 +7828,7 @@ def bar_icons_ruban():
               ("add", "places/folder-network-open", "folder-network"),
               ("settings", "apps/preferences-system", "preferences-system"),
               ("info", "devices/computer", "computer"),
-              ("about", "apps/help-about", "help-about"),
-              ("specs", "devices/cpu", "cpu"))
+              ("about", "apps/help-about", "help-about"))
     res = {"refresh": actualiser or "view-refresh"}
     for cle, sous, repli in voulus:
         res[cle] = repli
@@ -7849,8 +7838,6 @@ def bar_icons_ruban():
             if os.path.isfile(p):
                 res[cle] = "file://" + p
                 break
-    if res["specs"] == "cpu":
-        res["specs"] = disk_icon(["cpu", "computer"])
     return res
 
 

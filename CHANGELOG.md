@@ -14,6 +14,9 @@ hidden and everything else works).
 
 ### Changed
 
+- **Cleanup.** Removed dead code found by an audit: the unused `clickMode` / `setClickMode` backend API (the click mode is read from
+  `settings.json`), an unused icon entry, three never-referenced QML ids, stale comments and three unused SVG files in `icons/`.
+  The system-centre info card gets a little more air on its left so it sits closer to the middle.
 - **Ribbon spacing and hover from the Plasma theme.** Margins, gaps, radii and icon sizes in the ribbon (buttons, group separators,
   *Show* grid, warning-threshold popup, system info card, telemetry chips) come from `Kirigami.Units` on the 4/8/16 px grid
   (`smallSpacing`, `largeSpacing`, `iconSizes`) instead of fixed pixels, so they follow the system font and scale setting. Hover and
