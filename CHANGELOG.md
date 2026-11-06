@@ -10,7 +10,7 @@ hidden and everything else works).
 
 ---
 
-## Unreleased
+## 2.0.0-beta.8.3 – 2026-11-06 (new ribbon, audit fixes, cleanup)
 
 ### Changed
 
