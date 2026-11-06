@@ -10,6 +10,16 @@ hidden and everything else works).
 
 ---
 
+## Unreleased
+
+### Changed
+
+- **Click mode also reads the system-wide default.** If `~/.config/kdeglobals` has no `SingleClick` entry, DriveDeck now looks
+  at `/etc/xdg/kdeglobals` (the default a distribution sets for all users); the user's own entry still wins, and without any
+  entry the double click stays the default. Taken from the patch that Sadi58 sent for the single/double-click request.
+
+---
+
 ## 2.0.0-beta.8 – 2026-11-06 (ribbon, click mode, warning threshold)
 
 ### Added

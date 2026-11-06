@@ -1022,15 +1022,17 @@ def speichere_einstellungen(einst):
 
 def einfachklick_system():
     """Meldet der Desktop ausdrücklich « Öffnen mit einem Klick » ? Nur ein ausdrücklicher Eintrag zählt : unter KDE
-    « [KDE] SingleClick=true » in kdeglobals. Fehlt er oder ist er unlesbar, gilt der Doppelklick. Auf anderen
-    Desktops fragt Qt die Plattform (QStyleHints). Wirft nie ; kostet höchstens eine kleine Datei."""
-    try:
-        cfg = configparser.ConfigParser(strict=False, interpolation=None)
-        cfg.read(os.path.expanduser("~/.config/kdeglobals"), encoding="utf-8")
-        if cfg.has_option("KDE", "SingleClick"):
-            return cfg.get("KDE", "SingleClick").strip().lower() == "true"
-    except Exception:
-        return False
+    « [KDE] SingleClick=true » in kdeglobals, zuerst die des Benutzers, sonst die systemweite (/etc/xdg/kdeglobals, die
+    Voreinstellung der Distribution). Fehlt der Eintrag überall oder ist er unlesbar, gilt der Doppelklick. Auf anderen
+    Desktops fragt Qt die Plattform (QStyleHints). Wirft nie ; kostet höchstens zwei kleine Dateien."""
+    for datei in (os.path.expanduser("~/.config/kdeglobals"), "/etc/xdg/kdeglobals"):
+        try:
+            cfg = configparser.ConfigParser(strict=False, interpolation=None)
+            cfg.read(datei, encoding="utf-8")
+            if cfg.has_option("KDE", "SingleClick"):
+                return cfg.get("KDE", "SingleClick").strip().lower() == "true"
+        except Exception:
+            continue
     if "KDE" in os.environ.get("XDG_CURRENT_DESKTOP", "").upper():
         return False
     try:
