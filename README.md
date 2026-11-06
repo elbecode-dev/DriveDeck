@@ -75,18 +75,22 @@ small **live graph** of their read and write speed, and warn you when they are a
   - On printers: *Properties*, *Set as default printer*, *Print test page* (the real CUPS test page), *Open settings*, *Copy name*.
     On scanners: *Scan…* (Skanpage, also as a Flatpak, otherwise simple-scan, kooka or xsane) and *Copy name*. On keyboards,
     mice and game controllers: *Open settings* and *Copy name*
-- **System summary.** Four live chips in a softly tinted panel at the far right end of the ribbon, each with an icon and a
-  name: **CPU** load, **RAM** used / total, **Storage** (all mounted local drives together) and **Network** throughput
-  (▲ sent, ▼ received). The thin usage bars use the purple-to-cyan gradient of the cards and turn amber at 80 % and red at
-  90 %. The panel stretches over all the free width, shows only the used part when the chips get narrow and hides itself
-  when the window is too narrow (about 1540 px or less). It pauses while the window is minimised.
-- **Quick actions and system info in the ribbon.** With a wide window two more groups appear in front of the summary
-  (about 1830 px for *System info*, about 2130 px for *Quick actions*; they never raise the minimum window width):
-  - *Quick actions*: **Trash** (opens it and shows its size), **Terminal** and **SSD optimization** (runs `fstrim` on all
-    mounted drives after asking, and Plasma asks for your password).
-  - *System info*: the **logo of your distribution** (read from `os-release`, so it works for CachyOS, Arch, Ubuntu, Fedora
-    … alike), the **uptime**, the approximate **installation date**, your computer name with the distribution and
-    version, and the **kernel and Plasma version**.
+- **A ribbon in four groups, read from left to right.**
+  - *Navigation*: Properties, Open, Refresh and Add a network location.
+  - *Show*: tick which sections you see, and **Warning threshold…** (see below).
+  - *Actions & tools*: **System monitor** (Plasma System Monitor, otherwise btop or htop), **Analyze storage** (Filelight,
+    otherwise Baobab or ncdu), **SSD optimization** (runs `fstrim` on all mounted drives after asking, and Plasma asks for
+    your password), **Trash** (opens it and shows its size) and **Terminal**.
+  - *System centre*, stretching to the right edge: **System information**, **System Settings** and **About**, then a card with the **logo of
+    your distribution** (read from `os-release`, so it works for CachyOS, Arch, Ubuntu, Fedora … alike), the **uptime**, the
+    approximate **installation date**, computer name with distribution and version (shown in full) and **kernel and Plasma
+    version**, and at the far right the **system summary**: four live chips in one tinted panel (**CPU** load, **RAM** used /
+    total, **Storage** of all mounted local drives together and **Network** throughput ▲ sent, ▼ received; thin
+    purple-to-cyan bars that turn amber at 80 % and red at 90 %).
+  - What does not fit is left out in a fixed order: first the distribution card (below about 1990 px window width), then
+    the summary panel (below about 1710 px). If the window is narrower than the buttons need, the ribbon scrolls sideways
+    (mouse wheel, drag or the thin bar under it) and the window can be made much smaller than before. The ribbon grows
+    with a larger system font.
 - **Single or double click – as your desktop says.** Folders, drives, network locations and devices open with a
   **double click** by default, and with one click if your desktop explicitly uses single-click (KDE: *System Settings →
   Workspace Behavior → General Behavior*). You can also force it in `~/.config/drivedeck/settings.json` with
@@ -109,9 +113,6 @@ small **live graph** of their read and write speed, and warn you when they are a
 - **Disk health that works with USB drives.** Many USB enclosures need a special mode before they report SMART data.
   DriveDeck tries the usual ones for you (SAT, then several NVMe bridge types), asks for your password **only once**
   when root rights are needed, and explains clearly when an enclosure simply does not pass SMART through.
-- **Tools group.** A ribbon group with **System monitor** (Plasma System Monitor, otherwise btop or htop)
-  and **Analyze storage** (Filelight, otherwise Baobab or ncdu) to find what eats your space. The analysis runs on the
-  selected local drive, or on your home folder. Buttons for programs that are not installed are hidden.
 - **Use it with the keyboard.** The arrow keys move through **everything**: folders, drives, network locations,
   printers and devices, and the sidebar. **Left** in the first column jumps into the sidebar, **Right** on a pinned folder (or
   **Tab**) comes back. In the sidebar **Right** unfolds a folder and then goes to its first sub-folder, **Left** folds it

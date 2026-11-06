@@ -167,6 +167,8 @@ EXTRA_DE = {
     "Red gauge and ⚠ symbol from this much free space or less.":
         "Rote Anzeige und ⚠-Symbol ab diesem Rest-Speicherplatz.",
     "Trash": "Papierkorb",
+    "Actions & tools": "Aktionen & Werkzeuge",
+    "System center": "System-Zentrale",
     "Empty": "Leer",
     "Quick actions": "Schnellaktionen",
     "SSD optimization": "SSD-Optimierung",
@@ -4340,18 +4342,17 @@ QQC2.ApplicationWindow {
     // fontGrow : 1 bei der Standardschrift (Zeilenhöhe 13,2 px), grösser bei grösserer Schrift ; Ribbon und Schaltflächen wachsen mit
     readonly property real fontGrow: Math.max(1.0, lineH / 13.2)
     readonly property real ribbonBtnH: Math.round(84 * fontGrow)
-    readonly property real ribbonH: Math.round(118 * fontGrow)
+    readonly property real ribbonH: Math.round(122 * fontGrow)
     readonly property real sepGap: Kirigami.Units.largeSpacing * 2   // Abstand links und rechts der Ribbon-Trennlinien (16 px)
-    // rechterPlatz : so viel Breite bleibt rechts von « Anzeigen » ; danach richtet sich, welche Gruppen erscheinen
-    // (Reihenfolge von links : Schnellaktionen, Systeminfo, Systemübersicht ; es fallen erst die Schnellaktionen weg, dann die
-    // Systeminfo, zuletzt die Systemübersicht). Keine Gruppe erhöht
-    // die Mindestbreite des Fensters, und die Systemübersicht füllt immer den Rest : keine leere Fläche.
-    readonly property real tailW: ribbonRow.width - (liveSep.x + liveSep.width + sepGap)
-    readonly property real infoW: 330
-    readonly property real quickW: 276
-    readonly property real sepW: 1 + 2 * sepGap
-    readonly property bool showInfo: tailW >= 190 + infoW + sepW
-    readonly property bool showQuick: tailW >= 190 + infoW + quickW + 2 * sepW
+    // systemZentrale : die letzte Ribbon-Gruppe füllt die ganze restliche Breite ; was hineinpasst, hängt vom Platz ab.
+    // Die festen Gruppen davor bestimmen, ab wann das Ribbon waagerecht scrollt ; die Gruppe selbst hebt die Mindestbreite nicht an.
+    readonly property real sysAvail: ribbonRow.width - sysGrp.x      // Breite, die die « System-Zentrale » hat
+    readonly property real sysButtonsW: sysButtons.width               // die drei Schaltflächen bleiben immer sichtbar
+    readonly property real infoW: Math.min(400, infoCard.implicitWidth)   // so breit wie der längste Text
+    readonly property real sysGap: Kirigami.Units.largeSpacing * 2
+    // Reihenfolge in der Gruppe von links : Schaltflächen, Info-Karte, Telemetrie (füllt den Rest). Zuerst fällt die Info-Karte weg, dann das Panel.
+    readonly property bool showPanel: sysAvail >= sysButtonsW + sysGap + 170
+    readonly property bool showInfo: sysAvail >= sysButtonsW + sysGap + 170 + infoW + sysGap
     function sizeShort(b) {
         var l = Qt.locale()
         if (b < 1048576)
@@ -4366,7 +4367,7 @@ QQC2.ApplicationWindow {
         var d = Math.floor(sec / 86400), h = Math.floor(sec % 86400 / 3600), m = Math.floor(sec % 3600 / 60)
         return (d > 0 ? d + " d " : "") + h + " h " + m + " min"
     }
-    // Schaltfläche der rechten Ribbon-Gruppen : gleiche Maße und Hover wie die Schaltflächen links, mit optionalem Untertext
+    // Schaltfläche aller Ribbon-Gruppen : Symbol, Beschriftung (bis zu zwei Zeilen), optionaler Untertext, Hover-Fläche in der Akzentfarbe
     component QuickBtn: Item {
         id: qb
         property string title: ""
@@ -4375,36 +4376,54 @@ QQC2.ApplicationWindow {
         property bool usable: true
         property int minW: 72
         signal activated()
-        width: Math.max(minW, qbWord.width + 16)
+        width: Math.max(minW, qbWord.width + 2 * Kirigami.Units.largeSpacing)
         height: win.ribbonBtnH
         TextMetrics {
             id: qbWord
             font: win.badgeFont
             text: qb.title.split(" ").reduce(function(a, w) { return w.length > a.length ? w : a }, "")
         }
+        readonly property real labelY: Kirigami.Units.largeSpacing + Kirigami.Units.iconSizes.medium + Kirigami.Units.smallSpacing
         Rectangle {
             anchors.fill: parent
-            radius: 5
+            radius: Kirigami.Units.smallSpacing
             visible: qb.usable && (qbMouse.containsMouse || qbMouse.pressed)
             color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
-                           Kirigami.Theme.highlightColor.b, qbMouse.pressed ? 0.28 : 0.14)
+                           Kirigami.Theme.highlightColor.b, qbMouse.pressed ? 0.30 : 0.15)
             border.width: 1
             border.color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
                                   Kirigami.Theme.highlightColor.b, 0.5)
         }
-        Kirigami.Icon {
+        Item {
+            id: qbIcon
             x: (parent.width - width) / 2
-            y: 8
-            width: 32
-            height: 32
-            source: qb.iconName
+            y: Kirigami.Units.largeSpacing
+            width: Kirigami.Units.iconSizes.medium
+            height: Kirigami.Units.iconSizes.medium
             opacity: qb.usable ? 1.0 : 0.45
+            readonly property string src: barIconsRuban[qb.iconName] || qb.iconName   // farbiger Ribbon-Satz, sonst Symbol des Themas
+            readonly property bool isFile: src.indexOf("file://") === 0
+            Image {
+                anchors.fill: parent
+                visible: qbIcon.isFile
+                source: qbIcon.isFile ? qbIcon.src : ""
+                sourceSize.width: 64
+                sourceSize.height: 64
+                fillMode: Image.PreserveAspectFit
+                smooth: true
+                mipmap: true
+            }
+            Kirigami.Icon {
+                anchors.fill: parent
+                visible: !qbIcon.isFile
+                source: qbIcon.isFile ? "" : qbIcon.src
+            }
         }
         QQC2.Label {
-            x: 4
-            y: 46
-            width: parent.width - 8
-            height: qb.sub !== "" ? win.lineH + 3 : win.ribbonBtnH - 50
+            x: Kirigami.Units.smallSpacing
+            y: qb.labelY
+            width: parent.width - 2 * Kirigami.Units.smallSpacing
+            height: qb.sub !== "" ? win.lineH + Kirigami.Units.smallSpacing : win.ribbonBtnH - qb.labelY - Kirigami.Units.smallSpacing
             text: qb.title
             wrapMode: Text.Wrap
             horizontalAlignment: Text.AlignHCenter
@@ -4417,9 +4436,9 @@ QQC2.ApplicationWindow {
         }
         QQC2.Label {
             visible: qb.sub !== ""
-            x: 4
-            y: 46 + win.lineH + 3
-            width: parent.width - 8
+            x: Kirigami.Units.smallSpacing
+            y: qb.labelY + win.lineH + Kirigami.Units.smallSpacing
+            width: parent.width - 2 * Kirigami.Units.smallSpacing
             horizontalAlignment: Text.AlignHCenter
             elide: Text.ElideRight
             text: qb.sub
@@ -4439,12 +4458,12 @@ QQC2.ApplicationWindow {
     component DistroLogo: Item {
         id: dl
         property string logo: ""
-        width: 76
-        height: 76
+        width: 56
+        height: 56
         Kirigami.Icon {
             anchors.centerIn: parent
-            width: 68
-            height: 68
+            width: 52
+            height: 52
             source: dl.logo
             isMask: false
             fallback: "distributor-logo"
@@ -5826,7 +5845,7 @@ QQC2.ApplicationWindow {
             Kirigami.Theme.colorSet: Kirigami.Theme.Header
             Kirigami.Theme.inherit: false
             Layout.fillWidth: true
-            Layout.preferredHeight: win.ribbonH + (ribbonHBar.visible ? 10 : 0)
+            Layout.preferredHeight: win.ribbonH + (ribbonHBar.visible ? Kirigami.Units.largeSpacing + Kirigami.Units.smallSpacing / 2 : 0)
             readonly property var sel: win.selEntry
             readonly property bool canOpen: sel !== null && sel.available !== false
             readonly property bool canProps: sel !== null && sel.isUnmounted !== true
@@ -5872,10 +5891,10 @@ QQC2.ApplicationWindow {
                     id: ribbonFlick
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    Layout.topMargin: 6
-                    Layout.leftMargin: 10
-                    Layout.rightMargin: 10
-                    Layout.bottomMargin: 4
+                    Layout.topMargin: Kirigami.Units.largeSpacing
+                    Layout.leftMargin: Kirigami.Units.largeSpacing
+                    Layout.rightMargin: Kirigami.Units.largeSpacing
+                    Layout.bottomMargin: Kirigami.Units.smallSpacing
                     clip: true
                     contentWidth: ribbonRow.width
                     contentHeight: height
@@ -5894,159 +5913,78 @@ QQC2.ApplicationWindow {
                 RowLayout {
                     id: ribbonRow
                     height: ribbonFlick.height
-                    width: Math.max(ribbonFlick.width, liveSep.x + liveSep.width + win.sepGap)
+                    width: Math.max(ribbonFlick.width, sysGrp.x + win.sysButtonsW + 10)
                     spacing: 0
 
-                    Repeater {
-                        model: [
-                            { g: win.trad("Location"), items: [
-                                { t: win.trad("Properties"), i: "props", a: "props", w: 84 },
-                                { t: win.trad("Open"), i: "open", a: "open", w: 72 },
-                                { t: win.trad("Refresh"), i: "refresh", a: "refresh", w: 84 } ] },
-                            { g: win.trad("Network"), items: [
-                                { t: win.trad("Add a network location"), i: "add", a: "add", w: 112 } ] },
-                            { g: win.trad("Tools"), items: [
-                                { t: win.trad("System monitor"), i: "utilities-system-monitor", a: "monitor", w: 104 },
-                                { t: win.trad("Analyze storage"), i: "filelight", a: "analyze", w: 90 } ] },
-                            { g: win.trad("System"), items: [
-                                { t: win.trad("System Settings"), i: "settings", a: "settings", w: 100 },
-                                { t: win.trad("System information"), i: "info", a: "specs", w: 100 },
-                                { t: win.trad("About"), i: "about", a: "about", w: 84 } ] }
-                        // Schaltflächen nur für installierte Programme ; Gruppen ohne Schaltfläche entfallen
-                        ].map(function(g) {
-                            return { g: g.g, items: g.items.filter(function(x) { return ((backend && backend.tools) ? backend.tools : ({}))[x.a] !== false }) }
-                        }).filter(function(g) { return g.items.length > 0 })
-                        delegate: RowLayout {
-                            id: grp
+                    // navigation : Eigenschaften, Öffnen, Aktualisieren, Netzwerkadresse hinzufügen
+                    RowLayout {
+                        id: navGrp
+                        Layout.fillHeight: true
+                        spacing: 0
+                        ColumnLayout {
                             Layout.fillHeight: true
-                            spacing: 0
-
-                            ColumnLayout {
-                                Layout.fillHeight: true
-                                spacing: 2
-
-                                Row {
-                                    Layout.alignment: Qt.AlignHCenter
-                                    spacing: 2
-                                    Repeater {
-                                        model: modelData.items
-                                        delegate: Item {
-                                            id: bBtn
-                                            readonly property bool usable: modelData.a === "open" ? barRoot.canOpen
-                                                : (modelData.a === "props" ? barRoot.canProps : true)
-                                            // Breite : Vorgabe, mindestens aber das längste Wort + Rand (sonst bricht « Systemeinstellungen » mitten im Wort)
-                                            width: Math.max(modelData.w, longestWord.width + 16)
-                                            height: win.ribbonBtnH
-                                            TextMetrics {
-                                                id: longestWord
-                                                font: win.badgeFont
-                                                text: modelData.t.split(" ").reduce(function(a, w) { return w.length > a.length ? w : a }, "")
-                                            }
-
-                                            Rectangle {
-                                                anchors.fill: parent
-                                                radius: 5
-                                                visible: bBtn.usable && (bMouse.containsMouse || bMouse.pressed)
-                                                color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
-                                                               Kirigami.Theme.highlightColor.b, bMouse.pressed ? 0.28 : 0.14)
-                                                border.width: 1
-                                                border.color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
-                                                                      Kirigami.Theme.highlightColor.b, 0.5)
-                                            }
-                                            Item {
-                                                id: bIcon
-                                                x: (parent.width - width) / 2
-                                                y: 8
-                                                width: 32
-                                                height: 32
-                                                opacity: bBtn.usable ? 1.0 : 0.45
-                                                readonly property string src: barIconsRuban[modelData.i] || modelData.i
-                                                readonly property bool isFile: src.indexOf("file://") === 0
-                                                Image {
-                                                    anchors.fill: parent
-                                                    visible: bIcon.isFile
-                                                    source: bIcon.isFile ? bIcon.src : ""
-                                                    sourceSize.width: 64
-                                                    sourceSize.height: 64
-                                                    fillMode: Image.PreserveAspectFit
-                                                    smooth: true
-                                                    mipmap: true
-                                                }
-                                                Kirigami.Icon {
-                                                    anchors.fill: parent
-                                                    visible: !bIcon.isFile
-                                                    source: bIcon.isFile ? "" : bIcon.src
-                                                }
-                                            }
-                                            QQC2.Label {
-                                                x: 4
-                                                y: 46
-                                                width: parent.width - 8
-                                                height: win.ribbonBtnH - 50
-                                                text: modelData.t
-                                                wrapMode: Text.Wrap
-                                                horizontalAlignment: Text.AlignHCenter
-                                                verticalAlignment: Text.AlignTop
-                                                elide: Text.ElideRight
-                                                maximumLineCount: 2
-                                                font: win.badgeFont
-                                                color: Kirigami.Theme.textColor
-                                                opacity: bBtn.usable ? 1.0 : 0.45
-                                            }
-                                            MouseArea {
-                                                id: bMouse
-                                                anchors.fill: parent
-                                                enabled: bBtn.usable
-                                                hoverEnabled: true
-                                                onClicked: barRoot.runCmd(modelData.a)
-                                            }
-                                        }
+                            spacing: Kirigami.Units.smallSpacing
+                            Row {
+                                Layout.alignment: Qt.AlignHCenter
+                                spacing: Kirigami.Units.smallSpacing
+                                Repeater {
+                                    model: [
+                                        { t: win.trad("Properties"), i: "props", a: "props", w: 84 },
+                                        { t: win.trad("Open"), i: "open", a: "open", w: 72 },
+                                        { t: win.trad("Refresh"), i: "refresh", a: "refresh", w: 84 },
+                                        { t: win.trad("Add a network location"), i: "add", a: "add", w: 112 }
+                                    ]
+                                    delegate: QuickBtn {
+                                        title: modelData.t
+                                        iconName: modelData.i
+                                        minW: modelData.w
+                                        usable: modelData.a === "open" ? barRoot.canOpen : (modelData.a === "props" ? barRoot.canProps : true)
+                                        onActivated: barRoot.runCmd(modelData.a)
                                     }
                                 }
-                                Item { Layout.fillHeight: true }   // titresAlignes (1.1) : titre du groupe en bas du ruban
-                                QQC2.Label {
-                                    Layout.alignment: Qt.AlignHCenter
-                                    text: modelData.g
-                                    font: win.badgeFont
-                                    opacity: 0.75
-                                    color: Kirigami.Theme.textColor
-                                }
                             }
-
-                            Rectangle {
-                                id: grpSep
-                                Layout.preferredWidth: 1
-                                Layout.fillHeight: true
-                                Layout.topMargin: 6
-                                Layout.bottomMargin: 6
-                                Layout.leftMargin: 8
-                                Layout.rightMargin: 8
-                                color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
-                                               Kirigami.Theme.textColor.b, 0.12)
-                                // Die Seitenleiste endet genau auf der ersten Trennlinie (neben « Aktualisieren »)
-                                Component.onCompleted: if (index === 0) { win.firstGrp = grp; win.firstSep = grpSep }
+                            Item { Layout.fillHeight: true }   // titresAlignes (1.1) : titre du groupe en bas du ruban
+                            QQC2.Label {
+                                Layout.alignment: Qt.AlignHCenter
+                                text: win.trad("Navigation")
+                                font: win.badgeFont
+                                opacity: 0.75
+                                color: Kirigami.Theme.textColor
                             }
+                        }
+                        Rectangle {
+                            id: navSep
+                            Layout.preferredWidth: 1
+                            Layout.fillHeight: true
+                            Layout.topMargin: Kirigami.Units.largeSpacing
+                            Layout.bottomMargin: Kirigami.Units.largeSpacing
+                            Layout.leftMargin: Kirigami.Units.largeSpacing
+                            Layout.rightMargin: Kirigami.Units.largeSpacing
+                            color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
+                                           Kirigami.Theme.textColor.b, 0.12)
+                            // Die Seitenleiste endet genau auf dieser ersten Trennlinie
+                            Component.onCompleted: { win.firstGrp = navGrp; win.firstSep = navSep }
                         }
                     }
 
                     // groupeAfficher : une case par rubrique, décochée = rubrique masquée
                     ColumnLayout {
                         Layout.fillHeight: true
-                        spacing: 2
+                        spacing: Kirigami.Units.smallSpacing
 
                         // casesAfficher : 1re colonne Dossiers / Périphériques / Réseau, Imprimantes à droite
                         // de Dossiers ; la 1re ligne est au niveau des icônes des boutons (y = 8)
                         Item {
                             Layout.preferredHeight: win.ribbonBtnH
-                            Layout.preferredWidth: casesGrid.implicitWidth + 8
+                            Layout.preferredWidth: casesGrid.implicitWidth + Kirigami.Units.largeSpacing
                             Grid {
                                 id: casesGrid
-                                x: 4
-                                y: 8
+                                x: Kirigami.Units.smallSpacing
+                                y: Kirigami.Units.largeSpacing
                                 flow: Grid.TopToBottom
                                 rows: 3
-                                columnSpacing: 14
-                                rowSpacing: 2
+                                columnSpacing: Kirigami.Units.largeSpacing * 2
+                                rowSpacing: Kirigami.Units.smallSpacing
                                 Repeater {
                                     model: [
                                         { t: win.trad("Folders ({n})"), k: "folders" },
@@ -6078,9 +6016,9 @@ QQC2.ApplicationWindow {
                                     Component.onCompleted: if (indicator) indicator.opacity = 0
                                     // Hover wie bei den Karten : zarte Akzentfläche, Text in der Akzentfarbe ; offen = bleibt hervorgehoben
                                     background: Rectangle {
-                                        radius: 4
+                                        radius: Kirigami.Units.smallSpacing
                                         color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
-                                                       Kirigami.Theme.highlightColor.b, (warnRow.hovered || warnPopup.visible) ? 0.22 : 0)
+                                                       Kirigami.Theme.highlightColor.b, (warnRow.hovered || warnPopup.visible) ? 0.15 : 0)
                                         Behavior on color { ColorAnimation { duration: 120 } }
                                     }
                                     contentItem: QQC2.Label {
@@ -6093,8 +6031,8 @@ QQC2.ApplicationWindow {
                                     QQC2.Label {
                                         x: warnRow.indicator ? warnRow.indicator.x : 0
                                         y: warnRow.indicator ? warnRow.indicator.y : 0
-                                        width: warnRow.indicator ? warnRow.indicator.width : 18
-                                        height: warnRow.indicator ? warnRow.indicator.height : 18
+                                        width: warnRow.indicator ? warnRow.indicator.width : Kirigami.Units.iconSizes.small
+                                        height: warnRow.indicator ? warnRow.indicator.height : Kirigami.Units.iconSizes.small
                                         horizontalAlignment: Text.AlignHCenter
                                         verticalAlignment: Text.AlignVCenter
                                         text: "\u26A0"
@@ -6111,22 +6049,22 @@ QQC2.ApplicationWindow {
                                         dim: false
                                         property double closedAt: 0
                                         onClosed: closedAt = Date.now()
-                                        padding: 12
-                                        width: 290
+                                        padding: Kirigami.Units.largeSpacing * 2
+                                        width: Kirigami.Units.gridUnit * 16
                                         onAboutToShow: {
                                             var p = warnRow.mapToItem(QQC2.Overlay.overlay, 0, warnRow.height + 6)
                                             x = Math.max(8, Math.min(p.x, QQC2.Overlay.overlay.width - width - 8))
                                             y = p.y
                                         }
                                         background: Rectangle {
-                                            radius: 6
+                                            radius: Kirigami.Units.smallSpacing
                                             color: Kirigami.Theme.backgroundColor
                                             border.width: 1
                                             border.color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.25)
                                         }
                                         closePolicy: QQC2.Popup.CloseOnEscape | QQC2.Popup.CloseOnPressOutside
                                         contentItem: ColumnLayout {
-                                            spacing: 8
+                                            spacing: Kirigami.Units.largeSpacing
                                             QQC2.Label {
                                                 Layout.fillWidth: true
                                                 wrapMode: Text.Wrap
@@ -6135,7 +6073,7 @@ QQC2.ApplicationWindow {
                                             }
                                             RowLayout {
                                                 Layout.fillWidth: true
-                                                spacing: 10
+                                                spacing: Kirigami.Units.largeSpacing
                                                 QQC2.Slider {
                                                     id: warnSlider
                                                     Layout.fillWidth: true
@@ -6147,7 +6085,7 @@ QQC2.ApplicationWindow {
                                                     onMoved: backend.setWarnThreshold(Math.round(value))
                                                 }
                                                 QQC2.Label {
-                                                    Layout.preferredWidth: 38
+                                                    Layout.preferredWidth: Kirigami.Units.gridUnit * 2
                                                     horizontalAlignment: Text.AlignRight
                                                     font: win.badgeFont
                                                     text: Math.round(warnSlider.value) + " %"
@@ -6178,86 +6116,109 @@ QQC2.ApplicationWindow {
                         id: liveSep
                         Layout.preferredWidth: 1
                         Layout.fillHeight: true
-                        Layout.topMargin: 6
-                        Layout.bottomMargin: 6
+                        Layout.topMargin: Kirigami.Units.largeSpacing
+                        Layout.bottomMargin: Kirigami.Units.largeSpacing
                         Layout.leftMargin: win.sepGap
                         Layout.rightMargin: win.sepGap
                         color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
                                        Kirigami.Theme.textColor.b, 0.2)
                     }
 
-
+                    // aktionenUndWerkzeuge : Werkzeuge und Schnellaktionen in einer Gruppe
                     ColumnLayout {
-                        visible: win.showQuick
                         Layout.fillHeight: true
-                        Layout.preferredWidth: win.quickW
-                        Layout.minimumWidth: win.quickW
-                        Layout.maximumWidth: win.quickW
-                        spacing: 2
-                        Item {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: win.ribbonBtnH
-                            Row {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                spacing: 2
-                                QuickBtn {
-                                    title: win.trad("Trash")
-                                    sub: (backend && backend.trash && backend.trash.count > 0)
-                                         ? ((backend.trash.complete ? "" : "≥ ") + win.sizeShort(backend.trash.bytes)) : win.trad("Empty")
-                                    iconName: (backend && backend.trash && backend.trash.count > 0) ? "user-trash-full" : "user-trash"
-                                    minW: 84
-                                    onActivated: backend.openTrash()
-                                }
-                                QuickBtn {
-                                    title: win.trad("Terminal")
-                                    iconName: "utilities-terminal"
-                                    usable: ((backend && backend.tools) ? backend.tools : ({})).terminal !== false
-                                    onActivated: backend.launchTool("terminal", "")
-                                }
-                                QuickBtn {
-                                    title: win.trad("SSD optimization")
-                                    sub: (backend && backend.trimRunning) ? win.trad("running…") : ""
-                                    iconName: "drive-harddisk"
-                                    minW: 100
-                                    usable: backend && backend.trimSupported && !backend.trimRunning
-                                    onActivated: trimDialog.open()
-                                }
+                        spacing: Kirigami.Units.smallSpacing
+                        Row {
+                            Layout.alignment: Qt.AlignHCenter
+                            spacing: Kirigami.Units.smallSpacing
+                            QuickBtn {
+                                title: win.trad("System monitor")
+                                iconName: "utilities-system-monitor"
+                                minW: 104
+                                visible: ((backend && backend.tools) ? backend.tools : ({})).monitor !== false
+                                onActivated: barRoot.runCmd("monitor")
+                            }
+                            QuickBtn {
+                                title: win.trad("Analyze storage")
+                                iconName: "filelight"
+                                minW: 90
+                                visible: ((backend && backend.tools) ? backend.tools : ({})).analyze !== false
+                                onActivated: barRoot.runCmd("analyze")
+                            }
+                            QuickBtn {
+                                title: win.trad("SSD optimization")
+                                sub: (backend && backend.trimRunning) ? win.trad("running…") : ""
+                                iconName: "drive-harddisk"
+                                minW: 100
+                                usable: backend && backend.trimSupported && !backend.trimRunning
+                                onActivated: trimDialog.open()
+                            }
+                            QuickBtn {
+                                title: win.trad("Trash")
+                                sub: (backend && backend.trash && backend.trash.count > 0)
+                                     ? ((backend.trash.complete ? "" : "≥ ") + win.sizeShort(backend.trash.bytes)) : win.trad("Empty")
+                                iconName: (backend && backend.trash && backend.trash.count > 0) ? "user-trash-full" : "user-trash"
+                                minW: 84
+                                onActivated: backend.openTrash()
+                            }
+                            QuickBtn {
+                                title: win.trad("Terminal")
+                                iconName: "utilities-terminal"
+                                visible: ((backend && backend.tools) ? backend.tools : ({})).terminal !== false
+                                onActivated: backend.launchTool("terminal", "")
                             }
                         }
                         Item { Layout.fillHeight: true }
                         QQC2.Label {
                             Layout.alignment: Qt.AlignHCenter
-                            text: win.trad("Quick actions")
+                            text: win.trad("Actions & tools")
                             font: win.badgeFont
                             opacity: 0.75
                             color: Kirigami.Theme.textColor
                         }
                     }
-
                     Rectangle {
-                        visible: win.showQuick
+                        id: sysSep
                         Layout.preferredWidth: 1
                         Layout.fillHeight: true
-                        Layout.topMargin: 6
-                        Layout.bottomMargin: 6
+                        Layout.topMargin: Kirigami.Units.largeSpacing
+                        Layout.bottomMargin: Kirigami.Units.largeSpacing
                         Layout.leftMargin: win.sepGap
                         Layout.rightMargin: win.sepGap
-                        color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.2)
+                        color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
+                                       Kirigami.Theme.textColor.b, 0.2)
                     }
-                    // systeminfo : Distributions-Logo, Laufzeit, Installationsdatum, System und Kernel/Plasma
+
+                    // systemZentrale : Distribution und Rechner, die drei System-Schaltflächen und die Telemetrie (füllt den Rest)
                     ColumnLayout {
-                        visible: win.showInfo
+                        id: sysGrp
+                        Layout.fillWidth: true
                         Layout.fillHeight: true
-                        Layout.preferredWidth: win.infoW
-                        Layout.minimumWidth: win.infoW
-                        Layout.maximumWidth: win.infoW
-                        spacing: 2
+                        Layout.preferredWidth: win.sysButtonsW
+                        Layout.minimumWidth: win.sysButtonsW
+                        Layout.maximumWidth: 100000
+                        spacing: Kirigami.Units.smallSpacing
                         Item {
                             Layout.fillWidth: true
                             Layout.preferredHeight: win.ribbonBtnH
                             RowLayout {
                                 anchors.fill: parent
-                                spacing: 12
+                                spacing: win.sysGap
+                                Row {
+                                    id: sysButtons
+                                    Layout.alignment: Qt.AlignVCenter
+                                    spacing: Kirigami.Units.smallSpacing
+                                    QuickBtn { title: win.trad("System information"); iconName: "info"; minW: 100; onActivated: barRoot.runCmd("specs") }
+                                    QuickBtn { title: win.trad("System Settings"); iconName: "settings"; minW: 100; onActivated: barRoot.runCmd("settings") }
+                                    QuickBtn { title: win.trad("About"); iconName: "about"; minW: 84; onActivated: barRoot.runCmd("about") }
+                                }
+                                // Info-Karte (nach den Schaltflächen, vor der Telemetrie) : Logo der Distribution, Laufzeit, Installation, Rechner, Kernel und Plasma
+                                RowLayout {
+                                    id: infoCard
+                                    visible: win.showInfo
+                                    Layout.maximumWidth: 400   // sonst so breit wie der längste Text : « Rechner · Distribution Version » ist vollständig lesbar
+                                    Layout.fillHeight: true
+                                spacing: Kirigami.Units.largeSpacing * 2
                                 DistroLogo {
                                     logo: (backend && backend.sysInfo && backend.sysInfo.logoFile) ? ("file://" + backend.sysInfo.logoFile)
                                           : ((backend && backend.sysInfo) ? backend.sysInfo.logoName : "")
@@ -6266,7 +6227,7 @@ QQC2.ApplicationWindow {
                                 ColumnLayout {
                                     Layout.fillWidth: true
                                     Layout.alignment: Qt.AlignVCenter
-                                    spacing: 3
+                                    spacing: Kirigami.Units.smallSpacing
                                     readonly property var si: (backend && backend.sysInfo) ? backend.sysInfo : ({})
                                     Repeater {
                                         model: [
@@ -6279,8 +6240,8 @@ QQC2.ApplicationWindow {
                                         ]
                                         delegate: RowLayout {
                                             visible: modelData.t !== ""
-                                            spacing: 6
-                                            Kirigami.Icon { source: modelData.i; Layout.preferredWidth: 14; Layout.preferredHeight: 14 }
+                                            spacing: Kirigami.Units.smallSpacing
+                                            Kirigami.Icon { source: modelData.i; Layout.preferredWidth: Kirigami.Units.iconSizes.small; Layout.preferredHeight: Kirigami.Units.iconSizes.small }
                                             QQC2.Label {
                                                 id: infoLabel
                                                 Layout.fillWidth: true
@@ -6296,156 +6257,138 @@ QQC2.ApplicationWindow {
                                     }
                                 }
                             }
-                        }
-                        Item { Layout.fillHeight: true }
-                        QQC2.Label {
-                            Layout.alignment: Qt.AlignHCenter
-                            text: win.trad("System info")
-                            font: win.badgeFont
-                            opacity: 0.75
-                            color: Kirigami.Theme.textColor
-                        }
-                    }
-                    Rectangle {
-                        visible: win.showInfo
-                        Layout.preferredWidth: 1
-                        Layout.fillHeight: true
-                        Layout.topMargin: 6
-                        Layout.bottomMargin: 6
-                        Layout.leftMargin: win.sepGap
-                        Layout.rightMargin: win.sepGap
-                        color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.2)
-                    }
+                                // telemetrie : die vier Chips (CPU, RAM, Storage, Network) als ein 2 × 2-Panel ganz rechts ; es dehnt sich über den freien Platz
+                                ColumnLayout {
+                                    id: liveGrp
+                                    visible: win.showPanel
+                                    Layout.fillWidth: true
+                                    Layout.fillHeight: true
+                                    Layout.preferredWidth: 170
+                                    Layout.minimumWidth: 170
+                                    Layout.maximumWidth: 100000   // dehnbar : füllt den Platz rechts neben den Schaltflächen
+                                    spacing: 0
+                                    readonly property var st: ((backend && backend.sysStats) ? backend.sysStats : ({}))
+                                    readonly property bool ready: st !== null && st !== undefined && st.cpu !== undefined
+                                    readonly property bool roomy: width >= 170
+                                    // « 4,2 / 32,0 GB » : die Einheit des ersten Werts entfällt, wenn sie gleich ist
+                                    function pair(a, b) {
+                                        var ta = win.taille(a), tb = win.taille(b)
+                                        var ue = tb.substring(tb.lastIndexOf(" "))
+                                        return (ta.substring(ta.lastIndexOf(" ")) === ue ? ta.slice(0, ta.length - ue.length) : ta) + " / " + tb
+                                    }
+                                    // Die Werte stehen als einzelne Eigenschaften hier und nicht als neues Array pro Sekunde : die vier Chips bleiben bestehen,
+                                    // nur ihre Texte und Balken ändern sich (und nur, wenn sich der Wert wirklich ändert).
+                                    readonly property real fCpu: ready ? st.cpu / 100 : 0
+                                    readonly property real fRam: ready && st.ramTotal > 0 ? st.ramUsed / st.ramTotal : 0
+                                    readonly property real fDisk: ready && st.diskTotal > 0 ? st.diskUsed / st.diskTotal : 0
+                                    readonly property string tCpu: ready ? st.cpu + " %" : ""
+                                    readonly property string tRam: ready ? pair(st.ramUsed, st.ramTotal) : ""
+                                    readonly property string sRam: ready ? win.taille(st.ramUsed) : ""     // kurz : nur der belegte Teil
+                                    readonly property string tDisk: ready ? pair(st.diskUsed, st.diskTotal) : ""
+                                    readonly property string sDisk: ready ? win.taille(st.diskUsed) : ""
+                                    readonly property string tUp: ready ? win.rateText(st.up) : ""
+                                    readonly property string tDown: ready ? win.rateText(st.down) : ""
+                                    // Netz : « ▲ 2,4K/s  ▼ 3,3K/s » in zwei Farben ; bei schmalen Chips ohne « /s » (der Tooltip zeigt die vollen Werte)
+                                    function netText(kurz) {
+                                        if (!ready)
+                                            return ""
+                                        var e = kurz ? "" : "/s"
+                                        return "<font color='" + Kirigami.Theme.neutralTextColor + "'>\u25B2 " + win.rateMini(st.up) + e + "</font>&nbsp;&nbsp;"
+                                             + "<font color='" + Kirigami.Theme.positiveTextColor + "'>\u25BC " + win.rateMini(st.down) + e + "</font>"
+                                    }
+                                    function fracAt(i) { return i === 0 ? fCpu : (i === 1 ? fRam : (i === 2 ? fDisk : -1)) }
+                                    function textAt(i, kurz) { return i === 0 ? tCpu : (i === 1 ? (kurz ? sRam : tRam) : (kurz ? sDisk : tDisk)) }
 
-                    // liveUebersicht : kompakte Telemetrie-Chips im freien Platz rechts. Die Gruppe bestimmt die Mindestbreite
-                    // des Fensters nicht mit (preferredWidth 0) und blendet sich aus, wenn der Platz nicht reicht.
-                    ColumnLayout {
-                        id: liveGrp
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        Layout.preferredWidth: 0
-                        Layout.minimumWidth: 0
-                        Layout.maximumWidth: 100000   // dehnbar : füllt den Platz, den die Gruppen rechts daneben übrig lassen
-                        spacing: 2
-                        readonly property var st: ((backend && backend.sysStats) ? backend.sysStats : ({}))
-                        readonly property bool ready: st !== null && st !== undefined && st.cpu !== undefined
-                        readonly property bool roomy: width >= 190
-                        // « 4,2 / 32,0 GB » : die Einheit des ersten Werts entfällt, wenn sie gleich ist
-                        function pair(a, b) {
-                            var ta = win.taille(a), tb = win.taille(b)
-                            var ue = tb.substring(tb.lastIndexOf(" "))
-                            return (ta.substring(ta.lastIndexOf(" ")) === ue ? ta.slice(0, ta.length - ue.length) : ta) + " / " + tb
-                        }
-                        // Die Werte stehen als einzelne Eigenschaften hier und nicht als neues Array pro Sekunde : die vier Chips bleiben bestehen,
-                        // nur ihre Texte und Balken ändern sich (und nur, wenn sich der Wert wirklich ändert).
-                        readonly property real fCpu: ready ? st.cpu / 100 : 0
-                        readonly property real fRam: ready && st.ramTotal > 0 ? st.ramUsed / st.ramTotal : 0
-                        readonly property real fDisk: ready && st.diskTotal > 0 ? st.diskUsed / st.diskTotal : 0
-                        readonly property string tCpu: ready ? st.cpu + " %" : ""
-                        readonly property string tRam: ready ? pair(st.ramUsed, st.ramTotal) : ""
-                        readonly property string sRam: ready ? win.taille(st.ramUsed) : ""     // kurz : nur der belegte Teil
-                        readonly property string tDisk: ready ? pair(st.diskUsed, st.diskTotal) : ""
-                        readonly property string sDisk: ready ? win.taille(st.diskUsed) : ""
-                        readonly property string tUp: ready ? win.rateText(st.up) : ""
-                        readonly property string tDown: ready ? win.rateText(st.down) : ""
-                        // Netz : « ▲ 2,4K/s  ▼ 3,3K/s » in zwei Farben ; bei schmalen Chips ohne « /s » (der Tooltip zeigt die vollen Werte)
-                        function netText(kurz) {
-                            if (!ready)
-                                return ""
-                            var e = kurz ? "" : "/s"
-                            return "<font color='" + Kirigami.Theme.neutralTextColor + "'>\u25B2 " + win.rateMini(st.up) + e + "</font>&nbsp;&nbsp;"
-                                 + "<font color='" + Kirigami.Theme.positiveTextColor + "'>\u25BC " + win.rateMini(st.down) + e + "</font>"
-                        }
-                        function fracAt(i) { return i === 0 ? fCpu : (i === 1 ? fRam : (i === 2 ? fDisk : -1)) }
-                        function textAt(i, kurz) { return i === 0 ? tCpu : (i === 1 ? (kurz ? sRam : tRam) : (kurz ? sDisk : tDisk)) }
-
-                        // Telemetrie-Chips in einem leicht getönten Sub-Panel (2 × 2) : CPU, RAM, Speicher und Netz
-                        Item {
-                            id: livePanel
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: win.ribbonBtnH
-                            visible: liveGrp.roomy && liveGrp.ready
-                            // Chipbreite : reicht sie nicht für « 822 GB / 1,2 TB », zeigen die Chips nur den belegten Teil
-                            readonly property real chipW: (width - 10 - 4) / 2
-                            readonly property bool kurz: chipW < 114
-                            CardGlow {   // dasselbe Violett-Blau-Cyan wie das Hover der Karten, nur zurückgenommen
-                                anchors.fill: parent
-                                radius: 12
-                                hovered: true
-                                opacity: 0.5
-                            }
-                            GridLayout {
-                                anchors.fill: parent
-                                anchors.margins: 5
-                                columns: 2
-                                rowSpacing: 4
-                                columnSpacing: 4
-                                Repeater {
-                                    model: 4
-                                    delegate: Rectangle {
-                                        id: chip
-                                        readonly property bool isNet: index === 3
-                                        readonly property real f: Math.max(0, Math.min(1, liveGrp.fracAt(index)))
-                                        readonly property bool hot: f >= 0.9
-                                        readonly property bool warm: f >= 0.8
+                                    // Telemetrie-Chips in einem leicht getönten Sub-Panel (2 × 2) : CPU, RAM, Speicher und Netz
+                                    Item {
+                                        id: livePanel
                                         Layout.fillWidth: true
-                                        Layout.fillHeight: true
-                                        Layout.preferredWidth: 1
-                                        Layout.preferredHeight: 1
-                                        radius: 8
-                                        color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.06)
-                                        border.width: 1
-                                        border.color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.10)
-                                        Kirigami.Icon {
-                                            id: chipIcon
-                                            source: index === 0 ? liveIcons.cpu : (index === 1 ? liveIcons.ram : (index === 2 ? liveIcons.disk : liveIcons.net))
-                                            x: 6
-                                            y: 3
-                                            width: Math.round(win.lineH)
-                                            height: width
+                                        Layout.preferredHeight: win.ribbonBtnH
+                                        visible: liveGrp.roomy && liveGrp.ready
+                                        // Chipbreite : reicht sie nicht für « 822 GB / 1,2 TB », zeigen die Chips nur den belegten Teil
+                                        readonly property real chipW: (width - 10 - 4) / 2
+                                        readonly property bool kurz: chipW < 114
+                                        CardGlow {   // dasselbe Violett-Blau-Cyan wie das Hover der Karten, nur zurückgenommen
+                                            anchors.fill: parent
+                                            radius: 12
+                                            hovered: true
+                                            opacity: 0.5
                                         }
-                                        QQC2.Label {   // CPU / RAM / Storage / Network : alle vier mit Bezeichnung
-                                            x: 10 + chipIcon.width
-                                            y: 2
-                                            text: index === 0 ? "CPU" : (index === 1 ? "RAM" : (index === 2 ? "Storage" : "Network"))
-                                            font: win.badgeFont
-                                            opacity: 0.75
-                                            color: Kirigami.Theme.textColor
-                                        }
-                                        QQC2.Label {   // Wert : Festbreitschrift, rechtsbündig, damit nichts springt ; schrumpft nur im Extremfall
-                                            y: Math.round(win.lineH) + 1
-                                            width: implicitWidth
-                                            x: parent.width - 6 - width
-                                            transformOrigin: Item.Right
-                                            scale: Math.min(1, (parent.width - 12) / implicitWidth)   // zu breit (z. B. 999,9M/s beidseitig) : verkleinern statt überlaufen
-                                            textFormat: chip.isNet ? Text.RichText : Text.PlainText   // Netz : ▲ und ▼ in zwei Farben
-                                            text: chip.isNet ? liveGrp.netText(livePanel.kurz) : liveGrp.textAt(index, livePanel.kurz)
-                                            font.family: Kirigami.Theme.fixedWidthFont.family
-                                            font.pointSize: win.badgeFont.pointSize
-                                            color: Kirigami.Theme.textColor
-                                        }
-                                        HoverHandler { id: chipHover }
-                                        QQC2.ToolTip.visible: chip.isNet && chipHover.hovered && liveGrp.ready
-                                        QQC2.ToolTip.delay: 300
-                                        QQC2.ToolTip.text: "\u25B2 " + liveGrp.tUp + "   \u25BC " + liveGrp.tDown
-                                        Rectangle {   // Auslastung : Verlauf Violett → Blau → Cyan, ab 80 % bernstein, ab 90 % rot
-                                            visible: !chip.isNet
-                                            x: 6
-                                            y: parent.height - 6
-                                            width: parent.width - 12
-                                            height: 3
-                                            radius: 1.5
-                                            color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.14)
-                                            Rectangle {
-                                                width: parent.width * chip.f
-                                                height: parent.height
-                                                radius: parent.radius
-                                                Behavior on width { NumberAnimation { duration: 400; easing.type: Easing.OutCubic } }
-                                                gradient: Gradient {
-                                                    orientation: Gradient.Horizontal
-                                                    GradientStop { position: 0.0; color: chip.hot ? win.gaugeRed : (chip.warm ? "#f5a623" : Qt.rgba(0.69, 0.26, 1.0, 0.95)) }
-                                                    GradientStop { position: 0.55; color: chip.hot ? win.gaugeRed : (chip.warm ? "#f5a623" : Qt.rgba(0.24, 0.48, 1.0, 0.95)) }
-                                                    GradientStop { position: 1.0; color: chip.hot ? win.gaugeRed : (chip.warm ? "#f5a623" : Qt.rgba(0.0, 0.90, 1.0, 0.95)) }
+                                        GridLayout {
+                                            anchors.fill: parent
+                                            anchors.margins: Kirigami.Units.smallSpacing
+                                            columns: 2
+                                            rowSpacing: Kirigami.Units.smallSpacing
+                                            columnSpacing: Kirigami.Units.smallSpacing
+                                            Repeater {
+                                                model: 4
+                                                delegate: Rectangle {
+                                                    id: chip
+                                                    readonly property bool isNet: index === 3
+                                                    readonly property real f: Math.max(0, Math.min(1, liveGrp.fracAt(index)))
+                                                    readonly property bool hot: f >= 0.9
+                                                    readonly property bool warm: f >= 0.8
+                                                    Layout.fillWidth: true
+                                                    Layout.fillHeight: true
+                                                    Layout.preferredWidth: 1
+                                                    Layout.preferredHeight: 1
+                                                    radius: 8
+                                                    color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.06)
+                                                    border.width: 1
+                                                    border.color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.10)
+                                                    Kirigami.Icon {
+                                                        id: chipIcon
+                                                        source: index === 0 ? liveIcons.cpu : (index === 1 ? liveIcons.ram : (index === 2 ? liveIcons.disk : liveIcons.net))
+                                                        x: 6
+                                                        y: 3
+                                                        width: Math.round(win.lineH)
+                                                        height: width
+                                                    }
+                                                    QQC2.Label {   // CPU / RAM / Storage / Network : alle vier mit Bezeichnung
+                                                        x: 10 + chipIcon.width
+                                                        y: 2
+                                                        text: index === 0 ? "CPU" : (index === 1 ? "RAM" : (index === 2 ? "Storage" : "Network"))
+                                                        font: win.badgeFont
+                                                        opacity: 0.75
+                                                        color: Kirigami.Theme.textColor
+                                                    }
+                                                    QQC2.Label {   // Wert : Festbreitschrift, rechtsbündig, damit nichts springt ; schrumpft nur im Extremfall
+                                                        y: Math.round(win.lineH) + 1
+                                                        width: implicitWidth
+                                                        x: parent.width - 6 - width
+                                                        transformOrigin: Item.Right
+                                                        scale: Math.min(1, (parent.width - 12) / implicitWidth)   // zu breit (z. B. 999,9M/s beidseitig) : verkleinern statt überlaufen
+                                                        textFormat: chip.isNet ? Text.RichText : Text.PlainText   // Netz : ▲ und ▼ in zwei Farben
+                                                        text: chip.isNet ? liveGrp.netText(livePanel.kurz) : liveGrp.textAt(index, livePanel.kurz)
+                                                        font.family: Kirigami.Theme.fixedWidthFont.family
+                                                        font.pointSize: win.badgeFont.pointSize
+                                                        color: Kirigami.Theme.textColor
+                                                    }
+                                                    HoverHandler { id: chipHover }
+                                                    QQC2.ToolTip.visible: chip.isNet && chipHover.hovered && liveGrp.ready
+                                                    QQC2.ToolTip.delay: 300
+                                                    QQC2.ToolTip.text: "\u25B2 " + liveGrp.tUp + "   \u25BC " + liveGrp.tDown
+                                                    Rectangle {   // Auslastung : Verlauf Violett → Blau → Cyan, ab 80 % bernstein, ab 90 % rot
+                                                        visible: !chip.isNet
+                                                        x: 6
+                                                        y: parent.height - 6
+                                                        width: parent.width - 12
+                                                        height: 3
+                                                        radius: 1.5
+                                                        color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.14)
+                                                        Rectangle {
+                                                            width: parent.width * chip.f
+                                                            height: parent.height
+                                                            radius: parent.radius
+                                                            Behavior on width { NumberAnimation { duration: 400; easing.type: Easing.OutCubic } }
+                                                            gradient: Gradient {
+                                                                orientation: Gradient.Horizontal
+                                                                GradientStop { position: 0.0; color: chip.hot ? win.gaugeRed : (chip.warm ? "#f5a623" : Qt.rgba(0.69, 0.26, 1.0, 0.95)) }
+                                                                GradientStop { position: 0.55; color: chip.hot ? win.gaugeRed : (chip.warm ? "#f5a623" : Qt.rgba(0.24, 0.48, 1.0, 0.95)) }
+                                                                GradientStop { position: 1.0; color: chip.hot ? win.gaugeRed : (chip.warm ? "#f5a623" : Qt.rgba(0.0, 0.90, 1.0, 0.95)) }
+                                                            }
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
@@ -6456,23 +6399,21 @@ QQC2.ApplicationWindow {
                         Item { Layout.fillHeight: true }
                         QQC2.Label {
                             Layout.alignment: Qt.AlignHCenter
-                            visible: liveGrp.roomy && liveGrp.ready
-                            text: win.trad("System summary")
+                            text: win.trad("System center")
                             font: win.badgeFont
                             opacity: 0.75
                             color: Kirigami.Theme.textColor
                         }
                     }
-
                 }
                 }
                 // eigene Leiste unter dem Ribbon : sie liegt nicht über den Gruppentiteln
                 QQC2.ScrollBar {
                     id: ribbonHBar
                     Layout.fillWidth: true
-                    Layout.leftMargin: 10
-                    Layout.rightMargin: 10
-                    Layout.preferredHeight: visible ? 10 : 0
+                    Layout.leftMargin: Kirigami.Units.largeSpacing
+                    Layout.rightMargin: Kirigami.Units.largeSpacing
+                    Layout.preferredHeight: visible ? Kirigami.Units.largeSpacing + Kirigami.Units.smallSpacing / 2 : 0
                     visible: ribbonFlick.contentWidth > ribbonFlick.width + 1
                     orientation: Qt.Horizontal
                     policy: QQC2.ScrollBar.AlwaysOn

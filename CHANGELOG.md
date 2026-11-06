@@ -12,6 +12,22 @@ hidden and everything else works).
 
 ## Unreleased
 
+### Changed
+
+- **Ribbon spacing and hover from the Plasma theme.** Margins, gaps, radii and icon sizes in the ribbon (buttons, group separators,
+  *Show* grid, warning-threshold popup, system info card, telemetry chips) come from `Kirigami.Units` on the 4/8/16 px grid
+  (`smallSpacing`, `largeSpacing`, `iconSizes`) instead of fixed pixels, so they follow the system font and scale setting. Hover and
+  press on the ribbon buttons and on *Warning threshold…* use the theme's highlight colour at 15 % / 30 % with `smallSpacing`
+  corners. No fixed `font.pixelSize` is left; texts use the system fonts (`badgeFont`, `Kirigami.Theme.defaultFont`).
+- **Ribbon in four groups, read from left to right.** *Navigation* (Properties, Open, Refresh, Add a network location; the
+  former *Location* and *Network* groups are merged) · *Show* · *Actions & tools* (System monitor, Analyze storage, SSD optimization,
+  Trash with its size, Terminal; the former *Tools* and *Quick actions* groups merged) · *System centre*
+  (System information, System Settings, About, a card with the distribution logo, uptime, installation date, host, kernel and Plasma, sized so
+  its longest line is shown in full, and at the far right the four-chip telemetry panel that stretches to the right edge). All buttons are one component (`QuickBtn`)
+  with the same hover highlight. If the system centre has little room, the distribution card is dropped first (window below
+  about 1990 px), then the telemetry panel (below about 1710 px); the two buttons always stay. The sidebar edge still lines
+  up with the first separator, which is now after the four *Navigation* buttons, so the sidebar is wider than before.
+
 ### Fixed
 
 - **No more waiting in the window for external programs.** *Print test page*, *Set as default printer* and starting a scan
