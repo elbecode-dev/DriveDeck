@@ -13,8 +13,6 @@ BIN="$HOME/.local/bin"
 DATA="$HOME/.local/share/drivedeck"
 ICONS="$HOME/.local/share/icons"
 APPS="$HOME/.local/share/applications"
-DESK="$(xdg-user-dir DESKTOP 2>/dev/null || true)"
-[ -n "$DESK" ] && [ "$DESK" != "$HOME" ] || DESK="$HOME/Desktop"
 DESKTOP_ICON=1
 DEPS=1
 ASSUME_YES=0
@@ -47,7 +45,9 @@ fi
 # One line per requirement : kind:target | what it is for | required (1) or optional (0) | pacman | dnf | apt packages
 #   cmd:X  program X in PATH      py:M  Python module M      qml:P  QML module directory P (below the Qt QML import path)
 REQS=(
-"py:PyQt6.QtQml|PyQt6 with QtQml|1|python-pyqt6|python3-pyqt6|python3-pyqt6 python3-pyqt6.qtqml python3-pyqt6.qtquick"
+"py:PyQt6.QtWidgets|PyQt6 (Qt widgets)|1|python-pyqt6|python3-pyqt6|python3-pyqt6"
+"py:PyQt6.QtQml|PyQt6 with QtQml|1|python-pyqt6|python3-pyqt6|python3-pyqt6 python3-pyqt6.qtqml"
+"py:PyQt6.QtQuick|PyQt6 with QtQuick|1|python-pyqt6|python3-pyqt6|python3-pyqt6.qtquick"
 "qml:org/kde/kirigami|Kirigami (user interface)|1|kirigami|kf6-kirigami|qml6-module-org-kde-kirigami"
 "qml:org/kde/desktop|Plasma Qt Quick style (qqc2-desktop-style)|1|qqc2-desktop-style|kf6-qqc2-desktop-style|qml6-module-org-kde-qqc2desktopstyle"
 "qml:QtQuick/Dialogs|Qt Quick dialogs|1|qt6-declarative|qt6-qtdeclarative|qml6-module-qtquick-dialogs qml6-module-qtquick-controls qml6-module-qtquick-layouts qml6-module-qtquick-shapes qml6-module-qtquick-templates qml6-module-qtquick-window"
@@ -55,6 +55,7 @@ REQS=(
 "cmd:udevadm|device information|1|systemd|systemd-udev|udev"
 "cmd:udisksctl|mounting and safely removing drives|0|udisks2|udisks2|udisks2"
 "cmd:eject|ejecting media|0|util-linux|util-linux|eject"
+"cmd:fstrim|SSD optimization (TRIM)|0|util-linux|util-linux|util-linux"
 "cmd:smartctl|disk health (SMART)|0|smartmontools|smartmontools|smartmontools"
 "cmd:busctl|disk health warnings|0|systemd|systemd|systemd"
 "cmd:smbclient|network shares (Samba client)|0|smbclient|samba-client|smbclient"
@@ -121,7 +122,12 @@ ask() {   # ask "question" : yes with --yes, or when you answer Y or just press 
     case "${a:-y}" in [yY]*) return 0 ;; *) return 1 ;; esac
 }
 
-run_root() { if [ "$(id -u)" = 0 ]; then "$@"; else sudo "$@"; fi; }
+run_root() {
+    if [ "$(id -u)" = 0 ]; then "$@"
+    elif command -v sudo >/dev/null; then sudo "$@"
+    else echo "  sudo is not available: run this script as root or install sudo." >&2; return 1
+    fi
+}
 
 install_packages() {
     case "$PM" in
@@ -137,7 +143,9 @@ if [ "${#pkgs[@]}" -gt 0 ] && [ "$DEPS" = 1 ]; then
     else
         echo
         echo "Missing packages ($PM): ${pkgs[*]}"
-        if ask "Install them now (sudo asks for your password)?"; then
+        if [ "$(id -u)" != 0 ] && ! command -v sudo >/dev/null; then
+            echo "  sudo was not found, so the packages cannot be installed from here. Install them as root, then run ./install.sh again."
+        elif ask "Install them now (sudo asks for your password)?"; then
             # All at once; if one package name does not exist on this version of the distribution, retry one by one
             # so that the others still get installed.
             if ! install_packages "${pkgs[@]}"; then
@@ -200,6 +208,9 @@ DESKTOP
 chmod 644 "$APPS/drivedeck.desktop"
 
 if [ "$DESKTOP_ICON" = 1 ]; then
+    # looked up only now : xdg-user-dirs may just have been installed above
+    DESK="$(xdg-user-dir DESKTOP 2>/dev/null || true)"
+    [ -n "$DESK" ] && [ "$DESK" != "$HOME" ] || DESK="$HOME/Desktop"
     mkdir -p "$DESK"
     install -m 755 "$APPS/drivedeck.desktop" "$DESK/drivedeck.desktop"
     echo "  desktop shortcut: $DESK/drivedeck.desktop"

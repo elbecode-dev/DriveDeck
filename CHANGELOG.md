@@ -10,6 +10,16 @@ hidden and everything else works).
 
 ---
 
+## Unreleased
+
+### Fixed
+
+- **uninstall.sh was not executable**, so `./uninstall.sh` failed with "Permission denied". It is now, and it also rejects unknown options and understands `--help`.
+- **`--purge` now also removes** the icon cache `~/.local/share/icons/drivedeck_cache`; the uninstaller refreshes the menu cache afterwards.
+- **install.sh:** the desktop folder is looked up after the packages are installed (so a just-installed `xdg-user-dirs` is used and the shortcut goes to the right folder); a missing `sudo` gives one clear message instead of a failure for every package; `PyQt6.QtWidgets` and `PyQt6.QtQuick` are checked separately (Debian ships them in separate packages); `fstrim` is listed as an optional program.
+
+---
+
 ## 2.0.0-beta.8.3 – 2026-11-06 (new ribbon, audit fixes, cleanup)
 
 ### Changed
