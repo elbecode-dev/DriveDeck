@@ -10,7 +10,7 @@ hidden and everything else works).
 
 ---
 
-## Unreleased
+## 2.0.0-beta.8.4 – 2026-11-07 (installer fixes)
 
 ### Fixed
 
