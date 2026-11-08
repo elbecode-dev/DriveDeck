@@ -10,6 +10,30 @@ hidden and everything else works).
 
 ---
 
+## 2.0.0-beta.8.6 – 2026-11-08 (Glass window)
+
+### Added
+
+- **Own title bar, no KWin frame.** The window is frameless and transparent: small app icon on the left, name in the
+  centre, traffic-light buttons on the right (yellow minimise, green maximise/restore, red close). Dragging the bar moves
+  the window, a double click maximises it, the edges and corners resize it. The corners are rounded (radius 12) and a
+  thin edge outlines the window; both disappear when maximised.
+- **Blur from the topmost pixel row.** Title bar, ribbon, content and footer are translucent and KWin blurs what is
+  behind the whole window (rounded region, follows the window size). It uses `KWindowEffects` from KF6WindowSystem via
+  `ctypes`. Without blur support (or with `DRIVEDECK_NOBLUR=1`) all surfaces stay opaque.
+- **Pulsing warnings.** The CPU, RAM and Storage chips pulse red from 90 % (Storage: less than 10 % free), and the usage
+  bars of drive and network cards breathe once the warning threshold is reached. The animations run only in the
+  critical state.
+- **Hover feedback.** Drive and network cards, the telemetry chips and the I/O sparkline scale up smoothly (1.03,
+  150 ms). The chips get a thin cyan edge.
+- **Neon sparklines.** Read is cyan, write is magenta, with a soft glow; while data is read or written the line
+  transparency pulses.
+
+### Changed
+
+- The hard separator line below the ribbon is gone.
+- Chip labels use 65 % opacity.
+
 ## 2.0.0-beta.8.5 – 2026-11-08 (UI polish)
 
 ### Changed
