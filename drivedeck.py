@@ -12,6 +12,7 @@ import hashlib
 import json
 import re
 import shutil
+import signal
 import socket
 import os
 import subprocess
@@ -184,6 +185,15 @@ EXTRA_DE = {
     "DriveDeck runs “fstrim” on all mounted drives that support it. This needs administrator rights and can take a while.":
         "DriveDeck führt „fstrim“ auf allen eingebundenen Laufwerken aus, die es unterstützen. Das braucht Administratorrechte und kann etwas dauern.",
     "Scan…": "Scannen …",
+    "Rename…": "Umbenennen …",
+    "Customize the application name (e.g. This PC, CyberDeck)": "Anwendungsnamen anpassen (z. B. Dieser PC, CyberDeck)",
+    "Application name:": "Anwendungsname:",
+    "Change name…": "Name ändern …",
+    "Reset": "Zurücksetzen",
+    "Rename DriveDeck": "DriveDeck umbenennen",
+    "Name shown in the title bar and as the heading of the drive list. Leave empty for the default names.":
+        "Name in der Titelleiste und als Überschrift der Laufwerksliste. Leer lassen für die Standardnamen.",
+    "Reset name": "Namen zurücksetzen",
     "Copy name": "Namen kopieren",
     "Set as default printer": "Als Standarddrucker festlegen",
     "Print test page": "Testseite drucken",
@@ -775,10 +785,7 @@ def load_net_locations():
 
 def save_net_locations(locs):
     os.makedirs(CONFIG_DIR, exist_ok=True)
-    tmp = NET_CONFIG + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(locs, f, ensure_ascii=False, indent=2)
-    os.replace(tmp, NET_CONFIG)
+    schreibe_atomar(NET_CONFIG, json.dumps(locs, ensure_ascii=False, indent=2))
 
 
 def net_url(loc):
@@ -835,10 +842,7 @@ def _sync_places(locs):
         bak = PLACES + ".bak-drivedeck"
         if not os.path.exists(bak):
             shutil.copy2(PLACES, bak)
-        tmp = PLACES + ".drivedeck.tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            f.write(nouveau)
-        os.replace(tmp, PLACES)
+        schreibe_atomar(PLACES, nouveau)
     except OSError as e:
         print("[drivedeck] favoris Dolphin :", e)
 
@@ -993,8 +997,30 @@ def warn_begrenzen(wert):
 CLICK_MODES = ("system", "double", "single")
 
 
+def schreibe_atomar(pfad, text, modus=None):
+    """Datei atomar schreiben : erst Temp-Datei im selben Ordner, auf die Platte zwingen (fsync), dann ersetzen. Ein Absturz
+    oder Stromausfall hinterlässt so entweder die alte oder die neue Datei, nie eine halbe oder leere. Wirft OSError."""
+    tmp = pfad + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        f.write(text)
+        f.flush()
+        os.fsync(f.fileno())
+    if modus is not None:
+        os.chmod(tmp, modus)
+    os.replace(tmp, pfad)
+NAME_MAX = 40   # eigener Programmname : höchstens so viele Zeichen
+
+
+def name_begrenzen(wert):
+    """Eigener Programmname : Leerraum außen weg, Zeilenumbrüche und Steuerzeichen raus, höchstens NAME_MAX Zeichen."""
+    if not isinstance(wert, str):
+        return ""
+    sauber = "".join(c if c.isprintable() else " " for c in wert)
+    return " ".join(sauber.split())[:NAME_MAX].strip()
+
+
 def lade_einstellungen():
-    """Persönliche Einstellungen aus settings.json : {"warn_threshold_percent", "click_mode"} – ungültig = Standard."""
+    """Persönliche Einstellungen aus settings.json : {"warn_threshold_percent", "click_mode", "custom_name"} – ungültig = Standard."""
     try:
         if not os.path.exists(PREFS_CONFIG) and os.path.exists(_PREFS_ALT):
             os.replace(_PREFS_ALT, PREFS_CONFIG)
@@ -1009,20 +1035,59 @@ def lade_einstellungen():
         data = {}
     modus = data.get("click_mode")
     return {"warn_threshold_percent": warn_begrenzen(data.get("warn_threshold_percent", WARN_STD)),
-            "click_mode": modus if modus in CLICK_MODES else "system"}
+            "click_mode": modus if modus in CLICK_MODES else "system",
+            "custom_name": name_begrenzen(data.get("custom_name", ""))}
 
 
 def speichere_einstellungen(einst):
     try:
         os.makedirs(CONFIG_DIR, exist_ok=True)
-        tmp = PREFS_CONFIG + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(einst, f, indent=2)
-            f.flush()
-            os.fsync(f.fileno())   # erst auf die Platte, dann ersetzen : ein Stromausfall hinterlässt nie eine leere Datei
-        os.replace(tmp, PREFS_CONFIG)
+        schreibe_atomar(PREFS_CONFIG, json.dumps(einst, indent=2))
     except OSError as e:
         print("[drivedeck] Einstellungen :", e)
+
+
+DESKTOP_DATEI = os.path.expanduser("~/.local/share/applications/drivedeck.desktop")   # legt install.sh an
+DESKTOP_STANDARDNAME = "DriveDeck"
+
+
+def update_desktop_entry_name(neuer_name, datei=None):
+    """Setzt « Name= » im Startereintrag (KDE-Anwendungsmenü, KRunner) auf den eigenen Namen, bei leerem Namen zurück auf
+    « DriveDeck ». Fasst nur eine vorhandene Datei an, die auf DriveDeck startet, und nur die Zeile « Name= » im Abschnitt
+    [Desktop Entry] ; Rechte bleiben erhalten. Gibt True zurück, wenn die Datei geändert wurde. Wirft nie."""
+    datei = datei or DESKTOP_DATEI
+    wert = (name_begrenzen(neuer_name) or DESKTOP_STANDARDNAME).replace("\\", "\\\\")   # Desktop-Spezifikation : « \ » maskieren
+    try:
+        with open(datei, encoding="utf-8") as f:
+            zeilen = f.read().split("\n")
+        if not any(z.startswith("Exec=") and "drivedeck" in z for z in zeilen):
+            return False   # nicht unsere Datei
+        im_eintrag, geaendert, neu = False, False, []
+        for z in zeilen:
+            if z.startswith("["):
+                im_eintrag = z.strip() == "[Desktop Entry]"
+            if im_eintrag and z.startswith("Name=") and z != "Name=" + wert:
+                z, geaendert = "Name=" + wert, True
+            neu.append(z)
+        if not geaendert:
+            return False
+        schreibe_atomar(datei, "\n".join(neu), os.stat(datei).st_mode & 0o7777)
+        return True
+    except FileNotFoundError:
+        return False   # nicht installiert (z. B. Start aus dem Projektordner) : nichts zu tun
+    except (OSError, UnicodeError) as e:
+        print("[drivedeck] Startereintrag :", e)
+        return False
+
+
+def desktop_name_abgleichen(neuer_name, datei=None):
+    """Startereintrag anpassen und danach den Desktop-Datenbank-Cache auffrischen (Plasma liest den Ordner ohnehin neu)."""
+    datei = datei or DESKTOP_DATEI
+    if update_desktop_entry_name(neuer_name, datei):
+        try:
+            subprocess.run(["update-desktop-database", os.path.dirname(datei)], capture_output=True, timeout=15, check=False)
+        except (OSError, subprocess.SubprocessError):
+            pass   # Programm fehlt oder hängt : der Eintrag selbst ist trotzdem geschrieben
 
 
 def einfachklick_system():
@@ -1115,10 +1180,7 @@ def load_pins():
 def save_pins(pins):
     try:
         os.makedirs(CONFIG_DIR, exist_ok=True)
-        tmp = PINS_CONFIG + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(pins, f, ensure_ascii=False)
-        os.replace(tmp, PINS_CONFIG)
+        schreibe_atomar(PINS_CONFIG, json.dumps(pins, ensure_ascii=False))
     except OSError as e:
         print("[drivedeck] schnellzugriff :", e)
 
@@ -1492,10 +1554,7 @@ def enregistrer_cache_disques(liste):
         if sig == _DISQUES_STAND[0] and time.monotonic() - _DISQUES_STAND[1] < 60:
             return
         os.makedirs(os.path.dirname(DISK_CACHE), exist_ok=True)
-        tmp = DISK_CACHE + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            f.write(contenu)
-        os.replace(tmp, DISK_CACHE)
+        schreibe_atomar(DISK_CACHE, contenu)
         _DISQUES_ECRIT = contenu
         _DISQUES_STAND[0], _DISQUES_STAND[1] = sig, time.monotonic()
     except (OSError, TypeError, ValueError):
@@ -1512,10 +1571,7 @@ def enregistrer_cache_reseau(liste):
         if contenu == _RESEAU_ECRIT:
             return
         os.makedirs(os.path.dirname(NET_CACHE), exist_ok=True)
-        tmp = NET_CACHE + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            f.write(contenu)
-        os.replace(tmp, NET_CACHE)
+        schreibe_atomar(NET_CACHE, contenu)
         _RESEAU_ECRIT = contenu
     except (OSError, TypeError, ValueError):
         pass
@@ -1546,10 +1602,7 @@ def enregistrer_cache_imprimantes(liste):
         if contenu == _PRN_ECRIT:
             return
         os.makedirs(os.path.dirname(PRN_CACHE), exist_ok=True)
-        tmp = PRN_CACHE + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            f.write(contenu)
-        os.replace(tmp, PRN_CACHE)
+        schreibe_atomar(PRN_CACHE, contenu)
         _PRN_ECRIT = contenu
     except (OSError, TypeError, ValueError):
         pass
@@ -1665,10 +1718,7 @@ def enregistrer_imprimantes_connues(donnees):
         return
     try:
         os.makedirs(os.path.dirname(PRN_CONNUES), exist_ok=True)
-        tmp = PRN_CONNUES + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            f.write(contenu)
-        os.replace(tmp, PRN_CONNUES)
+        schreibe_atomar(PRN_CONNUES, contenu)
         _PRN_CONNUES_ECRIT[0] = contenu
     except OSError:
         pass
@@ -1944,10 +1994,7 @@ def charger_cache_scanners():
 def enregistrer_cache_scanners(liste):
     try:
         os.makedirs(os.path.dirname(SCAN_CACHE), exist_ok=True)
-        tmp = SCAN_CACHE + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(liste, f)
-        os.replace(tmp, SCAN_CACHE)
+        schreibe_atomar(SCAN_CACHE, json.dumps(liste))
     except (OSError, TypeError, ValueError):
         pass
 
@@ -2035,10 +2082,7 @@ def charger_maj():
 def enregistrer_maj(etat):
     try:
         os.makedirs(CONFIG_DIR, exist_ok=True)
-        tmp = MAJ_CONFIG + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(etat, f)
-        os.replace(tmp, MAJ_CONFIG)
+        schreibe_atomar(MAJ_CONFIG, json.dumps(etat))
     except OSError:
         pass
 
@@ -2813,6 +2857,7 @@ class Backend(QObject):
     sysInfoChanged = pyqtSignal()
     trimChanged = pyqtSignal()
     warnThresholdChanged = pyqtSignal()
+    customNameChanged = pyqtSignal()
     pinsChanged = pyqtSignal()
     tempChanged = pyqtSignal()
     tempUpdated = pyqtSignal(dict)
@@ -2863,6 +2908,8 @@ class Backend(QObject):
         self._einst = lade_einstellungen()
         self._einfachklick = einfachklick_aktiv(self._einst["click_mode"])
         self._warn = self._einst["warn_threshold_percent"]
+        if self._einst["custom_name"]:   # Eintrag stimmt nach einer Neuinstallation wieder mit dem eigenen Namen überein
+            threading.Thread(target=desktop_name_abgleichen, args=(self._einst["custom_name"],), daemon=True).start()
         self._starten(self._verifierMaj)
         self._starten(self._diskLoop)
         self._starten(self._netLoop)
@@ -3508,6 +3555,21 @@ class Backend(QObject):
             speichere_einstellungen(self._einst)
             self.warnThresholdChanged.emit()
 
+    @pyqtProperty(str, notify=customNameChanged)
+    def customName(self):
+        """Eigener Programmname (leer = Standardnamen)."""
+        return self._einst["custom_name"]
+
+    @pyqtSlot(str)
+    def setCustomName(self, name):
+        name = name_begrenzen(name)
+        if name != self._einst["custom_name"]:
+            self._einst["custom_name"] = name
+            speichere_einstellungen(self._einst)
+            self.customNameChanged.emit()
+            # Startereintrag im Hintergrund nachziehen : ohne Qt-Aufrufe, darf beim Beenden einfach abbrechen
+            threading.Thread(target=desktop_name_abgleichen, args=(name,), daemon=True).start()
+
     @pyqtProperty(bool, constant=True)
     def updateCheck(self):
         return self._maj["enabled"] and bool(MAJ_API)
@@ -3575,10 +3637,7 @@ class Backend(QObject):
             etat = {k: {"collapsed": bool(data[k]["collapsed"]), "shown": bool(data[k]["shown"])}
                     for k in SECTIONS}
             os.makedirs(CONFIG_DIR, exist_ok=True)
-            tmp = SECT_CONFIG + ".tmp"
-            with open(tmp, "w", encoding="utf-8") as f:
-                json.dump(etat, f)
-            os.replace(tmp, SECT_CONFIG)
+            schreibe_atomar(SECT_CONFIG, json.dumps(etat))
         except (OSError, ValueError, TypeError, KeyError) as e:
             print("[drivedeck] rubriques :", e)
 
@@ -3591,10 +3650,7 @@ class Backend(QObject):
         etat["max"] = bool(maximized)
         try:
             os.makedirs(CONFIG_DIR, exist_ok=True)
-            tmp = WIN_CONFIG + ".tmp"
-            with open(tmp, "w", encoding="utf-8") as f:
-                json.dump(etat, f)
-            os.replace(tmp, WIN_CONFIG)
+            schreibe_atomar(WIN_CONFIG, json.dumps(etat))
         except OSError as e:
             print("[drivedeck] taille de la fenêtre :", e)
 
@@ -4157,7 +4213,9 @@ import org.kde.kirigami as Kirigami
 QQC2.ApplicationWindow {
     id: win
     visible: true
-    title: "DriveDeck"
+    // Eigener Name (Rechtsklick auf die Titelleiste oder die Laufwerksüberschrift) ; leer = « DriveDeck » bzw. « This PC »
+    readonly property string customName: (backend && backend.customName) ? backend.customName : ""
+    title: customName !== "" ? customName : "DriveDeck"
     // minRuban : la fenêtre ne descend pas sous la largeur du ruban (elle dépend de la langue)
     // Die Gruppen rechts von « Anzeigen » (Übersicht, Info & Filter, Schnellaktionen) zählen nicht mit : sie erscheinen nur, wenn
     // Platz ist. Sonst würde ihr Erscheinen die Mindestbreite anheben und das Fenster nie wieder schmaler werden lassen.
@@ -4276,6 +4334,43 @@ QQC2.ApplicationWindow {
             }
         }
     }
+    // Kleiner Stift neben dem Namen : erscheint, sobald die Maus über dem Kopfbereich steht ; Klick öffnet « Umbenennen »
+    component EditPencil: Item {
+        id: ep
+        property bool shown: false
+        property bool withTip: true
+        signal clicked()
+        implicitWidth: 20
+        implicitHeight: 20
+        opacity: pencilMouse.containsMouse ? 1.0 : (shown ? 0.6 : 0.0)
+        visible: opacity > 0
+        Behavior on opacity { NumberAnimation { duration: 150; easing.type: Easing.InOutQuad } }
+        Shape {
+            anchors.centerIn: parent
+            width: 16
+            height: 16
+            preferredRendererType: Shape.CurveRenderer
+            ShapePath {
+                strokeColor: Kirigami.Theme.textColor
+                strokeWidth: 1.2
+                fillColor: "transparent"
+                capStyle: ShapePath.RoundCap
+                joinStyle: ShapePath.RoundJoin
+                PathSvg { path: "M2.5,13.5 L3.3,10.2 L11,2.5 L13.5,5 L5.8,12.7 Z M9.5,4 L12,6.5" }
+            }
+        }
+        MouseArea {
+            id: pencilMouse
+            anchors.fill: parent
+            anchors.margins: -4
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: ep.clicked()
+        }
+        QQC2.ToolTip.visible: ep.withTip && pencilMouse.containsMouse
+        QQC2.ToolTip.delay: 400
+        QQC2.ToolTip.text: win.trad("Customize the application name (e.g. This PC, CyberDeck)")
+    }
     // Ampel-Knopf im Titelbalken (Minimieren gelb, Maximieren grün, Schließen rot) : beim Überfahren erscheint das Symbol
     component WinBtn: Rectangle {
         id: wbtn
@@ -4324,6 +4419,55 @@ QQC2.ApplicationWindow {
         hoverEnabled: true
         acceptedButtons: Qt.LeftButton
         onPressed: win.startSystemResize(edges)
+    }
+
+    QQC2.Menu {
+        id: nameMenu
+        QQC2.MenuItem {
+            text: win.trad("Rename…")
+            icon.name: "edit-rename"
+            onTriggered: renameDialog.open()
+        }
+        QQC2.MenuItem {
+            text: win.trad("Reset name")
+            icon.name: "edit-undo"
+            enabled: win.customName !== ""
+            onTriggered: backend.setCustomName("")
+        }
+    }
+    QQC2.Dialog {
+        id: renameDialog
+        modal: true
+        anchors.centerIn: QQC2.Overlay.overlay
+        title: win.trad("Rename DriveDeck")
+        width: 440
+        standardButtons: QQC2.Dialog.Ok | QQC2.Dialog.Cancel | QQC2.Dialog.Reset
+        onAboutToShow: {
+            nameField.text = win.customName
+            nameField.forceActiveFocus()
+            nameField.selectAll()
+        }
+        onAccepted: backend.setCustomName(nameField.text)
+        onReset: {
+            backend.setCustomName("")
+            renameDialog.close()
+        }
+        contentItem: ColumnLayout {
+            spacing: Kirigami.Units.largeSpacing
+            QQC2.Label {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                opacity: 0.75
+                text: win.trad("Name shown in the title bar and as the heading of the drive list. Leave empty for the default names.")
+            }
+            QQC2.TextField {
+                id: nameField
+                Layout.fillWidth: true
+                maximumLength: 40
+                placeholderText: win.trad("This PC")
+                onAccepted: { renameDialog.accept() }
+            }
+        }
     }
 
     // Sektionskopf : Titel in Versalien, Anzahl als Pille im Akzentton, danach ein Verlauf, der nach rechts ausblendet
@@ -4672,7 +4816,7 @@ QQC2.ApplicationWindow {
             if (ps.length === 0)
                 rows.push({ type: "hint" })
         }
-        rows.push({ type: "head", key: "pc", selKey: "head:pc", label: trad("This PC"), icon: "computer", collapsed: pcCollapsed })
+        rows.push({ type: "head", key: "pc", selKey: "head:pc", label: customName !== "" ? customName : trad("This PC"), icon: "computer", collapsed: pcCollapsed })
         if (!pcCollapsed) {
             var ds = ((backend && backend.disks) ? backend.disks : [])
             for (var j = 0; j < ds.length; j++) {
@@ -5092,15 +5236,32 @@ QQC2.ApplicationWindow {
                     Layout.fillWidth: true
                 }
                 QQC2.Label { text: win.trad("File system:"); opacity: 0.75 }
-                QQC2.Label { text: win.propsDisk.fstype || ""; Layout.fillWidth: true }
+                QQC2.Label {
+                    text: win.propsDisk.fstype || ""
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
+                    HoverHandler { id: fsHover }
+                    QQC2.ToolTip.visible: fsHover.hovered && parent.truncated
+                    QQC2.ToolTip.text: text
+                }
                 QQC2.Label { text: win.trad("Mount point:"); opacity: 0.75 }
                 QQC2.Label {
                     text: win.propsDisk.mountpoint || ""
                     Layout.fillWidth: true
                     elide: Text.ElideMiddle
+                    HoverHandler { id: mpHover }
+                    QQC2.ToolTip.visible: mpHover.hovered && truncated
+                    QQC2.ToolTip.text: text
                 }
                 QQC2.Label { text: win.trad("Device:"); opacity: 0.75 }
-                QQC2.Label { text: win.propsDisk.device || ""; Layout.fillWidth: true }
+                QQC2.Label {
+                    text: win.propsDisk.device || ""
+                    Layout.fillWidth: true
+                    elide: Text.ElideMiddle
+                    HoverHandler { id: devHover }
+                    QQC2.ToolTip.visible: devHover.hovered && truncated
+                    QQC2.ToolTip.text: text
+                }
                 QQC2.Label {
                     visible: ((backend && backend.temps) ? backend.temps : ({}))[win.propsDisk.device || ""] !== undefined
                     text: win.trad("Temperature:")
@@ -5176,13 +5337,13 @@ QQC2.ApplicationWindow {
                     spacing: Kirigami.Units.largeSpacing
                     RowLayout {
                         spacing: 8
-                        Rectangle { width: 10; height: 10; color: pie.usedColor }
+                        Rectangle { Layout.preferredWidth: 10; Layout.preferredHeight: 10; color: pie.usedColor }
                         QQC2.Label { text: win.trad("Used: {size}").replace("{size}", win.taille(win.propsDisk.used || 0)) }
                     }
                     RowLayout {
                         spacing: 8
                         Rectangle {
-                            width: 10; height: 10
+                            Layout.preferredWidth: 10; Layout.preferredHeight: 10
                             color: Kirigami.Theme.alternateBackgroundColor
                             border.width: 1
                             border.color: pie.lineColor
@@ -5192,7 +5353,7 @@ QQC2.ApplicationWindow {
                     RowLayout {
                         spacing: 8
                         Rectangle {
-                            width: 10; height: 10
+                            Layout.preferredWidth: 10; Layout.preferredHeight: 10
                             color: Kirigami.Theme.backgroundColor
                             border.width: 1
                             border.color: pie.lineColor
@@ -5895,6 +6056,27 @@ QQC2.ApplicationWindow {
             }
 
             Kirigami.Separator { Layout.fillWidth: true }
+            QQC2.Label {
+                Layout.fillWidth: true
+                font.bold: true
+                text: win.trad("Application name:")
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Kirigami.Units.largeSpacing
+                QQC2.Button {
+                    text: win.trad("Change name…")
+                    onClicked: renameDialog.open()
+                }
+                QQC2.Button {
+                    visible: win.customName !== ""
+                    text: win.trad("Reset")
+                    onClicked: backend.setCustomName("")
+                }
+                Item { Layout.fillWidth: true }
+            }
+
+            Kirigami.Separator { Layout.fillWidth: true }
 
             QQC2.Label {
                 Layout.fillWidth: true
@@ -5933,11 +6115,29 @@ QQC2.ApplicationWindow {
                 acceptedButtons: Qt.LeftButton
                 onDoubleTapped: win.toggleMax()
             }
+            TapHandler {
+                acceptedButtons: Qt.RightButton
+                onTapped: nameMenu.popup()
+            }
+            HoverHandler { id: titleHover }
             QQC2.Label {   // Name mittig im Fenster, unabhängig von Symbol und Knöpfen
+                id: titleLabel
                 anchors.centerIn: parent
                 text: win.title
                 font.bold: true
                 opacity: 0.85
+                HoverHandler { id: titleLabelHover }
+                QQC2.ToolTip.visible: titleLabelHover.hovered
+                QQC2.ToolTip.delay: 600
+                QQC2.ToolTip.text: win.trad("Customize the application name (e.g. This PC, CyberDeck)")
+            }
+            EditPencil {
+                anchors.left: titleLabel.right
+                anchors.leftMargin: Kirigami.Units.largeSpacing
+                anchors.verticalCenter: titleLabel.verticalCenter
+                shown: titleHover.hovered
+                withTip: false
+                onClicked: renameDialog.open()
             }
             RowLayout {
                 anchors.fill: parent
@@ -6779,9 +6979,17 @@ QQC2.ApplicationWindow {
                             QQC2.Label {
                                 text: r.label || ""
                                 font.weight: row.isHead ? Font.DemiBold : Font.Normal
-                                Layout.fillWidth: true
+                                Layout.fillWidth: !(row.isHead && r.key === "pc")
+                                Layout.maximumWidth: Kirigami.Units.gridUnit * 14
                                 elide: Text.ElideRight
                             }
+                            EditPencil {   // nur an der Überschrift der Laufwerksliste ; der Zeilen-Tooltip erklärt ihn
+                                visible: row.isHead && r.key === "pc" && opacity > 0
+                                shown: rowHover.hovered
+                                withTip: false
+                                onClicked: renameDialog.open()
+                            }
+                            Item { visible: row.isHead && r.key === "pc"; Layout.fillWidth: true }
                             QQC2.ToolButton {   // « + » : Ordner per Dialog anheften
                                 visible: row.isHead && r.canAdd === true
                                 icon.name: "list-add"
@@ -6831,7 +7039,9 @@ QQC2.ApplicationWindow {
                                 keyHandler.forceActiveFocus()
                             }
                             onClicked: function(mouse) {
-                                if (row.isHead) {
+                                if (row.isHead && mouse.button === Qt.RightButton && r.key === "pc") {
+                                    nameMenu.popup()
+                                } else if (row.isHead) {
                                     if (r.key === "quick") win.quickCollapsed = !win.quickCollapsed
                                     else win.pcCollapsed = !win.pcCollapsed
                                 } else if (mouse.button === Qt.RightButton && r.path) {
@@ -6848,9 +7058,10 @@ QQC2.ApplicationWindow {
                                     backend.openFolder(r.path)   // Doppelklick öffnet in Dolphin
                             }
                         }
-                        QQC2.ToolTip.visible: rowHover.hovered && !!r.path
+                        QQC2.ToolTip.visible: rowHover.hovered && (!!r.path || (isHead && r.key === "pc"))
                         QQC2.ToolTip.delay: 700
-                        QQC2.ToolTip.text: (isPinRow && r.exists === false) ? win.trad("Folder not found") : (r.path || "")
+                        QQC2.ToolTip.text: (isHead && r.key === "pc") ? win.trad("Customize the application name (e.g. This PC, CyberDeck)")
+                                         : ((isPinRow && r.exists === false) ? win.trad("Folder not found") : (r.path || ""))
                     }
                 }
             }
@@ -7179,15 +7390,16 @@ QQC2.ApplicationWindow {
                                                                    Kirigami.Theme.textColor.b, 0.16))
                                             radius: height / 2
                                             Rectangle {
+                                                id: gaugeFill
                                                 // Kritisch (Warnschwelle erreicht) : der Balken atmet sanft
                                                 readonly property bool crit: !(frac < win.alertFrac || modelData.isOptical === true)
                                                 SequentialAnimation on opacity {
-                                                    running: crit
+                                                    running: gaugeFill.crit
                                                     loops: Animation.Infinite
                                                     NumberAnimation { to: 0.55; duration: 900; easing.type: Easing.InOutQuad }
                                                     NumberAnimation { to: 1.0; duration: 900; easing.type: Easing.InOutQuad }
                                                 }
-                                                onCritChanged: if (!crit) opacity = 1
+                                                onCritChanged: if (!gaugeFill.crit) opacity = 1
                                                 property real shownFrac: 0
                                                 readonly property real target: frac
                                                 onTargetChanged: shownFrac = target
@@ -7593,15 +7805,16 @@ QQC2.ApplicationWindow {
                                                                    Kirigami.Theme.textColor.b, 0.16))
                                             radius: height / 2
                                             Rectangle {
+                                                id: gaugeFill
                                                 // Kritisch (Warnschwelle erreicht) : der Balken atmet sanft
                                                 readonly property bool crit: !(frac < win.alertFrac || modelData.isOptical === true)
                                                 SequentialAnimation on opacity {
-                                                    running: crit
+                                                    running: gaugeFill.crit
                                                     loops: Animation.Infinite
                                                     NumberAnimation { to: 0.55; duration: 900; easing.type: Easing.InOutQuad }
                                                     NumberAnimation { to: 1.0; duration: 900; easing.type: Easing.InOutQuad }
                                                 }
-                                                onCritChanged: if (!crit) opacity = 1
+                                                onCritChanged: if (!gaugeFill.crit) opacity = 1
                                                 property real shownFrac: 0
                                                 readonly property real target: frac
                                                 onTargetChanged: shownFrac = target
@@ -8288,7 +8501,22 @@ def main():
             sig.connect(lambda *_: nachziehen.start())
         fenster._nachziehen = nachziehen   # Referenz halten
         QTimer.singleShot(250, blur_versuchen)
+    # SIGTERM (kill, Abmelden) und SIGINT (Strg+C) wie das Schließen-Kreuz behandeln : das Fenster schließt, onClosing speichert
+    # Größe und Zustand, danach läuft der geordnete Abbau unten. Der leere Timer lässt Python seine Handler zwischen den
+    # Qt-Ereignissen ausführen.
+    hauptfenster = engine.rootObjects()[0]
+
+    def beenden(*_):
+        QTimer.singleShot(0, hauptfenster.close)
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        signal.signal(sig, beenden)
+    signal_timer = QTimer()
+    signal_timer.start(200)
+    signal_timer.timeout.connect(lambda: None)
     code = app.exec()
+    signal_timer.stop()
+    for sig in (signal.SIGTERM, signal.SIGINT):   # ab hier gibt es kein Fenster mehr : Standardverhalten zurück
+        signal.signal(sig, signal.SIG_DFL)
     # Abbau in der richtigen Reihenfolge : erst die Engine (und mit ihr alle Bindings), dann das Backend, auf das sie zugreifen.
     # Sonst stirbt backend beim Verlassen von main() zuerst, und QML meldet « Cannot read property … of null ».
     engine.deleteLater()
