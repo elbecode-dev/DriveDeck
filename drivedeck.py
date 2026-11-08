@@ -4267,7 +4267,7 @@ QQC2.ApplicationWindow {
                 anchors.centerIn: parent
                 text: count
                 font.bold: true
-                font.pointSize: Math.max(Kirigami.Theme.smallFont.pointSize, Kirigami.Theme.defaultFont.pointSize * 0.92)
+                font.pointSize: Kirigami.Theme.defaultFont.pointSize
                 color: Qt.lighter(accent, 1.6)
             }
         }
@@ -4324,8 +4324,9 @@ QQC2.ApplicationWindow {
     // Schriftgrösse des Ribbons : die Zeilenhöhe der kleinen Schrift bestimmt Höhe der Schaltflächen und des Ribbons
     TextMetrics { id: lineMetrics; font: win.badgeFont; text: "Ag" }
     readonly property real lineH: lineMetrics.height
-    // fontGrow : 1 bei der Standardschrift (Zeilenhöhe 13,2 px), grösser bei grösserer Schrift ; Ribbon und Schaltflächen wachsen mit
-    readonly property real fontGrow: Math.max(1.0, lineH / 13.2)
+    // fontGrow : 1 bei der Standardschrift (Zeilenhöhe 14,4 px), grösser bei grösserer Schrift ; Ribbon und Schaltflächen wachsen mit
+    readonly property real fontGrow: Math.max(1.0, lineH / 14.4)
+    readonly property real panelMinW: Math.round(170 * fontGrow)   // Telemetrie-Panel : wächst mit der Schrift, sonst werden « Storage » und « Network » abgeschnitten
     readonly property real ribbonBtnH: Math.round(84 * fontGrow)
     readonly property real ribbonH: Math.round(122 * fontGrow)
     readonly property real sepGap: Kirigami.Units.largeSpacing * 2   // Abstand links und rechts der Ribbon-Trennlinien (16 px)
@@ -4336,8 +4337,8 @@ QQC2.ApplicationWindow {
     readonly property real infoW: Math.min(400, infoCard.implicitWidth)   // so breit wie der längste Text
     readonly property real sysGap: Kirigami.Units.largeSpacing * 2
     // Reihenfolge in der Gruppe von links : Schaltflächen, Info-Karte, Telemetrie (füllt den Rest). Zuerst fällt die Info-Karte weg, dann das Panel.
-    readonly property bool showPanel: sysAvail >= sysButtonsW + sysGap + 170
-    readonly property bool showInfo: sysAvail >= sysButtonsW + sysGap + 170 + infoW + sysGap
+    readonly property bool showPanel: sysAvail >= sysButtonsW + sysGap + panelMinW
+    readonly property bool showInfo: sysAvail >= sysButtonsW + sysGap + panelMinW + infoW + sysGap
     function sizeShort(b) {
         var l = Qt.locale()
         if (b < 1048576)
@@ -4474,10 +4475,10 @@ QQC2.ApplicationWindow {
     // (zone utile = largeur du défilement - 10 - marges 2 x 15 ; 8 d'espacement entre colonnes)
     readonly property real cardWidth: 340
     // Schriftstufen : Plasma-Systemschrift als Maßstab. Die « kleine » Systemschrift (oft nur 7 pt) ist für Beschriftungen zu
-    // klein ; infoFont (Kartenuntertitel) = normale Schrift, badgeFont (Chips, Plaketten, Beschriftungen) mindestens 92 % davon.
+    // klein ; infoFont (Kartenuntertitel) = normale Schrift, badgeFont (Chips, Plaketten, Beschriftungen) ebenfalls die normale Schrift : nichts ist kleiner als der Systemtext.
     readonly property font infoFont: Kirigami.Theme.defaultFont
     readonly property font badgeFont: Qt.font({ family: Kirigami.Theme.defaultFont.family,
-                                               pointSize: Math.max(Kirigami.Theme.smallFont.pointSize, Kirigami.Theme.defaultFont.pointSize * 0.92) })
+                                               pointSize: Kirigami.Theme.defaultFont.pointSize })
     readonly property int cardCols: Math.max(1, Math.floor((scroll.availableWidth - 32) / (cardWidth + 8)))
 
 
@@ -4991,12 +4992,12 @@ QQC2.ApplicationWindow {
         standardButtons: QQC2.Dialog.Close
 
         contentItem: ColumnLayout {
-            spacing: 12
+            spacing: Kirigami.Units.largeSpacing * 2
 
             GridLayout {
                 columns: 2
-                columnSpacing: 14
-                rowSpacing: 6
+                columnSpacing: Kirigami.Units.largeSpacing * 2
+                rowSpacing: Kirigami.Units.largeSpacing
                 Layout.fillWidth: true
 
                 QQC2.Label { text: win.trad("Type:"); opacity: 0.75 }
@@ -5086,7 +5087,7 @@ QQC2.ApplicationWindow {
                 }
 
                 ColumnLayout {
-                    spacing: 6
+                    spacing: Kirigami.Units.largeSpacing
                     RowLayout {
                         spacing: 8
                         Rectangle { width: 10; height: 10; color: pie.usedColor }
@@ -5262,7 +5263,7 @@ QQC2.ApplicationWindow {
 
         contentItem: GridLayout {
             columns: 2
-            columnSpacing: 12
+            columnSpacing: Kirigami.Units.largeSpacing * 2
             rowSpacing: 8
 
             QQC2.Label { text: win.trad("Server address:"); opacity: 0.75 }
@@ -5290,7 +5291,7 @@ QQC2.ApplicationWindow {
             QQC2.Label { text: win.trad("Password:"); opacity: 0.75 }
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 6
+                spacing: Kirigami.Units.largeSpacing
                 QQC2.TextField {
                     id: netPass
                     Layout.fillWidth: true
@@ -5359,7 +5360,7 @@ QQC2.ApplicationWindow {
 
         contentItem: GridLayout {
             columns: 2
-            columnSpacing: 12
+            columnSpacing: Kirigami.Units.largeSpacing * 2
             rowSpacing: 8
 
             QQC2.Label { text: win.trad("Type:"); opacity: 0.75 }
@@ -5386,7 +5387,7 @@ QQC2.ApplicationWindow {
                 Layout.columnSpan: 2
                 Layout.fillWidth: true
                 Layout.topMargin: 6
-                spacing: 6
+                spacing: Kirigami.Units.largeSpacing
 
                 QQC2.Label { text: win.trad("Ink levels"); opacity: 0.75 }
                 Repeater {
@@ -5486,7 +5487,7 @@ QQC2.ApplicationWindow {
                 ColumnLayout {
                     anchors.fill: parent
                     anchors.margins: 6
-                    spacing: 3
+                    spacing: Kirigami.Units.smallSpacing
                     Repeater {
                         model: hwInfoDialog.tabs
                         delegate: Rectangle {
@@ -5500,9 +5501,9 @@ QQC2.ApplicationWindow {
                             border.color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.7)
                             RowLayout {
                                 anchors.fill: parent
-                                anchors.leftMargin: 10
+                                anchors.leftMargin: Kirigami.Units.largeSpacing
                                 anchors.rightMargin: 8
-                                spacing: 10
+                                spacing: Kirigami.Units.largeSpacing
                                 Kirigami.Icon {
                                     Layout.preferredWidth: 22
                                     Layout.preferredHeight: 22
@@ -5567,7 +5568,7 @@ QQC2.ApplicationWindow {
                                 RowLayout {
                                     anchors.fill: parent
                                     anchors.margins: 8
-                                    spacing: 12
+                                    spacing: Kirigami.Units.largeSpacing * 2
                                     Kirigami.Icon {
                                         Layout.preferredWidth: 32
                                         Layout.preferredHeight: 32
@@ -5614,7 +5615,7 @@ QQC2.ApplicationWindow {
                                     id: grpCol
                                     anchors.fill: parent
                                     anchors.margins: 10
-                                    spacing: 3
+                                    spacing: Kirigami.Units.smallSpacing
                                     QQC2.Label {
                                         text: modelData.title.toUpperCase()
                                         font.pointSize: win.badgeFont.pointSize
@@ -5626,7 +5627,7 @@ QQC2.ApplicationWindow {
                                         model: modelData.items
                                         delegate: RowLayout {
                                             Layout.fillWidth: true
-                                            spacing: 12
+                                            spacing: Kirigami.Units.largeSpacing * 2
                                             QQC2.Label {
                                                 Layout.preferredWidth: 210
                                                 Layout.alignment: Qt.AlignTop
@@ -5736,11 +5737,11 @@ QQC2.ApplicationWindow {
         standardButtons: QQC2.Dialog.Close
 
         contentItem: ColumnLayout {
-            spacing: 10
+            spacing: Kirigami.Units.largeSpacing
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 14
+                spacing: Kirigami.Units.largeSpacing * 2
                 Image {
                     visible: aboutInfo.icon !== ""
                     source: aboutInfo.icon
@@ -6253,13 +6254,13 @@ QQC2.ApplicationWindow {
                                     visible: win.showPanel
                                     Layout.fillWidth: true
                                     Layout.fillHeight: true
-                                    Layout.preferredWidth: 170
-                                    Layout.minimumWidth: 170
+                                    Layout.preferredWidth: win.panelMinW
+                                    Layout.minimumWidth: win.panelMinW
                                     Layout.maximumWidth: 100000   // dehnbar : füllt den Platz rechts neben den Schaltflächen
                                     spacing: 0
                                     readonly property var st: ((backend && backend.sysStats) ? backend.sysStats : ({}))
                                     readonly property bool ready: st !== null && st !== undefined && st.cpu !== undefined
-                                    readonly property bool roomy: width >= 170
+                                    readonly property bool roomy: width >= win.panelMinW
                                     // « 4,2 / 32,0 GB » : die Einheit des ersten Werts entfällt, wenn sie gleich ist
                                     function pair(a, b) {
                                         var ta = win.taille(a), tb = win.taille(b)
@@ -6541,7 +6542,7 @@ QQC2.ApplicationWindow {
                         readonly property bool selected: selKey !== "" && win.sideSelKey === selKey
                         readonly property bool zoneActive: win.navZone === "sidebar"   // die Pfeiltasten wirken gerade hier
                         width: ListView.view.width
-                        height: isHead ? 38 : (r.type === "hint" ? 54 : 30)
+                        height: isHead ? Kirigami.Units.iconSizes.medium + Kirigami.Units.largeSpacing : (r.type === "hint" ? 54 : Kirigami.Units.iconSizes.medium)
                         opacity: (isPinRow && r.exists === false) ? 0.5 : 1.0
 
                         // Hover über die GANZE Zeile : ein HoverHandler hängt nicht davon ab, welches Kind (Beschriftung, Symbol …) unter der
@@ -6549,9 +6550,9 @@ QQC2.ApplicationWindow {
                         HoverHandler { id: rowHover }
                         Rectangle {   // Hover und Auswahl
                             anchors.fill: parent
-                            anchors.leftMargin: 6
-                            anchors.rightMargin: 6
-                            radius: 6
+                            anchors.leftMargin: Kirigami.Units.smallSpacing
+                            anchors.rightMargin: Kirigami.Units.smallSpacing
+                            radius: Kirigami.Units.smallSpacing
                             visible: (!row.isHead || row.selected) && r.type !== "hint"
                             opacity: ((rowHover.hovered && !row.isHead) || rowMouse.pressed || row.selected) ? 1 : 0
                             Behavior on opacity { NumberAnimation { duration: 120 } }
@@ -6567,7 +6568,7 @@ QQC2.ApplicationWindow {
                         Repeater {
                             model: row.isNode ? r.depth : 0
                             delegate: Rectangle {
-                                x: 21 + index * 16
+                                x: Kirigami.Units.largeSpacing * 2 + Kirigami.Units.iconSizes.small / 2 + index * Kirigami.Units.largeSpacing * 2
                                 width: 1
                                 height: row.height + 1
                                 color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.14)
@@ -6575,18 +6576,18 @@ QQC2.ApplicationWindow {
                         }
                         RowLayout {
                             anchors.fill: parent
-                            anchors.leftMargin: row.isHead ? 12 : (row.isNode ? 14 + r.depth * 16 : 16)
-                            anchors.rightMargin: 12
-                            spacing: row.isHead ? 6 : 7
+                            anchors.leftMargin: row.isNode ? Kirigami.Units.largeSpacing * 2 * (1 + r.depth) : Kirigami.Units.largeSpacing * 2
+                            anchors.rightMargin: Kirigami.Units.largeSpacing * 2
+                            spacing: Kirigami.Units.largeSpacing
                             visible: r.type !== "hint"
                             Item {   // Auf-/Zuklapper (wie [+]/[−] im klassischen Baum)
                                 visible: row.isHead || row.isNode
-                                Layout.preferredWidth: 14; Layout.preferredHeight: 14
+                                Layout.preferredWidth: Kirigami.Units.iconSizes.small; Layout.preferredHeight: Kirigami.Units.iconSizes.small
                                 Kirigami.Icon {
                                     anchors.fill: parent
                                     visible: row.isHead || (row.isNode && r.expandable)
                                     source: (row.isHead ? r.collapsed : !r.open) ? "arrow-right" : "arrow-down"
-                                    opacity: 0.7
+                                    opacity: 0.85
                                     rotation: 0
                                 }
                                 QQC2.BusyIndicator {
@@ -6597,8 +6598,8 @@ QQC2.ApplicationWindow {
                             }
                             Kirigami.Icon {
                                 source: r.icon || "folder"
-                                Layout.preferredWidth: row.isHead ? 16 : 18
-                                Layout.preferredHeight: row.isHead ? 16 : 18
+                                Layout.preferredWidth: row.isHead ? Kirigami.Units.iconSizes.small : Kirigami.Units.iconSizes.smallMedium
+                                Layout.preferredHeight: row.isHead ? Kirigami.Units.iconSizes.small : Kirigami.Units.iconSizes.smallMedium
                                 color: (row.isHead && r.key === "quick") ? Kirigami.Theme.highlightColor : "transparent"
                                 isMask: row.isHead && r.key === "quick"
                             }
@@ -6611,8 +6612,8 @@ QQC2.ApplicationWindow {
                             QQC2.ToolButton {   // « + » : Ordner per Dialog anheften
                                 visible: row.isHead && r.canAdd === true
                                 icon.name: "list-add"
-                                icon.width: 14; icon.height: 14
-                                implicitWidth: 26; implicitHeight: 26
+                                icon.width: Kirigami.Units.iconSizes.small; icon.height: Kirigami.Units.iconSizes.small
+                                implicitWidth: Kirigami.Units.iconSizes.medium; implicitHeight: Kirigami.Units.iconSizes.medium
                                 QQC2.ToolTip.visible: hovered
                                 QQC2.ToolTip.delay: 400
                                 QQC2.ToolTip.text: win.trad("Pin a folder…")
@@ -6621,14 +6622,14 @@ QQC2.ApplicationWindow {
                             Kirigami.Icon {   // Pin-Symbol : angeheftet = sichtbar, sonst nur beim Überfahren ; Klick schaltet um
                                 visible: row.isNode || row.isPinRow
                                 source: (row.pinned !== pinGlyphMouse.containsMouse) ? "window-pin" : "window-unpin"   // zeigt beim Überfahren das Ergebnis des Klicks
-                                Layout.preferredWidth: 13; Layout.preferredHeight: 13
+                                Layout.preferredWidth: Kirigami.Units.iconSizes.small; Layout.preferredHeight: Kirigami.Units.iconSizes.small
                                 opacity: pinGlyphMouse.containsMouse ? 1.0
-                                       : (row.pinned ? 0.55 : (rowHover.hovered ? 0.35 : 0.0))
+                                       : (row.pinned ? 0.75 : (rowHover.hovered ? 0.55 : 0.0))
                                 Behavior on opacity { NumberAnimation { duration: 120 } }
                                 MouseArea {
                                     id: pinGlyphMouse
                                     anchors.fill: parent
-                                    anchors.margins: -6
+                                    anchors.margins: -Kirigami.Units.largeSpacing   // Klickfläche 32 × 32
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
                                     onClicked: row.pinned ? backend.unpinPath(r.path) : backend.pinPath(r.path, r.label, r.icon)
@@ -6778,7 +6779,7 @@ QQC2.ApplicationWindow {
                                     anchors.left: parent.left
                                     anchors.leftMargin: 8
                                     anchors.verticalCenter: parent.verticalCenter
-                                    spacing: 10
+                                    spacing: Kirigami.Units.largeSpacing
 
                                     Kirigami.Icon {
                                         source: modelData.icon
@@ -6920,7 +6921,7 @@ QQC2.ApplicationWindow {
                                     anchors.fill: parent
                                     anchors.leftMargin: 8
                                     anchors.rightMargin: 8
-                                    spacing: 10
+                                    spacing: Kirigami.Units.largeSpacing
 
                                     Item {
                                         Layout.preferredWidth: 48
@@ -6954,12 +6955,12 @@ QQC2.ApplicationWindow {
                                     ColumnLayout {
                                         Layout.fillWidth: true
                                         Layout.alignment: Qt.AlignVCenter
-                                        spacing: 5
+                                        spacing: Kirigami.Units.smallSpacing
 
                                         RowLayout {   // texteLecteur : Name und Temperatur-Chip
                                             Layout.fillWidth: true
                                             Layout.bottomMargin: 2
-                                            spacing: 6
+                                            spacing: Kirigami.Units.largeSpacing
                                             QQC2.Label { text: modelData.label; Layout.fillWidth: true; elide: Text.ElideRight }
                                             // festplattenTemperatur : Chip, nur wenn ein Sensor einen Wert liefert (NVMe, SATA mit drivetemp, SMART über udisks)
                                             Rectangle {
@@ -7017,7 +7018,7 @@ QQC2.ApplicationWindow {
 
                                         RowLayout {
                                             Layout.fillWidth: true
-                                            spacing: 6
+                                            spacing: Kirigami.Units.largeSpacing
                                             QQC2.Label {
                                                 text: modelData.freeText
                                                 font: win.infoFont
@@ -7072,7 +7073,7 @@ QQC2.ApplicationWindow {
                                         readonly property string readText: io ? win.rateShort(io.readRate) : "-"
                                         readonly property string writeText: io ? win.rateShort(io.writeRate) : "-"
                                         visible: anyIo && modelData.isUnmounted !== true && modelData.isOptical !== true
-                                        Layout.preferredWidth: 82
+                                        Layout.preferredWidth: Math.round(82 * win.fontGrow)
                                         Layout.alignment: Qt.AlignVCenter
                                         spacing: 2
                                         opacity: ioHover.hovered ? 1.0 : 0.85
@@ -7321,7 +7322,7 @@ QQC2.ApplicationWindow {
                                     anchors.fill: parent
                                     anchors.leftMargin: 8
                                     anchors.rightMargin: 8
-                                    spacing: 10
+                                    spacing: Kirigami.Units.largeSpacing
 
                                     Item {
                                         Layout.preferredWidth: 48
@@ -7356,7 +7357,7 @@ QQC2.ApplicationWindow {
                                     ColumnLayout {
                                         Layout.fillWidth: true
                                         Layout.alignment: Qt.AlignVCenter
-                                        spacing: 5
+                                        spacing: Kirigami.Units.smallSpacing
 
                                         QQC2.Label {
                                             text: modelData.label
@@ -7393,7 +7394,7 @@ QQC2.ApplicationWindow {
 
                                         RowLayout {
                                             Layout.fillWidth: true
-                                            spacing: 6
+                                            spacing: Kirigami.Units.largeSpacing
                                             QQC2.Label {
                                                 text: modelData.freeText
                                                 font: win.infoFont
@@ -7583,7 +7584,7 @@ QQC2.ApplicationWindow {
                                     anchors.fill: parent
                                     anchors.leftMargin: 8
                                     anchors.rightMargin: 8
-                                    spacing: 10
+                                    spacing: Kirigami.Units.largeSpacing
 
                                     Item {
                                         Layout.preferredWidth: 48
@@ -7601,7 +7602,7 @@ QQC2.ApplicationWindow {
                                     ColumnLayout {
                                         Layout.fillWidth: true
                                         Layout.alignment: Qt.AlignVCenter
-                                        spacing: 3
+                                        spacing: Kirigami.Units.smallSpacing
 
                                         QQC2.Label {
                                             text: modelData.label
@@ -7626,7 +7627,7 @@ QQC2.ApplicationWindow {
                                         Layout.preferredHeight: 44
                                         Layout.alignment: Qt.AlignVCenter
                                         Row {
-                                            spacing: 5
+                                            spacing: Kirigami.Units.smallSpacing
                                             Repeater {
                                                 model: inkBox.inks
                                                 delegate: Item {
@@ -7765,7 +7766,7 @@ QQC2.ApplicationWindow {
 
             QQC2.Label {
                 anchors.left: parent.left
-                anchors.leftMargin: 15
+                anchors.leftMargin: Kirigami.Units.largeSpacing * 2
                 anchors.verticalCenter: parent.verticalCenter
                 opacity: 0.75
                 text: win.trad("{n} item(s)").replace("{n}", (win.foldersCollapsed || !win.foldersShown ? 0 : foldersModel.length) + (win.disksCollapsed || !win.disksShown ? 0 : ((backend && backend.disks) ? backend.disks : []).length) + (win.netCollapsed || !win.netShown ? 0 : ((backend && backend.networks) ? backend.networks : []).length) + (win.printersCollapsed || !win.printersShown ? 0 : ((backend && backend.printers) ? backend.printers : []).length))

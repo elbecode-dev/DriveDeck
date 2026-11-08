@@ -10,6 +10,26 @@ hidden and everything else works).
 
 ---
 
+## Unreleased
+
+### Changed
+
+- **Readability.** Chips, badges, labels and section pills now use the normal system font; before they were set to 92 % of it (and
+  the small system font as a floor), so nothing in the window is smaller than the text of your Plasma theme. The ribbon height
+  scale is calibrated to match, so the layout with the standard font is unchanged.
+- **Sidebar.** Rows are 32 px high (headings 40 px), folder icons 22 px and the tree arrow, the *+* button and the pin symbol use
+  `Kirigami.Units` icon sizes (16 px / 32 px); the pin symbol has a 32 × 32 px click area and is easier to see (75 % when pinned,
+  55 % on hover instead of 55 % / 35 %). Margins and the tree indent follow the 8 / 16 px grid; the hierarchy lines stay aligned.
+- **Spacing on the 4 / 8 / 16 px grid.** Odd spacings in the cards, dialogs and sidebar (3, 5, 6, 10, 12, 14 px) now come from
+  `Kirigami.Units.smallSpacing` / `largeSpacing`.
+
+### Fixed
+
+- With a larger system font the four telemetry chips and the read/write column on the drive cards now grow with the font, so
+  "Storage" and "Network" are no longer cut off.
+
+---
+
 ## 2.0.0-beta.8.4 – 2026-11-07 (installer fixes)
 
 ### Fixed
