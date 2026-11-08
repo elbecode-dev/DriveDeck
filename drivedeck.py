@@ -28,7 +28,7 @@ os.environ["QT_QUICK_CONTROLS_STYLE"] = "org.kde.desktop"
 # wird ausgeblendet ; eigene QT_LOGGING_RULES des Benutzers bleiben erhalten und haben Vorrang (stehen weiter hinten).
 os.environ["QT_LOGGING_RULES"] = ";".join(r for r in ("qt.svg.warning=false", os.environ.get("QT_LOGGING_RULES", "")) if r)
 
-from PyQt6.QtCore import QEvent, QObject, pyqtProperty, pyqtSignal, pyqtSlot
+from PyQt6.QtCore import QEvent, QObject, QTimer, QUrl, pyqtProperty, pyqtSignal, pyqtSlot
 from PyQt6.QtGui import QIcon
 from PyQt6.QtQml import QQmlApplicationEngine
 from PyQt6.QtWidgets import QApplication
@@ -4176,7 +4176,20 @@ QQC2.ApplicationWindow {
         keyHandler.forceActiveFocus()
         probeRoots()
     }
-    color: Kirigami.Theme.backgroundColor
+    // Eigener Titelbalken : kein KWin-Rahmen. Das Fenster ist transparent, die Flächen darin scheinen nur durch, wenn der
+    // Compositor Blur anbietet (glassFx) ; sonst bleiben sie deckend.
+    flags: Qt.Window | Qt.FramelessWindowHint
+    color: "transparent"
+    readonly property real glassHead: glassFx.active ? 0.74 : 1.0   // Titelbalken und Ribbon
+    readonly property real glassBody: glassFx.active ? 0.86 : 1.0   // Inhalt und Fußzeile
+    readonly property bool framed: visibility !== 4 && visibility !== 5   // weder maximiert noch Vollbild : Rand und Griffe
+    readonly property real cornerR: framed ? 12 : 0   // Eckenradius (Python liest ihn für die Blur-Region)
+    function toggleMax() {
+        if (win.visibility === 4)
+            win.showNormal()
+        else
+            win.showMaximized()
+    }
 
     // rubriquesMemo : repli de chaque rubrique et rubriques affichées, retenus d'une ouverture à l'autre
     // Karten-Hervorhebung für alle vier Sektionen : unsichtbar im Ruhezustand, beim Überfahren ein Neon-Verlauf
@@ -4240,6 +4253,77 @@ QQC2.ApplicationWindow {
             opacity: parent.selected ? 1 : 0
             Behavior on opacity { NumberAnimation { duration: 140 } }
         }
+    }
+
+    // Fläche mit zwei abgerundeten Ecken (oben oder unten) : eine einzige Form, damit die Durchsicht nicht doppelt deckt
+    component RoundedBar: Shape {
+        id: rb
+        property color fill: "transparent"
+        property real r: 0
+        property bool roundTop: true
+        readonly property real q: Math.max(0.01, r)
+        preferredRendererType: Shape.CurveRenderer
+        ShapePath {
+            strokeColor: "transparent"
+            fillColor: rb.fill
+            PathSvg {
+                path: rb.roundTop
+                    ? "M0," + rb.q + " A" + rb.q + "," + rb.q + " 0 0 1 " + rb.q + ",0 H" + (rb.width - rb.q)
+                      + " A" + rb.q + "," + rb.q + " 0 0 1 " + rb.width + "," + rb.q + " V" + rb.height + " H0 Z"
+                    : "M0,0 H" + rb.width + " V" + (rb.height - rb.q)
+                      + " A" + rb.q + "," + rb.q + " 0 0 1 " + (rb.width - rb.q) + "," + rb.height + " H" + rb.q
+                      + " A" + rb.q + "," + rb.q + " 0 0 1 0," + (rb.height - rb.q) + " Z"
+            }
+        }
+    }
+    // Ampel-Knopf im Titelbalken (Minimieren gelb, Maximieren grün, Schließen rot) : beim Überfahren erscheint das Symbol
+    component WinBtn: Rectangle {
+        id: wbtn
+        property string glyph: "close"   // min | max | restore | close
+        property color tone: "#ff5f57"
+        signal clicked()
+        implicitWidth: 16
+        implicitHeight: 16
+        radius: width / 2
+        color: tone
+        opacity: wbMouse.pressed ? 0.75 : 1.0
+        border.width: 1
+        border.color: Qt.rgba(0, 0, 0, 0.18)
+        Shape {
+            anchors.centerIn: parent
+            width: 16
+            height: 16
+            visible: wbMouse.containsMouse
+            preferredRendererType: Shape.CurveRenderer
+            ShapePath {
+                strokeColor: Qt.rgba(0, 0, 0, 0.55)
+                strokeWidth: 1.4
+                fillColor: "transparent"
+                capStyle: ShapePath.RoundCap
+                joinStyle: ShapePath.RoundJoin
+                PathSvg {
+                    path: wbtn.glyph === "min" ? "M5,8 H11"
+                        : wbtn.glyph === "max" ? "M5.5,5.5 H10.5 V10.5 H5.5 Z"
+                        : wbtn.glyph === "restore" ? "M5,8 H11 M8,5 V11"
+                        : "M5.5,5.5 L10.5,10.5 M10.5,5.5 L5.5,10.5"
+                }
+            }
+        }
+        MouseArea {
+            id: wbMouse
+            anchors.fill: parent
+            anchors.margins: -4   // größere Trefferfläche als der 16-px-Punkt
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: wbtn.clicked()
+        }
+    }
+    // Griff am Fensterrand : startet das Ändern der Größe über den Compositor (geht unter Wayland und X11)
+    component EdgeGrip: MouseArea {
+        property int edges: 0
+        hoverEnabled: true
+        acceptedButtons: Qt.LeftButton
+        onPressed: win.startSystemResize(edges)
     }
 
     // Sektionskopf : Titel in Versalien, Anzahl als Pille im Akzentton, danach ein Verlauf, der nach rechts ausblendet
@@ -4466,6 +4550,8 @@ QQC2.ApplicationWindow {
     // couleursJauge : bleu des jauges normales et rouge des jauges en alerte (fixes)
     readonly property color gaugeBlue: "#1e88e5"
     readonly property color gaugeRed: "#d92b2b"
+    readonly property color rateReadColor: "#06b6d4"    // Sparkline lesen : Cyan
+    readonly property color rateWriteColor: "#d946ef"   // Sparkline schreiben : Magenta
     // Disque ou emplacement réseau sélectionné par un clic (point de montage), vide si aucun
     property string selectedKey: ""
 
@@ -5824,6 +5910,68 @@ QQC2.ApplicationWindow {
         anchors.fill: parent
         spacing: 0
 
+        // titelBalken : liegt in denselben Farben und derselben Durchsicht wie das Ribbon darunter, ohne Trennlinie :
+        // der Blur läuft von der obersten Pixelzeile durch
+        Item {
+            id: titleBar
+            Kirigami.Theme.colorSet: Kirigami.Theme.Header
+            Kirigami.Theme.inherit: false
+            Layout.fillWidth: true
+            Layout.preferredHeight: 48
+            RoundedBar {
+                anchors.fill: parent
+                roundTop: true
+                r: win.cornerR
+                fill: Qt.alpha(Kirigami.Theme.backgroundColor, win.glassHead)
+            }
+            DragHandler {   // Ziehen verschiebt das Fenster (Compositor-Bewegung)
+                target: null
+                acceptedButtons: Qt.LeftButton
+                onActiveChanged: if (active) win.startSystemMove()
+            }
+            TapHandler {
+                acceptedButtons: Qt.LeftButton
+                onDoubleTapped: win.toggleMax()
+            }
+            QQC2.Label {   // Name mittig im Fenster, unabhängig von Symbol und Knöpfen
+                anchors.centerIn: parent
+                text: win.title
+                font.bold: true
+                opacity: 0.85
+            }
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 16
+                anchors.rightMargin: 24
+                spacing: 16
+                Kirigami.Icon {   // App-Symbol ganz links : 32 px, damit es gut zu erkennen ist
+                    visible: appIconUrl !== ""
+                    source: appIconUrl
+                    Layout.preferredWidth: 32
+                    Layout.preferredHeight: 32
+                }
+                Item { Layout.fillWidth: true }
+                RowLayout {
+                    spacing: Kirigami.Units.largeSpacing
+                    WinBtn {
+                        tone: "#febc2e"
+                        glyph: "min"
+                        onClicked: win.showMinimized()
+                    }
+                    WinBtn {
+                        tone: "#28c840"
+                        glyph: win.visibility === 4 ? "restore" : "max"
+                        onClicked: win.toggleMax()
+                    }
+                    WinBtn {
+                        tone: "#ff5f57"
+                        glyph: "close"
+                        onClicked: win.close()
+                    }
+                }
+            }
+        }
+
         // barreRuban : barre de commandes en ruban
         Item {
             id: barRoot
@@ -5862,7 +6010,7 @@ QQC2.ApplicationWindow {
             }
             Rectangle {
                 anchors.fill: parent
-                color: Kirigami.Theme.backgroundColor
+                color: Qt.alpha(Kirigami.Theme.backgroundColor, win.glassHead)
             }
 
             // ===== RUBAN ===== (seul mode de la barre)
@@ -6326,7 +6474,32 @@ QQC2.ApplicationWindow {
                                                     radius: 8
                                                     color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.06)
                                                     border.width: 1
-                                                    border.color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.10)
+                                                    // Kritisch (≥ 90 %, bei Storage also < 10 % frei) : der Rand pulsiert rot, dazu ein weicher Halo ;
+                                                    // beim Überfahren eine 1-px-Kante in Cyan. Die Animation läuft nur im kritischen Zustand.
+                                                    property real pulse: 0
+                                                    SequentialAnimation on pulse {
+                                                        running: chip.hot && !chip.isNet && liveGrp.ready
+                                                        loops: Animation.Infinite
+                                                        NumberAnimation { to: 1; duration: 900; easing.type: Easing.InOutQuad }
+                                                        NumberAnimation { to: 0; duration: 900; easing.type: Easing.InOutQuad }
+                                                    }
+                                                    border.color: (chip.hot && !chip.isNet)
+                                                        ? Qt.rgba(win.gaugeRed.r, win.gaugeRed.g, win.gaugeRed.b, 0.45 + 0.5 * chip.pulse)
+                                                        : (chipHover.hovered ? Qt.alpha(win.rateReadColor, 0.85)
+                                                                             : Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.10))
+                                                    scale: chipHover.hovered ? 1.03 : 1.0
+                                                    z: chipHover.hovered ? 1 : 0
+                                                    Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+                                                    Rectangle {   // Halo
+                                                        anchors.fill: parent
+                                                        anchors.margins: -2
+                                                        z: -1
+                                                        radius: parent.radius + 2
+                                                        color: "transparent"
+                                                        border.width: 2
+                                                        border.color: Qt.rgba(win.gaugeRed.r, win.gaugeRed.g, win.gaugeRed.b, 0.35 * chip.pulse)
+                                                        visible: chip.hot && !chip.isNet
+                                                    }
                                                     Kirigami.Icon {
                                                         id: chipIcon
                                                         source: index === 0 ? liveIcons.cpu : (index === 1 ? liveIcons.ram : (index === 2 ? liveIcons.disk : liveIcons.net))
@@ -6340,7 +6513,7 @@ QQC2.ApplicationWindow {
                                                         y: 2
                                                         text: index === 0 ? "CPU" : (index === 1 ? "RAM" : (index === 2 ? "Storage" : "Network"))
                                                         font: win.badgeFont
-                                                        opacity: 0.75
+                                                        opacity: 0.65
                                                         color: Kirigami.Theme.textColor
                                                     }
                                                     QQC2.Label {   // Wert : Festbreitschrift, rechtsbündig, damit nichts springt ; schrumpft nur im Extremfall
@@ -6411,7 +6584,7 @@ QQC2.ApplicationWindow {
                 }
             }
         }
-        Kirigami.Separator { Layout.fillWidth: true }
+        // Keine harte Trennlinie unter dem Ribbon : der Übergang entsteht allein durch den Farbton (Header-Farbsatz)
 
         // miseAJour (1.1) : bandeau « nouvelle version disponible » (rien ne s'installe tout seul)
         Kirigami.InlineMessage {
@@ -6447,7 +6620,7 @@ QQC2.ApplicationWindow {
             Layout.fillHeight: true
             Kirigami.Theme.colorSet: Kirigami.Theme.View
             Kirigami.Theme.inherit: false
-            color: Kirigami.Theme.backgroundColor
+            color: Qt.alpha(Kirigami.Theme.backgroundColor, win.glassBody)
 
             // seitenleiste : Schnellzugriff (angeheftete Ordner) und Baum « Dieser PC » wie im Windows-Explorer
             Rectangle {
@@ -6914,6 +7087,10 @@ QQC2.ApplicationWindow {
                                 Layout.preferredHeight: 88
                                 property real frac: modelData.total > 0 ? modelData.used / modelData.total : 0
                                 id: navRoot
+                                // Hover : seidenweiche Vergrößerung (±5 px bei 340 px Breite, die Lücke im Raster beträgt 8 px : keine Überlappung)
+                                scale: cardMouse.containsMouse ? 1.03 : 1.0
+                                z: cardMouse.containsMouse ? 2 : 0
+                                Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
                                 readonly property bool navSel: win.selectedKey === modelData.mountpoint
                                 onNavSelChanged: if (navSel) win.revealItem(navRoot)
 
@@ -7002,6 +7179,15 @@ QQC2.ApplicationWindow {
                                                                    Kirigami.Theme.textColor.b, 0.16))
                                             radius: height / 2
                                             Rectangle {
+                                                // Kritisch (Warnschwelle erreicht) : der Balken atmet sanft
+                                                readonly property bool crit: !(frac < win.alertFrac || modelData.isOptical === true)
+                                                SequentialAnimation on opacity {
+                                                    running: crit
+                                                    loops: Animation.Infinite
+                                                    NumberAnimation { to: 0.55; duration: 900; easing.type: Easing.InOutQuad }
+                                                    NumberAnimation { to: 1.0; duration: 900; easing.type: Easing.InOutQuad }
+                                                }
+                                                onCritChanged: if (!crit) opacity = 1
                                                 property real shownFrac: 0
                                                 readonly property real target: frac
                                                 onTargetChanged: shownFrac = target
@@ -7096,16 +7282,41 @@ QQC2.ApplicationWindow {
                                                 radius: 6
                                                 color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.05)
                                             }
+                                            // Aktivität : sobald gelesen / geschrieben wird, pulsiert die Linienfarbe sanft ; dahinter liegt ein breiter,
+                                            // blasser Strich als Neon-Schein. Im Leerlauf steht alles still (die Animation ist dann gestoppt).
+                                            readonly property bool rActive: io !== undefined && io.readRate > 65536
+                                            readonly property bool wActive: io !== undefined && io.writeRate > 65536
+                                            property real glow: 0
+                                            SequentialAnimation on glow {
+                                                running: (ioBox.rActive || ioBox.wActive) && ioBox.visible
+                                                loops: Animation.Infinite
+                                                NumberAnimation { to: 1; duration: 700; easing.type: Easing.InOutQuad }
+                                                NumberAnimation { to: 0; duration: 700; easing.type: Easing.InOutQuad }
+                                            }
+                                            readonly property real aRead: rActive ? 0.65 + 0.35 * glow : 0.45
+                                            readonly property real aWrite: wActive ? 0.65 + 0.35 * glow : 0.45
+                                            scale: ioHover.hovered ? 1.03 : 1.0
+                                            Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
                                             Shape {
                                                 anchors.fill: parent
                                                 preferredRendererType: Shape.CurveRenderer
+                                                ShapePath {   // Schein Lesen
+                                                    strokeColor: Qt.alpha(win.rateReadColor, ioBox.rActive ? 0.10 + 0.14 * ioBox.glow : 0)
+                                                    strokeWidth: 4; fillColor: "transparent"; joinStyle: ShapePath.RoundJoin
+                                                    PathPolyline { path: ioBox.io ? ioBox.pts(ioBox.io.read) : [] }
+                                                }
+                                                ShapePath {   // Schein Schreiben
+                                                    strokeColor: Qt.alpha(win.rateWriteColor, ioBox.wActive ? 0.10 + 0.14 * ioBox.glow : 0)
+                                                    strokeWidth: 4; fillColor: "transparent"; joinStyle: ShapePath.RoundJoin
+                                                    PathPolyline { path: ioBox.io ? ioBox.pts(ioBox.io.write) : [] }
+                                                }
                                                 ShapePath {
-                                                    strokeColor: Kirigami.Theme.positiveTextColor
+                                                    strokeColor: Qt.alpha(win.rateReadColor, ioBox.aRead)
                                                     strokeWidth: 1.5; fillColor: "transparent"; joinStyle: ShapePath.RoundJoin
                                                     PathPolyline { path: ioBox.io ? ioBox.pts(ioBox.io.read) : [] }
                                                 }
                                                 ShapePath {
-                                                    strokeColor: Kirigami.Theme.neutralTextColor
+                                                    strokeColor: Qt.alpha(win.rateWriteColor, ioBox.aWrite)
                                                     strokeWidth: 1.5; fillColor: "transparent"; joinStyle: ShapePath.RoundJoin
                                                     PathPolyline { path: ioBox.io ? ioBox.pts(ioBox.io.write) : [] }
                                                 }
@@ -7117,7 +7328,7 @@ QQC2.ApplicationWindow {
                                             QQC2.Label {
                                                 text: "\u25BC"
                                                 font.pointSize: win.badgeFont.pointSize
-                                                color: Kirigami.Theme.positiveTextColor
+                                                color: win.rateReadColor
                                             }
                                             QQC2.Label {
                                                 Layout.fillWidth: true
@@ -7134,7 +7345,7 @@ QQC2.ApplicationWindow {
                                             QQC2.Label {
                                                 text: "\u25B2"
                                                 font.pointSize: win.badgeFont.pointSize
-                                                color: Kirigami.Theme.neutralTextColor
+                                                color: win.rateWriteColor
                                             }
                                             QQC2.Label {
                                                 Layout.fillWidth: true
@@ -7314,6 +7525,10 @@ QQC2.ApplicationWindow {
                                 Layout.preferredHeight: 88
                                 property real frac: modelData.total > 0 ? modelData.used / modelData.total : 0
                                 id: navRoot
+                                // Hover : seidenweiche Vergrößerung (±5 px bei 340 px Breite, die Lücke im Raster beträgt 8 px : keine Überlappung)
+                                scale: cardMouse.containsMouse ? 1.03 : 1.0
+                                z: cardMouse.containsMouse ? 2 : 0
+                                Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
                                 readonly property bool navSel: win.selectedKey === modelData.mountpoint
                                 onNavSelChanged: if (navSel) win.revealItem(navRoot)
                                 readonly property bool offline: modelData.available === false
@@ -7378,6 +7593,15 @@ QQC2.ApplicationWindow {
                                                                    Kirigami.Theme.textColor.b, 0.16))
                                             radius: height / 2
                                             Rectangle {
+                                                // Kritisch (Warnschwelle erreicht) : der Balken atmet sanft
+                                                readonly property bool crit: !(frac < win.alertFrac || modelData.isOptical === true)
+                                                SequentialAnimation on opacity {
+                                                    running: crit
+                                                    loops: Animation.Infinite
+                                                    NumberAnimation { to: 0.55; duration: 900; easing.type: Easing.InOutQuad }
+                                                    NumberAnimation { to: 1.0; duration: 900; easing.type: Easing.InOutQuad }
+                                                }
+                                                onCritChanged: if (!crit) opacity = 1
                                                 property real shownFrac: 0
                                                 readonly property real target: frac
                                                 onTargetChanged: shownFrac = target
@@ -7759,10 +7983,15 @@ QQC2.ApplicationWindow {
 
         // Pied de page
         Kirigami.Separator { Layout.fillWidth: true }
-        Rectangle {
+        Item {
             Layout.fillWidth: true
             Layout.preferredHeight: 29
-            color: Kirigami.Theme.backgroundColor
+            RoundedBar {
+                anchors.fill: parent
+                roundTop: false
+                r: win.cornerR
+                fill: Qt.alpha(Kirigami.Theme.backgroundColor, win.glassBody)
+            }
 
             QQC2.Label {
                 anchors.left: parent.left
@@ -7771,6 +8000,32 @@ QQC2.ApplicationWindow {
                 opacity: 0.75
                 text: win.trad("{n} item(s)").replace("{n}", (win.foldersCollapsed || !win.foldersShown ? 0 : foldersModel.length) + (win.disksCollapsed || !win.disksShown ? 0 : ((backend && backend.disks) ? backend.disks : []).length) + (win.netCollapsed || !win.netShown ? 0 : ((backend && backend.networks) ? backend.networks : []).length) + (win.printersCollapsed || !win.printersShown ? 0 : ((backend && backend.printers) ? backend.printers : []).length))
             }
+        }
+    }
+
+    // Rand und Größen-Griffe : ohne KWin-Rahmen zieht der Compositor die Größe über diese Streifen
+    Item {
+        anchors.fill: parent
+        z: 100000
+        Rectangle {   // feine Kante, damit das durchscheinende Fenster auf hellem Grund nicht ausfranst
+            anchors.fill: parent
+            visible: win.framed
+            radius: win.cornerR
+            color: "transparent"
+            border.width: 1
+            border.color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.22)
+        }
+        Item {
+            anchors.fill: parent
+            visible: win.framed
+            EdgeGrip { edges: Qt.TopEdge; cursorShape: Qt.SizeVerCursor; anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right; anchors.leftMargin: 12; anchors.rightMargin: 12; height: 5 }
+            EdgeGrip { edges: Qt.BottomEdge; cursorShape: Qt.SizeVerCursor; anchors.bottom: parent.bottom; anchors.left: parent.left; anchors.right: parent.right; anchors.leftMargin: 12; anchors.rightMargin: 12; height: 5 }
+            EdgeGrip { edges: Qt.LeftEdge; cursorShape: Qt.SizeHorCursor; anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom; anchors.topMargin: 12; anchors.bottomMargin: 12; width: 5 }
+            EdgeGrip { edges: Qt.RightEdge; cursorShape: Qt.SizeHorCursor; anchors.right: parent.right; anchors.top: parent.top; anchors.bottom: parent.bottom; anchors.topMargin: 12; anchors.bottomMargin: 12; width: 5 }
+            EdgeGrip { edges: Qt.TopEdge | Qt.LeftEdge; cursorShape: Qt.SizeFDiagCursor; anchors.top: parent.top; anchors.left: parent.left; width: 12; height: 12 }
+            EdgeGrip { edges: Qt.TopEdge | Qt.RightEdge; cursorShape: Qt.SizeBDiagCursor; anchors.top: parent.top; anchors.right: parent.right; width: 12; height: 12 }
+            EdgeGrip { edges: Qt.BottomEdge | Qt.LeftEdge; cursorShape: Qt.SizeBDiagCursor; anchors.bottom: parent.bottom; anchors.left: parent.left; width: 12; height: 12 }
+            EdgeGrip { edges: Qt.BottomEdge | Qt.RightEdge; cursorShape: Qt.SizeFDiagCursor; anchors.bottom: parent.bottom; anchors.right: parent.right; width: 12; height: 12 }
         }
     }
 }
@@ -7791,6 +8046,61 @@ def app_icon_pfad():
         if os.path.isfile(p):
             return p
     return ""
+
+
+def blur_setup():
+    """KWin-Blur hinter dem Fenster : KWindowEffects (KF6WindowSystem) hat keine PyQt-Anbindung, die zwei exportierten C++-Funktionen
+    werden daher über ctypes aufgerufen. Gibt eine Funktion enable(fenster) zurück, oder None, wenn Blur hier nicht möglich ist
+    (Bibliothek fehlt) : dann bleibt das Fenster einfach deckend. Ob der Compositor Blur anbietet, prüft verfuegbar() erst später :
+    unter Wayland meldet KWin seine Fähigkeiten erst, wenn die Ereignisschleife läuft."""
+    if os.environ.get("DRIVEDECK_NOBLUR"):
+        return None
+    try:
+        import ctypes
+        from PyQt6 import sip
+        from PyQt6.QtGui import QPainterPath, QRegion
+        from PyQt6.QtCore import QRectF
+        lib = ctypes.CDLL("libKF6WindowSystem.so.6")
+        verfuegbar = lib["_ZN14KWindowEffects17isEffectAvailableENS_6EffectE"]
+        verfuegbar.argtypes = [ctypes.c_int]
+        verfuegbar.restype = ctypes.c_bool
+        blur = lib["_ZN14KWindowEffects16enableBlurBehindEP7QWindowbRK7QRegion"]
+        blur.argtypes = [ctypes.c_void_p, ctypes.c_bool, ctypes.c_void_p]
+        blur.restype = None
+    except (OSError, AttributeError, ImportError):
+        return None
+
+    def enable(fenster):
+        try:
+            r = float(fenster.property("cornerR") or 0)   # derselbe Eckenradius wie in der Oberfläche (0 = maximiert)
+            if r > 0:   # gerundetes Rechteck als Region, ab der obersten Pixelzeile
+                pfad = QPainterPath()
+                pfad.addRoundedRect(QRectF(0, 0, fenster.width(), fenster.height()), r, r)
+                region = QRegion(pfad.toFillPolygon().toPolygon())
+            else:
+                region = QRegion()   # leer = das ganze Fenster
+            blur(sip.unwrapinstance(fenster), True, sip.unwrapinstance(region))
+        except Exception as e:   # nie wegen eines Effekts abstürzen
+            print("[drivedeck] Blur nicht aktivierbar :", e)
+    return (lambda: bool(verfuegbar(7))), enable   # 7 = KWindowEffects::BlurBehind
+
+
+class GlassFx(QObject):
+    """Meldet der Oberfläche, ob der Blur steht : erst dann werden Titelbalken, Ribbon und Inhalt durchscheinend."""
+    activeChanged = pyqtSignal()
+
+    def __init__(self):
+        super().__init__()
+        self._aktiv = False
+
+    @pyqtProperty(bool, notify=activeChanged)
+    def active(self):
+        return self._aktiv
+
+    def setActive(self, wert):
+        if wert != self._aktiv:
+            self._aktiv = wert
+            self.activeChanged.emit()
 
 
 def about_info():
@@ -7945,10 +8255,39 @@ def main():
     engine.rootContext().setContextProperty("badgeHealth", badge_health())
     engine.rootContext().setContextProperty("liveIcons", live_icons())
     backend.trimmed.connect(engine.trimComponentCache)   # queued : läuft im GUI-Thread
+    blur = blur_setup()
+    glass = GlassFx()
+    engine.rootContext().setContextProperty("glassFx", glass)   # QML macht die Flächen nur dann durchscheinend
+    engine.rootContext().setContextProperty("appIconUrl", QUrl.fromLocalFile(app_icon).toString() if app_icon else "")
     engine.loadData(qml.encode("utf-8"))
     if not engine.rootObjects():
         print("Échec du chargement QML")
         return 1
+    if blur is not None:
+        verfuegbar, blur_an = blur
+        fenster = engine.rootObjects()[0]
+        versuche = [0]
+
+        def blur_versuchen():
+            if glass.active:
+                return
+            if fenster.isVisible() and verfuegbar():
+                blur_an(fenster)
+                glass.setActive(True)
+                print("[drivedeck] Blur hinter dem Fenster aktiv")
+            elif versuche[0] < 20:   # Compositor-Fähigkeiten und Plattformfenster kommen erst kurz nach dem Start
+                versuche[0] += 1
+                QTimer.singleShot(250, blur_versuchen)
+        # Wird das Fenster erneut sichtbar (Tray, Minimieren), entsteht die Fläche neu : Blur wieder anmelden
+        fenster.visibleChanged.connect(lambda: blur_an(fenster) if (glass.active and fenster.isVisible()) else None)
+        nachziehen = QTimer()   # die runde Region folgt der Fenstergröße ; gebündelt, nicht bei jedem Pixel
+        nachziehen.setSingleShot(True)
+        nachziehen.setInterval(60)
+        nachziehen.timeout.connect(lambda: blur_an(fenster) if (glass.active and fenster.isVisible()) else None)
+        for sig in (fenster.widthChanged, fenster.heightChanged, fenster.visibilityChanged):
+            sig.connect(lambda *_: nachziehen.start())
+        fenster._nachziehen = nachziehen   # Referenz halten
+        QTimer.singleShot(250, blur_versuchen)
     code = app.exec()
     # Abbau in der richtigen Reihenfolge : erst die Engine (und mit ihr alle Bindings), dann das Backend, auf das sie zugreifen.
     # Sonst stirbt backend beim Verlassen von main() zuerst, und QML meldet « Cannot read property … of null ».
