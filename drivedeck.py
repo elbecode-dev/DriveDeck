@@ -2056,13 +2056,18 @@ MAJ_INTERVALLE = 7 * 24 * 3600
 
 def _version_tuple(v):
     """(1, 1) et (1, 1, 0) sont la même version : on complète par des zéros avant de comparer.
-    Eine Vorabversion (2.0.0-beta.1) ist älter als 2.0.0 : (2, 0, 0, 0, 1, 0, 0) < (2, 0, 0, 1, 0, 0, 0)."""
+    Eine Vorabversion ist älter als die fertige : alpha < beta < rc < Endversion, innerhalb einer Stufe zählen alle Zahlen
+    (2.0.0-beta.8.6 < 2.0.0-rc1 < 2.0.0-rc2 < 2.0.0). Unbekannte Bezeichnungen zählen wie beta."""
     kern, _, vor = (v or "").partition("-")
     t = [int(x) for x in re.findall(r"\d+", kern)[:3]]
     if not t:
         return ()
-    nummer = [int(x) for x in re.findall(r"\d+", vor)[:3]]   # beta.8.2 > beta.8 : alle Zahlen der Vorabversion zählen
-    return tuple(t + [0] * (3 - len(t))) + ((0, *nummer, *([0] * (3 - len(nummer)))) if vor else (1, 0, 0, 0))
+    kern3 = tuple(t + [0] * (3 - len(t)))
+    if not vor:
+        return kern3 + (1, 0, 0, 0, 0)
+    stufe = {"alpha": 0, "a": 0, "beta": 1, "b": 1, "rc": 2}.get((re.match(r"[A-Za-z]+", vor) or [""])[0].lower(), 1)
+    nummer = [int(x) for x in re.findall(r"\d+", vor)[:3]]
+    return kern3 + (0, stufe, *nummer, *([0] * (3 - len(nummer))))
 
 
 def charger_maj():
@@ -8245,7 +8250,7 @@ QQC2.ApplicationWindow {
 """
 
 
-APP_VERSION = '2.0.0-beta.8.6'
+APP_VERSION = '2.0.0-rc1'
 APP_AUTEUR = """Original Copyright (C) 2026 naykkalak
 Modified and maintained by Christian (2026), with help from his son Leon"""
 APP_LICENCE = 'GPL-3.0-or-later'

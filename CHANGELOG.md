@@ -10,6 +10,31 @@ hidden and everything else works).
 
 ---
 
+## 2.0.0-rc1 – 2026-11-08 (Release candidate)
+
+First release candidate for 2.0.0: no new features are planned before the final release, only fixes.
+
+### Added
+
+- **Custom application name.** Right-click the title bar or the "This PC" heading (or click the small pencil that appears
+  when you hover the header, or use *About → Application name*) to give DriveDeck any name, e.g. "Dieser PC" or
+  "CyberDeck". The name is used in the title bar, the window title and the heading of the drive list; an empty name
+  restores the defaults. It is also written to `Name=` in `~/.local/share/applications/drivedeck.desktop`, so the
+  application menu and KRunner show it (and `update-desktop-database` is run afterwards).
+
+### Fixed
+
+- **Version check.** A release candidate is now newer than every beta (alpha < beta < rc < final). Before, `rc1` would have
+  ranked below `beta.8.6` and never been offered as an update.
+- **Pulsing usage bars.** The usage bars of drive and network cards did not pulse at the warning threshold because of a
+  QML scope error (`ReferenceError: crit is not defined`).
+- **Termination.** `kill`/logout (SIGTERM) and Ctrl+C (SIGINT) now close the window like the close button: the window size is
+  saved and the background threads stop cleanly.
+- **Atomic writes.** Every configuration and cache file is written to a temporary file, flushed to disk (`fsync`) and then
+  moved into place, so a crash or power loss cannot leave a half-written file.
+- **Properties dialog.** File system, mount point and device are elided with a tooltip when too long; the capacity legend
+  uses layout sizes.
+
 ## 2.0.0-beta.8.6 – 2026-11-08 (Glass window)
 
 ### Added
