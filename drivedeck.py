@@ -17,6 +17,7 @@ import socket
 import os
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from typing import Any, cast
@@ -661,14 +662,17 @@ def _unescape_mount_path(path):
     return re.sub(r"\\([0-7]{3})", lambda m: chr(int(m.group(1), 8)), path)
 
 
+_USAGE_SPERRE = threading.Lock()
 _USAGE_LAEUFT = set()   # Mountpunkte, an denen gerade ein statvfs hängt : kein zweiter Thread darauf
 
 
 def disk_usage_mit_limit(pfad, sek=4):
     """shutil.disk_usage, aber ein toter NFS/SMB-Mount (statvfs blockiert unbegrenzt) hält den Aufrufer höchstens
     sek Sekunden fest. Hängt der Aufruf noch, wird kein weiterer Thread darauf gestartet (sonst +1 Thread je Zyklus)."""
-    if pfad in _USAGE_LAEUFT:
-        return None
+    with _USAGE_SPERRE:   # Prüfen und Eintragen gemeinsam : sonst starten zwei Threads auf demselben toten Mount
+        if pfad in _USAGE_LAEUFT:
+            return None
+        _USAGE_LAEUFT.add(pfad)
     ergebnis = []
 
     def arbeit():
@@ -679,7 +683,6 @@ def disk_usage_mit_limit(pfad, sek=4):
         finally:
             _USAGE_LAEUFT.discard(pfad)
 
-    _USAGE_LAEUFT.add(pfad)
     t = threading.Thread(target=arbeit, daemon=True)
     t.start()
     t.join(sek)
@@ -998,17 +1001,45 @@ def warn_begrenzen(wert):
 CLICK_MODES = ("system", "double", "single")
 
 
+_SCHREIB_SPERRE = threading.Lock()   # Schreiben nacheinander : zwei Threads erzeugen so nie Mischinhalt oder verlorene Speicherungen
+
+
 def schreibe_atomar(pfad, text, modus=None):
-    """Datei atomar schreiben : erst Temp-Datei im selben Ordner, auf die Platte zwingen (fsync), dann ersetzen. Ein Absturz
-    oder Stromausfall hinterlässt so entweder die alte oder die neue Datei, nie eine halbe oder leere. Wirft OSError."""
-    tmp = pfad + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        f.write(text)
-        f.flush()
-        os.fsync(f.fileno())
-    if modus is not None:
-        os.chmod(tmp, modus)
-    os.replace(tmp, pfad)
+    """Datei atomar schreiben : erst eine eigene Temp-Datei im selben Ordner (eindeutiger Name, also kein Zusammenstoß
+    zweier Schreiber), auf die Platte zwingen (fsync), dann ersetzen. Ein Absturz oder Stromausfall hinterlässt so entweder
+    die alte oder die neue Datei, nie eine halbe oder leere ; bei einem Fehler wird die Temp-Datei entfernt. Wirft OSError."""
+    ordner = os.path.dirname(pfad) or "."
+    with _SCHREIB_SPERRE:
+        fd, tmp = tempfile.mkstemp(prefix="." + os.path.basename(pfad) + ".", suffix=".tmp", dir=ordner)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(text)
+                f.flush()
+                os.fsync(f.fileno())
+            os.chmod(tmp, 0o644 if modus is None else modus)   # mkstemp legt 0600 an
+            os.replace(tmp, pfad)
+        except BaseException:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+            raise
+
+
+def alte_temp_dateien_entfernen(ordner, alter=60):
+    """Nach einem harten Abbruch (kill -9, Stromausfall) mitten im Schreiben bleibt eine « .name.xxxx.tmp » liegen. Beim Start
+    räumen wir solche Reste auf, wenn sie älter als « alter » Sekunden sind (ein gerade laufender Schreiber bleibt unberührt)."""
+    try:
+        jetzt = time.time()
+        for n in os.listdir(ordner):
+            if n.startswith(".") and n.endswith(".tmp"):
+                f = os.path.join(ordner, n)
+                if os.path.isfile(f) and jetzt - os.path.getmtime(f) > alter:
+                    os.unlink(f)
+    except OSError:
+        pass
+
+
 NAME_MAX = 40   # eigener Programmname : höchstens so viele Zeichen
 
 
@@ -1287,6 +1318,7 @@ _TEMP_UDISKS = {}   # Platte -> (Zeitpunkt, °C oder None) : udisks-Rückfall, h
 
 
 _TEMP_SMART = {}        # Platte -> (Zeitpunkt, °C oder None) : smartctl-Rückfall (USB-Gehäuse ohne hwmon/udisks-Wert)
+_TEMP_SMART_SPERRE = threading.Lock()
 _TEMP_SMART_LAEUFT = set()   # Platten, für die gerade ein smartctl-Lauf im Hintergrund unterwegs ist
 _SMART_TEMP_MUSTER = (   # NVMe, NVMe-Sensor 1, SCSI, ATA 194 (Temperature_Celsius), ATA 190 (Airflow/Case)
     r"^Temperature:\s+(\d+)\s+Celsius", r"^Temperature Sensor 1:\s+(\d+)\s+Celsius", r"Current Drive Temperature:\s+(\d+)\s*C",
@@ -1326,8 +1358,11 @@ def _smart_temperatur(platte):
     Erfolg : 2 Minuten gültig, Misserfolg : 10 Minuten (USB-Gehäuse ohne SMART-Durchreichen nicht ständig neu fragen)."""
     lu = _TEMP_SMART.get(platte)
     frisch = lu is not None and time.time() - lu[0] < (120 if lu[1] is not None else 600)
-    if not frisch and platte not in _TEMP_SMART_LAEUFT:
-        _TEMP_SMART_LAEUFT.add(platte)
+    with _TEMP_SMART_SPERRE:
+        starten = not frisch and platte not in _TEMP_SMART_LAEUFT
+        if starten:
+            _TEMP_SMART_LAEUFT.add(platte)
+    if starten:
 
         def arbeit():
             try:
@@ -1464,7 +1499,10 @@ def papierkorb_info(frist=1.5):
             groesse += st.st_blocks * 512 if hasattr(st, "st_blocks") else st.st_size
             if e.is_dir(follow_symlinks=False):
                 with os.scandir(e.path) as it:
-                    stapel.extend(it)
+                    for k, sub in enumerate(it):
+                        stapel.append(sub)
+                        if k % 500 == 499 and time.monotonic() > ende:   # auch ein Ordner mit Millionen Dateien hat eine Grenze
+                            return anzahl, groesse, False
         except OSError:
             continue
     return anzahl, groesse, True
@@ -8527,6 +8565,7 @@ def main():
     nom_instance = "%s-%d" % (APP_ID, os.getuid())
     if not os.environ.get("DRIVEDECK_MULTI") and instance_existante(nom_instance):
         return 0
+    alte_temp_dateien_entfernen(CONFIG_DIR)   # Reste eines harten Abbruchs mitten im Schreiben
     theme = get_icon_theme_name()
     QIcon.setThemeName(theme)
 
