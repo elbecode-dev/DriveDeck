@@ -19,6 +19,7 @@ import subprocess
 import sys
 import threading
 import time
+from typing import Any, cast
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
@@ -30,7 +31,7 @@ os.environ["QT_QUICK_CONTROLS_STYLE"] = "org.kde.desktop"
 os.environ["QT_LOGGING_RULES"] = ";".join(r for r in ("qt.svg.warning=false", os.environ.get("QT_LOGGING_RULES", "")) if r)
 
 from PyQt6.QtCore import QEvent, QObject, QTimer, QUrl, pyqtProperty, pyqtSignal, pyqtSlot
-from PyQt6.QtGui import QIcon
+from PyQt6.QtGui import QIcon, QWindow
 from PyQt6.QtQml import QQmlApplicationEngine
 from PyQt6.QtWidgets import QApplication
 try:
@@ -204,7 +205,7 @@ EXTRA_DE = {
 }
 
 
-def tr(texte):
+def tr(texte: str) -> str:
     """Texte traduit dans la langue du système ; le texte anglais si la langue n'est pas connue."""
     t = _TRAD.gettext(texte)
     if t == texte and LANGUES and LANGUES[0].split("_")[0] == "de":
@@ -859,7 +860,7 @@ def sync_places(locs):
 # KWallet-Ordner der gespeicherten Netzwerk-Passwörter
 WALLET_DOSSIER = "DriveDeck"
 _ESPACE = {}          # url -> (heure, valeur ou None) : évite d'interroger le NAS toutes les 3 secondes
-_PORTEFEUILLE = {"ko_jusqu": 0}
+_PORTEFEUILLE: dict[str, float] = {"ko_jusqu": 0.0}
 
 
 def wallet_cle(loc):
@@ -1163,7 +1164,8 @@ def einfachklick_system():
     if "KDE" in os.environ.get("XDG_CURRENT_DESKTOP", "").upper():
         return False
     try:
-        return bool(QApplication.styleHints().singleClickActivation())
+        hints = QApplication.styleHints()
+        return bool(hints and hints.singleClickActivation())
     except Exception:
         return False
 
@@ -1753,7 +1755,7 @@ def _encre_url(url):
 
 
 PRN_CONNUES = os.path.join(CONFIG_DIR, "imprimantes.json")   # imprimantesConnues
-_PRN_CONNUES_ECRIT = [None]
+_PRN_CONNUES_ECRIT: list[str | None] = [None]
 _PRN_ESSAI = {}
 
 
@@ -2211,6 +2213,7 @@ def nom_noyau(device):
 @lru_cache(maxsize=4)
 def _glaett_kern_nenner(n):
     """(Dreiecksfenster, Gewichtssumme je Position) für eine Reihe der Länge n : ändert sich nur, bis der Verlauf voll ist."""
+    assert np is not None   # nur mit NumPy aufgerufen (die E/A-Schleife startet sonst gar nicht)
     kern = np.array([1.0, 2.0, 3.0, 2.0, 1.0])   # Dreiecksfenster : Spitzen bleiben Hügel, Zacken verschwinden
     return kern, np.convolve(np.ones(n), kern, "same")
 
@@ -2223,6 +2226,7 @@ def glaetten(taux):
     if len(taux) < len(kern):
         return taux
     # Durch die tatsächliche Gewichtssumme teilen : an den Rändern (neuester Wert!) kein Abfall Richtung 0
+    assert np is not None   # siehe _glaett_kern_nenner
     return np.convolve(taux, kern, "same") / nenner
 
 
@@ -2370,8 +2374,8 @@ def _cpu_info():
     except ValueError:
         pass
     if not modell:   # ARM : /proc/cpuinfo kennt kein « model name » ; lscpu oder der Gerätename aus dem Device Tree
-        modell = (re.search(r"^Model name:\s*(.+)$", _ausgabe(["lscpu"], timeout=4) if shutil.which("lscpu") else "", re.M)
-                  or [None, ""])[1].strip() or (_lire_texte("/proc/device-tree/model") or "").strip("\x00 \n")
+        treffer = re.search(r"^Model name:\s*(.+)$", _ausgabe(["lscpu"], timeout=4) if shutil.which("lscpu") else "", re.M)
+        modell = (treffer.group(1) if treffer else "").strip() or (_lire_texte("/proc/device-tree/model") or "").strip("\x00 \n")
     return modell or platform_cpu(), len(kerne) or threads or (os.cpu_count() or 0), threads or (os.cpu_count() or 0), ghz
 
 
@@ -2569,7 +2573,7 @@ def parse_dmidecode(text):
     return res
 
 
-_DMI = {"daten": None}   # dmidecode-Ergebnis : ohne Root nicht lesbar ; erst nach « mit Administratorrechten lesen »
+_DMI: dict[str, Any] = {"daten": None}   # dmidecode-Ergebnis : ohne Root nicht lesbar ; erst nach « mit Administratorrechten lesen »
 
 
 def _dmi_ohne_root():
@@ -2834,7 +2838,7 @@ def sammle_netz():
     return gruppen
 
 
-_BERICHT = [None]
+_BERICHT: list[Any] = [None]
 _TRIM = {"laeuft": False, "zuletzt": 0.0}
 _TRIM_SPERRE = threading.Lock()
 
@@ -3128,7 +3132,7 @@ class Backend(QObject):
     @pyqtSlot()
     def copySpecs(self):
         if self._specs:
-            QApplication.clipboard().setText(specs_text(self._specs))
+            _in_zwischenablage(specs_text(self._specs))
 
     @pyqtProperty("QVariantMap", notify=statsChanged)
     def sysStats(self):
@@ -3338,10 +3342,10 @@ class Backend(QObject):
                         if platte is None:
                             platte = zuordnung[d["device"]] = basis_platte(os.path.basename(os.path.realpath(d["device"])))
                         grad = platten_temperatur(platte)
-                    except Exception:
-                        grad = None
-                    if grad is not None:
-                        res[d["device"]] = {"c": grad, "level": temperatur_stufe(platte, grad)}
+                        if grad is not None:
+                            res[d["device"]] = {"c": grad, "level": temperatur_stufe(platte, grad)}
+                    except Exception:   # eine Platte ohne lesbare Temperatur betrifft nur sich selbst
+                        pass
                 if res != letzte:   # unveränderte Temperaturen nicht erneut an die Oberfläche schicken
                     letzte = res
                     self.tempUpdated.emit(res)
@@ -3369,7 +3373,7 @@ class Backend(QObject):
         save_pins(pins)
         self._refreshPins()
 
-    @pyqtSlot(str, result=str)
+    @pyqtSlot(str, result=str)   # pyright: ignore[reportArgumentType]  (PyQt6 akzeptiert Typen, die Stubs nicht)
     def displayPath(self, path):
         """Der Ordner, der sich beim Öffnen einer Karte tatsächlich öffnet (« / » -> persönlicher Ordner)."""
         return chemin_affiche(path)
@@ -3444,7 +3448,7 @@ class Backend(QObject):
 
     def _ioLoop(self):
         # ioVerlauf : einmal pro Sekunde /proc/diskstats lesen, Raten per NumPy aus den Zählerdifferenzen bilden.
-        if not HAS_NUMPY:   # ohne NumPy : kein I/O-Verlauf, der Rest läuft normal
+        if not HAS_NUMPY or np is None:   # ohne NumPy : kein I/O-Verlauf, der Rest läuft normal
             return
         verlauf = {}   # Kernelname -> deque[(Zeitpunkt, gelesen, geschrieben)]
         zuordnung, stand = {}, None   # Gerät -> Kernelname (realpath nur bei geänderter Laufwerksliste)
@@ -3757,7 +3761,7 @@ class Backend(QObject):
                         "kcm_printer_manager"}
     _kcm_cache = {}
 
-    @pyqtSlot(str, result=bool)
+    @pyqtSlot(str, result=bool)   # pyright: ignore[reportArgumentType]  (PyQt6 akzeptiert Typen, die Stubs nicht)
     def hasSettings(self, module):
         """Ist dieses Modul der Systemeinstellungen installiert? (Dateisuche, gemerkt ; kein Prozessstart)"""
         if module not in self.SETTINGS_MODULES:
@@ -3976,7 +3980,7 @@ class Backend(QObject):
 
     @pyqtSlot(str)
     def copyText(self, text):
-        QApplication.clipboard().setText(text)
+        _in_zwischenablage(text)
 
     def _druckerName(self, name):
         """Nur Namen echter Druckerwarteschlangen, die DriveDeck selbst anzeigt (nie freier Text an lp / lpoptions)."""
@@ -4027,7 +4031,7 @@ class Backend(QObject):
 
     _SCAN_APP = [0.0, False]   # (Zeitpunkt, Ergebnis) : QML fragt bei jedem Neuaufbau einer Scannerkarte
 
-    @pyqtSlot(result=bool)
+    @pyqtSlot(result=bool)   # pyright: ignore[reportArgumentType]  (PyQt6 akzeptiert Typen, die Stubs nicht)
     def hasScanApp(self):
         """Gibt es ein Scan-Programm ? 30 s gemerkt ; nur der erste Aufruf kann « flatpak info » starten (höchstens 5 s)."""
         jetzt = time.monotonic()
@@ -4037,7 +4041,7 @@ class Backend(QObject):
 
     @pyqtSlot(str)
     def copyPath(self, path):
-        QApplication.clipboard().setText(chemin_affiche(path))
+        _in_zwischenablage(chemin_affiche(path))
 
     @pyqtSlot(str)
     def openTerminal(self, path):
@@ -4180,6 +4184,9 @@ class Backend(QObject):
             return
 
         r = brauchbar or erstes
+        if r is None:   # keine Variante hat überhaupt ein Ergebnis geliefert
+            self.smartReady.emit("SMART - " + base, tr("No information available."))
+            return
         output = (r.stdout.strip() or r.stderr.strip() or tr("No information available."))
         if brauchbar is None:
             output = hinweis_text + "\n\n" + output
@@ -8391,6 +8398,13 @@ class GlassFx(QObject):
             self.activeChanged.emit()
 
 
+def _in_zwischenablage(text):
+    """Text in die Zwischenablage ; ohne Zwischenablage (kein Display) geschieht nichts."""
+    ablage = QApplication.clipboard()
+    if ablage is not None:
+        ablage.setText(text)
+
+
 def about_info():
     """Informations affichées par « À propos de DriveDeck »."""
     from PyQt6.QtCore import PYQT_VERSION_STR, QT_VERSION_STR
@@ -8450,7 +8464,10 @@ def load_window_state():
         with open(WIN_CONFIG, encoding="utf-8") as f:
             data = json.load(f)
         w, h = int(data.get("w", 0)), int(data.get("h", 0))
-        geo = QApplication.primaryScreen().availableGeometry()
+        schirm = QApplication.primaryScreen()
+        if schirm is None:   # kein Bildschirm erreichbar : gespeicherte Größe nicht beurteilen
+            return etat
+        geo = schirm.availableGeometry()
         if 640 <= w <= max(640, geo.width()) and 460 <= h <= max(460, geo.height()):
             etat["w"], etat["h"] = w, h
         etat["max"] = bool(data.get("max", False))
@@ -8487,6 +8504,8 @@ def serveur_instance(nom, backend):
     def nouveau():
         while srv.hasPendingConnections():
             c = srv.nextPendingConnection()
+            if c is None:
+                break
             c.close()
             c.deleteLater()
             backend.raiseRequested.emit()
@@ -8531,29 +8550,34 @@ def main():
         except OSError as e:
             print("[drivedeck] DRIVEDECK_QML nicht lesbar :", e)
     engine = QQmlApplicationEngine()
-    engine.rootContext().setContextProperty("foldersModel", folders)
-    engine.rootContext().setContextProperty("backend", backend)
-    engine.rootContext().setContextProperty("trTable", table_traductions(qml))
-    engine.rootContext().setContextProperty("trDecimal", DECIMAL)
-    engine.rootContext().setContextProperty("barIconsRuban", bar_icons_ruban())
-    engine.rootContext().setContextProperty("aboutInfo", about_info())
-    engine.rootContext().setContextProperty("sectInit", load_sections())
-    engine.rootContext().setContextProperty("winInit", load_window_state())
-    engine.rootContext().setContextProperty("badgeOffline", badge_offline())
-    engine.rootContext().setContextProperty("badgeHealth", badge_health())
-    engine.rootContext().setContextProperty("liveIcons", live_icons())
+    ctx = engine.rootContext()
+    if ctx is None:
+        print("Échec du chargement QML")
+        return 1
+    ctx.setContextProperty("foldersModel", folders)
+    ctx.setContextProperty("backend", backend)
+    ctx.setContextProperty("trTable", table_traductions(qml))
+    ctx.setContextProperty("trDecimal", DECIMAL)
+    ctx.setContextProperty("barIconsRuban", bar_icons_ruban())
+    ctx.setContextProperty("aboutInfo", about_info())
+    ctx.setContextProperty("sectInit", load_sections())
+    ctx.setContextProperty("winInit", load_window_state())
+    ctx.setContextProperty("badgeOffline", badge_offline())
+    ctx.setContextProperty("badgeHealth", badge_health())
+    ctx.setContextProperty("liveIcons", live_icons())
     backend.trimmed.connect(engine.trimComponentCache)   # queued : läuft im GUI-Thread
     blur = blur_setup()
     glass = GlassFx()
-    engine.rootContext().setContextProperty("glassFx", glass)   # QML macht die Flächen nur dann durchscheinend
-    engine.rootContext().setContextProperty("appIconUrl", QUrl.fromLocalFile(app_icon).toString() if app_icon else "")
+    ctx.setContextProperty("glassFx", glass)   # QML macht die Flächen nur dann durchscheinend
+    ctx.setContextProperty("appIconUrl", QUrl.fromLocalFile(app_icon).toString() if app_icon else "")
     engine.loadData(qml.encode("utf-8"))
     if not engine.rootObjects():
         print("Échec du chargement QML")
         return 1
     if blur is not None:
         verfuegbar, blur_an = blur
-        fenster = engine.rootObjects()[0]
+        referenzen = []
+        fenster = cast(QWindow, engine.rootObjects()[0])   # die Wurzel ist ein Fenster (QQuickWindow)
         versuche = [0]
 
         def blur_versuchen():
@@ -8574,12 +8598,12 @@ def main():
         nachziehen.timeout.connect(lambda: blur_an(fenster) if (glass.active and fenster.isVisible()) else None)
         for sig in (fenster.widthChanged, fenster.heightChanged, fenster.visibilityChanged):
             sig.connect(lambda *_: nachziehen.start())
-        fenster._nachziehen = nachziehen   # Referenz halten
+        referenzen.append(nachziehen)   # Referenz halten : ein Timer ohne Besitzer würde eingesammelt
         QTimer.singleShot(250, blur_versuchen)
     # SIGTERM (kill, Abmelden) und SIGINT (Strg+C) wie das Schließen-Kreuz behandeln : das Fenster schließt, onClosing speichert
     # Größe und Zustand, danach läuft der geordnete Abbau unten. Der leere Timer lässt Python seine Handler zwischen den
     # Qt-Ereignissen ausführen.
-    hauptfenster = engine.rootObjects()[0]
+    hauptfenster = cast(QWindow, engine.rootObjects()[0])
 
     def beenden(*_):
         QTimer.singleShot(0, hauptfenster.close)
