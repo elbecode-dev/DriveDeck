@@ -263,12 +263,18 @@ def get_icon_theme_name():
     return "breeze"
 
 
+_XDG_DIRS = {}   # Typ -> Pfad aus xdg-user-dir : ändert sich im Betrieb nicht, also nur einmal fragen
+
+
 def get_xdg_user_dir(xdg_type, fallback_name):
     try:
-        out = subprocess.check_output(
-            ["xdg-user-dir", xdg_type], stderr=subprocess.DEVNULL,
-            text=True, timeout=3,
-        ).strip()
+        out = _XDG_DIRS.get(xdg_type)
+        if out is None:
+            out = subprocess.check_output(
+                ["xdg-user-dir", xdg_type], stderr=subprocess.DEVNULL,
+                text=True, timeout=3,
+            ).strip()
+            _XDG_DIRS[xdg_type] = out
         if out and os.path.isdir(out):
             return out
     except Exception:
@@ -1893,12 +1899,16 @@ def imprimante_repond(adresse, port):
         return False
 
 
+_LPSTAT_V = {"zeit": -100.0, "text": ""}
+
+
 def list_printers():
     """Imprimantes CUPS : [{key, label, name, icon, statusText, device}]. Liste vide si aucune ou si CUPS est absent."""   # imprimantesInfo
     env = dict(os.environ, LC_ALL="C", LANG="C", LANGUAGE="C")
     try:
         out = subprocess.run(["lpstat", "-p", "-d", "-v"], capture_output=True, text=True,
                              timeout=5, env=env).stdout
+        _LPSTAT_V["zeit"], _LPSTAT_V["text"] = time.monotonic(), out   # cartes_scanners braucht dieselben « device for »-Zeilen
     except Exception:
         return []
     defaut = ""
@@ -2117,8 +2127,11 @@ def cartes_scanners(scanners, trouves, imprimantes):
             if _norme(s):
                 noms[_norme(s)] = bool(d.get("offline"))
     try:   # nom d'annonce réseau des files dnssd://… (« EPSON XP-540 Series »)
-        out = subprocess.run(["lpstat", "-v"], capture_output=True, text=True, timeout=5,
-                             env=dict(os.environ, LC_ALL="C", LANG="C", LANGUAGE="C")).stdout
+        if time.monotonic() - _LPSTAT_V["zeit"] < 10:   # eben erst im selben Zyklus gelesen : kein zweiter Prozess
+            out = _LPSTAT_V["text"]
+        else:
+            out = subprocess.run(["lpstat", "-v"], capture_output=True, text=True, timeout=5,
+                                 env=dict(os.environ, LC_ALL="C", LANG="C", LANGUAGE="C")).stdout
         for m in re.finditer(r"^device for (\S+): dnssd://([^/]+?)\._(?:ipps?|printer)\._tcp", out, re.M):
             from urllib.parse import unquote
             hors = next((v for n, v in noms.items() if n == _norme(m.group(1))), False)
