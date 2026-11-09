@@ -10,6 +10,21 @@ hidden and everything else works).
 
 ---
 
+## 2.0.0-rc2 – 2026-11-09 (Release candidate 2)
+
+### Fixed
+
+- **Renaming the launcher.** The custom name is now written to every DriveDeck launcher: the application menu entry and
+  any `drivedeck*.desktop` on the desktop (the installer's shortcut is a separate copy that was never updated), including
+  translated `Name[xx]=` lines that would otherwise override `Name=`. Runs are serialised, so renaming twice in quick
+  succession ends in the last name instead of a random state; a run cut short by closing the program is repeated at the next
+  start. `update-desktop-database` and `kbuildsycoca6` run afterwards. If DriveDeck is installed system-wide only, a user
+  copy of the launcher is created instead of touching `/usr`.
+- **Type safety.** Pyright errors went from 87 to 0. Qt calls that can return nothing (screen, clipboard, style hints,
+  incoming connection, QML context) are now guarded. Reading SMART no longer ends a background thread with an error when no
+  variant returned data (a message is shown instead), and the disk temperature loop no longer relies on a possibly unset
+  variable.
+
 ## 2.0.0-rc1 – 2026-11-08 (Release candidate)
 
 First release candidate for 2.0.0: no new features are planned before the final release, only fixes.
