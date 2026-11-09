@@ -1430,6 +1430,10 @@ def chemin_affiche(path):
     return path
 
 
+_LANCER_SPERRE = threading.Lock()
+_LANCER_ZULETZT = {}
+
+
 def lancer(cmd, cwd=None):
     """Startet ein Programm vollständig losgelöst von DriveDeck : eigene Sitzung und kein Kindprozess mehr.
     start_new_session allein ändert den Elternprozess nicht ; deshalb startet eine kurzlebige Shell das Programm im
@@ -1437,6 +1441,12 @@ def lancer(cmd, cwd=None):
     und es bleibt auch kein Zombie zurück. Fehlt das Programm, folgt wie bisher FileNotFoundError."""
     if shutil.which(cmd[0]) is None:
         raise FileNotFoundError(cmd[0])
+    schluessel = (tuple(cmd), cwd)
+    jetzt = time.monotonic()
+    with _LANCER_SPERRE:   # Rage-Clicking : derselbe Start innerhalb von 1 s zählt nur einmal (sonst Dutzende Prozesse)
+        if jetzt - _LANCER_ZULETZT.get(schluessel, -10.0) < 1.0:
+            return None
+        _LANCER_ZULETZT[schluessel] = jetzt
     p = subprocess.Popen(["sh", "-c", '"$@" </dev/null >/dev/null 2>&1 &', "sh", *cmd], cwd=cwd, start_new_session=True,
                          stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     threading.Thread(target=p.wait, daemon=True).start()   # die Shell endet sofort ; wait räumt sie ab
