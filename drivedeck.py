@@ -1036,7 +1036,8 @@ def lade_einstellungen():
     modus = data.get("click_mode")
     return {"warn_threshold_percent": warn_begrenzen(data.get("warn_threshold_percent", WARN_STD)),
             "click_mode": modus if modus in CLICK_MODES else "system",
-            "custom_name": name_begrenzen(data.get("custom_name", ""))}
+            "custom_name": name_begrenzen(data.get("custom_name", "")),
+            "desktop_name": name_begrenzen(data.get("desktop_name", ""))}   # zuletzt in die Starter geschriebener Name
 
 
 def speichere_einstellungen(einst):
@@ -1049,26 +1050,36 @@ def speichere_einstellungen(einst):
 
 DESKTOP_DATEI = os.path.expanduser("~/.local/share/applications/drivedeck.desktop")   # legt install.sh an
 DESKTOP_STANDARDNAME = "DriveDeck"
+DESKTOP_SYSTEM = ("/usr/local/share/applications/drivedeck.desktop", "/usr/share/applications/drivedeck.desktop")
+_DESKTOP_SPERRE = threading.Lock()   # Abgleiche laufen nacheinander : sonst überschreiben sich zwei Threads die Temp-Datei
+_NAME_ZEILE = re.compile(r"^Name(\[[^\]]+\])?\s*=")   # « Name= » und alle übersetzten « Name[de]= »
+_EXEC_DRIVEDECK = re.compile(r"drivedeck(\.py)?[\"'\s]*$|drivedeck\.py")
 
 
-def update_desktop_entry_name(neuer_name, datei=None):
-    """Setzt « Name= » im Startereintrag (KDE-Anwendungsmenü, KRunner) auf den eigenen Namen, bei leerem Namen zurück auf
-    « DriveDeck ». Fasst nur eine vorhandene Datei an, die auf DriveDeck startet, und nur die Zeile « Name= » im Abschnitt
-    [Desktop Entry] ; Rechte bleiben erhalten. Gibt True zurück, wenn die Datei geändert wurde. Wirft nie."""
-    datei = datei or DESKTOP_DATEI
+def update_desktop_entry_name(neuer_name, datei):
+    """Setzt « Name= » und alle übersetzten « Name[xx]= » im Startereintrag (KDE-Anwendungsmenü, KRunner, Desktop) auf den
+    eigenen Namen, bei leerem Namen zurück auf « DriveDeck ». Eine übersetzte Zeile würde « Name= » sonst in der Systemsprache
+    übertönen. Fasst nur eine vorhandene Datei an, die DriveDeck startet, und nur den Abschnitt [Desktop Entry] ; Rechte bleiben
+    erhalten. Gibt True zurück, wenn die Datei geändert wurde. Wirft nie."""
     wert = (name_begrenzen(neuer_name) or DESKTOP_STANDARDNAME).replace("\\", "\\\\")   # Desktop-Spezifikation : « \ » maskieren
     try:
         with open(datei, encoding="utf-8") as f:
             zeilen = f.read().split("\n")
-        if not any(z.startswith("Exec=") and "drivedeck" in z for z in zeilen):
+        if not any(z.startswith("Exec=") and _EXEC_DRIVEDECK.search(z) for z in zeilen):
             return False   # nicht unsere Datei
-        im_eintrag, geaendert, neu = False, False, []
+        im_eintrag, geaendert, neu, hat_name = False, False, [], False
         for z in zeilen:
             if z.startswith("["):
                 im_eintrag = z.strip() == "[Desktop Entry]"
-            if im_eintrag and z.startswith("Name=") and z != "Name=" + wert:
-                z, geaendert = "Name=" + wert, True
+            m = _NAME_ZEILE.match(z) if im_eintrag else None
+            if m:
+                hat_name = hat_name or not m.group(1)
+                soll = z[:z.index("=")].rstrip() + "=" + wert
+                if z != soll:
+                    z, geaendert = soll, True
             neu.append(z)
+        if not hat_name:
+            return False   # kein « Name= » im Eintrag : nichts Sicheres zu ersetzen
         if not geaendert:
             return False
         schreibe_atomar(datei, "\n".join(neu), os.stat(datei).st_mode & 0o7777)
@@ -1080,14 +1091,60 @@ def update_desktop_entry_name(neuer_name, datei=None):
         return False
 
 
-def desktop_name_abgleichen(neuer_name, datei=None):
-    """Startereintrag anpassen und danach den Desktop-Datenbank-Cache auffrischen (Plasma liest den Ordner ohnehin neu)."""
-    datei = datei or DESKTOP_DATEI
-    if update_desktop_entry_name(neuer_name, datei):
+def desktop_dateien():
+    """Alle Starter von DriveDeck : der im Anwendungsmenü und jede drivedeck*.desktop auf dem Schreibtisch (Kopie von install.sh)."""
+    dateien = [DESKTOP_DATEI]
+    ordner = [os.path.expanduser("~/Desktop")]
+    try:
+        r = subprocess.run(["xdg-user-dir", "DESKTOP"], capture_output=True, text=True, timeout=5, check=False)
+        if r.stdout.strip():
+            ordner.insert(0, r.stdout.strip())
+    except (OSError, subprocess.SubprocessError):
+        pass
+    for o in dict.fromkeys(ordner):
         try:
-            subprocess.run(["update-desktop-database", os.path.dirname(datei)], capture_output=True, timeout=15, check=False)
-        except (OSError, subprocess.SubprocessError):
-            pass   # Programm fehlt oder hängt : der Eintrag selbst ist trotzdem geschrieben
+            for n in sorted(os.listdir(o)):
+                if n.startswith("drivedeck") and n.endswith(".desktop"):
+                    dateien.append(os.path.join(o, n))
+        except OSError:
+            pass
+    return list(dict.fromkeys(dateien))
+
+
+def _system_starter_uebernehmen():
+    """Gibt es DriveDeck nur systemweit (Paket), fehlt der Benutzer-Starter : eine Kopie im Benutzerordner übertönt den
+    Systemeintrag gleichen Namens, so lässt sich der Name ändern, ohne /usr anzufassen."""
+    if os.path.exists(DESKTOP_DATEI):
+        return
+    for quelle in DESKTOP_SYSTEM:
+        if os.path.isfile(quelle):
+            try:
+                os.makedirs(os.path.dirname(DESKTOP_DATEI), exist_ok=True)
+                shutil.copyfile(quelle, DESKTOP_DATEI)
+            except OSError as e:
+                print("[drivedeck] Startereintrag :", e)
+            return
+
+
+def _desktop_cache_auffrischen():
+    """Datenbank und KDE-Dienstcache neu bauen, damit Startmenü und KRunner den Namen sofort sehen."""
+    for befehl, sek in ((["update-desktop-database", os.path.dirname(DESKTOP_DATEI)], 15), (["kbuildsycoca6"], 40)):
+        if shutil.which(befehl[0]):
+            try:
+                subprocess.run(befehl, capture_output=True, timeout=sek, check=False)
+            except (OSError, subprocess.SubprocessError):
+                pass   # hängt oder fehlt : der Eintrag selbst ist trotzdem geschrieben
+
+
+def desktop_name_abgleichen(neuer_name):
+    """Name in allen Startern von DriveDeck setzen und danach den Cache auffrischen. True, wenn etwas geändert wurde."""
+    _system_starter_uebernehmen()
+    geaendert = False
+    for datei in desktop_dateien():
+        geaendert = update_desktop_entry_name(neuer_name, datei) or geaendert
+    if geaendert:
+        _desktop_cache_auffrischen()
+    return geaendert
 
 
 def einfachklick_system():
@@ -2913,8 +2970,8 @@ class Backend(QObject):
         self._einst = lade_einstellungen()
         self._einfachklick = einfachklick_aktiv(self._einst["click_mode"])
         self._warn = self._einst["warn_threshold_percent"]
-        if self._einst["custom_name"]:   # Eintrag stimmt nach einer Neuinstallation wieder mit dem eigenen Namen überein
-            threading.Thread(target=desktop_name_abgleichen, args=(self._einst["custom_name"],), daemon=True).start()
+        if self._einst["desktop_name"] != self._einst["custom_name"] or self._einst["custom_name"]:
+            self._desktopAbgleichen()   # nachholen, falls das Beenden den letzten Abgleich abgeschnitten hat ; und nach einer Neuinstallation
         self._starten(self._verifierMaj)
         self._starten(self._diskLoop)
         self._starten(self._netLoop)
@@ -3560,6 +3617,19 @@ class Backend(QObject):
             speichere_einstellungen(self._einst)
             self.warnThresholdChanged.emit()
 
+    def _desktopAbgleichen(self):
+        """Starter im Hintergrund nachziehen, ohne Qt-Aufrufe (darf beim Beenden einfach abbrechen). Die Läufe gehen durch ein
+        Schloss und lesen den Namen erst dann : bei schnellem Umbenennen gewinnt immer der zuletzt eingestellte. Erst nach dem
+        Durchlauf wird « desktop_name » gemerkt ; stimmt es beim nächsten Start nicht, wird der Abgleich wiederholt."""
+        def arbeit():
+            with _DESKTOP_SPERRE:
+                ziel = self._einst["custom_name"]
+                desktop_name_abgleichen(ziel)
+                if ziel == self._einst["custom_name"] and self._einst["desktop_name"] != ziel:
+                    self._einst["desktop_name"] = ziel
+                    speichere_einstellungen(dict(self._einst))
+        threading.Thread(target=arbeit, daemon=True).start()
+
     @pyqtProperty(str, notify=customNameChanged)
     def customName(self):
         """Eigener Programmname (leer = Standardnamen)."""
@@ -3573,7 +3643,7 @@ class Backend(QObject):
             speichere_einstellungen(self._einst)
             self.customNameChanged.emit()
             # Startereintrag im Hintergrund nachziehen : ohne Qt-Aufrufe, darf beim Beenden einfach abbrechen
-            threading.Thread(target=desktop_name_abgleichen, args=(name,), daemon=True).start()
+            self._desktopAbgleichen()
 
     @pyqtProperty(bool, constant=True)
     def updateCheck(self):
