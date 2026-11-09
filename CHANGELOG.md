@@ -10,6 +10,20 @@ hidden and everything else works).
 
 ---
 
+## 2.0.0-rc3 – 2026-11-09 (Release candidate 3)
+
+### Fixed
+- **Lost saves.** Settings and window state were written through one shared temp file, so simultaneous writers made saves fail (908 of 2400 in a stress test). Each write now uses its own temp file under a lock; leftovers of a hard abort (`kill -9`) are cleaned up at the next start.
+- **Rage-clicking.** Starting the same program twice within one second (file manager, terminal, …) is now ignored instead of spawning dozens of processes.
+- **Hung mounts and SMART lookups.** The "already running" checks are now race-free, so two threads never pile up on the same dead mount or disk.
+- **Trash scan.** The time limit now also applies while reading very large sub-folders.
+
+### Performance
+- `lpstat -v` is no longer run a second time in every printer cycle (about 11 fewer processes per minute).
+- `xdg-user-dir` is queried once per folder type instead of twice at start.
+
+---
+
 ## 2.0.0-rc2 – 2026-11-09 (Release candidate 2)
 
 ### Fixed

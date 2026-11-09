@@ -8388,7 +8388,7 @@ QQC2.ApplicationWindow {
 """
 
 
-APP_VERSION = '2.0.0-rc2'
+APP_VERSION = '2.0.0-rc3'
 APP_AUTEUR = """Original Copyright (C) 2026 naykkalak
 Modified and maintained by Christian (2026), with help from his son Leon"""
 APP_LICENCE = 'GPL-3.0-or-later'
