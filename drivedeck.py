@@ -7520,6 +7520,13 @@ QQC2.ApplicationWindow {
                                                 QQC2.ToolTip.delay: 300
                                                 QQC2.ToolTip.text: tempChip.t !== undefined ? win.trad("Temperature") + ": " + tempChip.t.c.toFixed(1).replace(".", trDecimal) + " °C" : ""
                                             }
+                                            // Platzhalter in Breite des I/O-Blocks (nur in der Namenszeile) : der Temperatur-Chip sitzt so auf
+                                            // eingehängten und nicht eingehängten Karten am selben Rand, die Textzeile darunter behält ihre Breite
+                                            Item {
+                                                visible: ioArea.anyIo && !ioArea.visible
+                                                Layout.preferredWidth: ioArea.Layout.preferredWidth   // plus Zeilenabstand = Abstand der Spalte zum I/O-Block
+                                                Layout.preferredHeight: 1
+                                            }
                                         }
 
                                         Rectangle {
