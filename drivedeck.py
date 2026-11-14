@@ -138,6 +138,11 @@ EXTRA_DE = {
     "GPU & Display": "Grafik & Anzeige",
     "System & Drivers": "System & Treiber",
     "Network": "Netzwerk",
+    "Storage": "Speicher",
+    "Minimize": "Minimieren",
+    "Maximize": "Maximieren",
+    "Restore": "Wiederherstellen",
+    "Close": "Schließen",
     "Export full report…": "Vollständigen Bericht exportieren…",
     "Text report": "Textbericht",
     "JSON report": "JSON-Bericht",
@@ -3005,6 +3010,13 @@ class Backend(QObject):
         self._aktivEvent = threading.Event()
         self._aktivEvent.set()
         self._pinGen = 0
+        # Gebündeltes Speichern : Slider, Resize und Abschnitte rufen oft in schneller Folge ; geschrieben wird einmal, 300 ms nach
+        # der letzten Änderung (je Schlüssel gewinnt der letzte Stand), und sicher beim Beenden (shutdown)
+        self._spaeter = {}
+        self._spaeterTimer = QTimer(self)
+        self._spaeterTimer.setSingleShot(True)
+        self._spaeterTimer.setInterval(300)
+        self._spaeterTimer.timeout.connect(self.speichernJetzt)
         self.pinsUpdated.connect(self._setPinInfos)
         self._stats = {}
         self._tools = None
@@ -3070,9 +3082,26 @@ class Backend(QObject):
         self._schleifen.append(t)
         t.start()
 
+    def _verzoegert(self, schluessel, funktion):
+        """Schreibvorgang vormerken : je Schlüssel zählt nur der letzte, ausgeführt wird er 300 ms nach der letzten Änderung."""
+        self._spaeter[schluessel] = funktion
+        self._spaeterTimer.start()
+
+    @pyqtSlot()
+    def speichernJetzt(self):
+        """Alle vorgemerkten Schreibvorgänge sofort ausführen (Timer, Programmende)."""
+        self._spaeterTimer.stop()
+        offen, self._spaeter = self._spaeter, {}
+        for funktion in offen.values():
+            try:
+                funktion()
+            except Exception as e:   # ein Schreibfehler darf weder den Timer noch das Beenden stören
+                print("[drivedeck] speichern :", e)
+
     def shutdown(self, warte=0.6):
         """Programmende : alle Schleifen wecken und stoppen, höchstens « warte » Sekunden auf sie warten. Danach fasst kein
         Dauer-Thread mehr Qt an, während QApplication abgebaut wird."""
+        self.speichernJetzt()
         _ENDE.set()
         self._aktivEvent.set()
         for ev in (self._diskWake, self._netWake, self._prnWake, self._scanWake, self._trashWake):
@@ -3411,7 +3440,8 @@ class Backend(QObject):
                     letzte = res
                     self.tempUpdated.emit(res)
             except Exception as e:
-                print("[drivedeck] température (boucle) :", e)
+                if not _ENDE.is_set():   # beim Beenden kann das Backend schon abgebaut sein : dann still enden
+                    print("[drivedeck] température (boucle) :", e)
             _ENDE.wait(5)
 
     @pyqtProperty("QVariantList", notify=pinsChanged)
@@ -3545,7 +3575,8 @@ class Backend(QObject):
                     letzte = resultat
                     self.ioUpdated.emit(resultat)
             except Exception as e:   # ein Ausreißer (Gerät verschwunden, seltsamer Zähler) darf den Verlauf nicht dauerhaft beenden
-                print("[drivedeck] io-verlauf :", e)
+                if not _ENDE.is_set():   # beim Beenden kann das Backend schon abgebaut sein : dann still enden
+                    print("[drivedeck] io-verlauf :", e)
                 verlauf.clear()
                 stand = None
             _ENDE.wait(1)
@@ -3591,10 +3622,12 @@ class Backend(QObject):
                         enregistrer_cache_disques(liste)
                         self.disksUpdated.emit(liste)
                     except Exception as e:
-                        print("[drivedeck] disques :", e)
+                        if not _ENDE.is_set():   # beim Beenden kann das Backend schon abgebaut sein : dann still enden
+                            print("[drivedeck] disques :", e)
                     derniere, dernier = etat, time.monotonic()
             except Exception as e:   # die Schleife darf nie enden : sonst bleibt die Laufwerksliste für immer stehen
-                print("[drivedeck] disques (boucle) :", e)
+                if not _ENDE.is_set():   # beim Beenden kann das Backend schon abgebaut sein : dann still enden
+                    print("[drivedeck] disques (boucle) :", e)
             forcer = self._diskWake.wait(1)
             self._diskWake.clear()
 
@@ -3609,7 +3642,8 @@ class Backend(QObject):
                 enregistrer_cache_reseau(liste)
                 self.netUpdated.emit(liste)
             except Exception as e:
-                print("[drivedeck] réseau :", e)
+                if not _ENDE.is_set():   # beim Beenden kann das Backend schon abgebaut sein : dann still enden
+                    print("[drivedeck] réseau :", e)
             self._netWake.wait(3)
             self._netWake.clear()
 
@@ -3625,7 +3659,8 @@ class Backend(QObject):
                 enregistrer_cache_imprimantes(imprimantes)
                 self.printersUpdated.emit(imprimantes)
             except Exception as e:
-                print("[drivedeck] imprimantes :", e)
+                if not _ENDE.is_set():   # beim Beenden kann das Backend schon abgebaut sein : dann still enden
+                    print("[drivedeck] imprimantes :", e)
             self._prnWake.wait(3)
             self._prnWake.clear()
 
@@ -3679,7 +3714,7 @@ class Backend(QObject):
         if prozent != self._warn:
             self._warn = prozent
             self._einst["warn_threshold_percent"] = prozent
-            speichere_einstellungen(self._einst)
+            self._verzoegert("einst", lambda: speichere_einstellungen(dict(self._einst)))
             self.warnThresholdChanged.emit()
 
     def _desktopAbgleichen(self):
@@ -3776,23 +3811,32 @@ class Backend(QObject):
             data = json.loads(texte)
             etat = {k: {"collapsed": bool(data[k]["collapsed"]), "shown": bool(data[k]["shown"])}
                     for k in SECTIONS}
-            os.makedirs(CONFIG_DIR, exist_ok=True)
-            schreibe_atomar(SECT_CONFIG, json.dumps(etat))
-        except (OSError, ValueError, TypeError, KeyError) as e:
+        except (ValueError, TypeError, KeyError) as e:
             print("[drivedeck] rubriques :", e)
+            return
+
+        def schreiben():
+            try:
+                os.makedirs(CONFIG_DIR, exist_ok=True)
+                schreibe_atomar(SECT_CONFIG, json.dumps(etat))
+            except OSError as e:
+                print("[drivedeck] rubriques :", e)
+        self._verzoegert("sections", schreiben)
 
     @pyqtSlot(int, int, bool)
     def saveWindow(self, w, h, maximized):
         # Mémorise la taille. Fenêtre agrandie : on garde la dernière taille normale déjà connue.
-        etat = load_window_state()
-        if not maximized and 640 <= w <= 10000 and 460 <= h <= 10000:
-            etat["w"], etat["h"] = int(w), int(h)
-        etat["max"] = bool(maximized)
-        try:
-            os.makedirs(CONFIG_DIR, exist_ok=True)
-            schreibe_atomar(WIN_CONFIG, json.dumps(etat))
-        except OSError as e:
-            print("[drivedeck] taille de la fenêtre :", e)
+        def schreiben():
+            etat = load_window_state()
+            if not maximized and 640 <= w <= 10000 and 460 <= h <= 10000:
+                etat["w"], etat["h"] = int(w), int(h)
+            etat["max"] = bool(maximized)
+            try:
+                os.makedirs(CONFIG_DIR, exist_ok=True)
+                schreibe_atomar(WIN_CONFIG, json.dumps(etat))
+            except OSError as e:
+                print("[drivedeck] taille de la fenêtre :", e)
+        self._verzoegert("window", schreiben)
 
     @pyqtSlot(str)
     def launchApp(self, name):
@@ -4369,8 +4413,9 @@ QQC2.ApplicationWindow {
     height: Math.max(520, winInit.h > 0 ? winInit.h : 584)
     // fenetreMemo : la taille est enregistrée à la fermeture (visibility 4 = fenêtre agrandie)
     onClosing: backend.saveWindow(win.width, win.height, win.visibility === 4)
-    // fensterAktiv : 0 = versteckt, 3 = minimiert -> Hintergrundabfragen ruhen
-    onVisibilityChanged: backend.setActive(win.visibility !== 0 && win.visibility !== 3)
+    // fensterAktiv : 0 = versteckt, 3 = minimiert -> Hintergrundabfragen ruhen, Endlos-Animationen stehen still
+    readonly property bool fensterAktiv: win.visibility !== 0 && win.visibility !== 3
+    onVisibilityChanged: backend.setActive(win.fensterAktiv)
     Component.onCompleted: {
         if (winInit.max)
             win.showMaximized()
@@ -4525,8 +4570,17 @@ QQC2.ApplicationWindow {
         radius: width / 2
         color: tone
         opacity: wbMouse.pressed ? 0.75 : 1.0
-        border.width: 1
-        border.color: Qt.rgba(0, 0, 0, 0.18)
+        border.width: activeFocus ? 2 : 1
+        border.color: activeFocus ? Kirigami.Theme.highlightColor : Qt.rgba(0, 0, 0, 0.18)
+        // Per Tastatur erreichbar (Tab, Enter, Leertaste) und für Screenreader als Knopf benannt
+        activeFocusOnTab: true
+        Accessible.role: Accessible.Button
+        Accessible.name: win.trad(wbtn.glyph === "min" ? "Minimize" : (wbtn.glyph === "max" ? "Maximize"
+                                  : (wbtn.glyph === "restore" ? "Restore" : "Close")))
+        Accessible.onPressAction: wbtn.clicked()
+        Keys.onReturnPressed: wbtn.clicked()
+        Keys.onEnterPressed: wbtn.clicked()
+        Keys.onSpacePressed: wbtn.clicked()
         Shape {
             anchors.centerIn: parent
             width: 16
@@ -4550,10 +4604,24 @@ QQC2.ApplicationWindow {
         MouseArea {
             id: wbMouse
             anchors.fill: parent
-            anchors.margins: -4   // größere Trefferfläche als der 16-px-Punkt
+            anchors.margins: -4   // Trefferfläche 24 × 24 px, der sichtbare Punkt bleibt 16 px
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: wbtn.clicked()
+        }
+    }
+    // Kontextmenü erst beim ersten Öffnen aufbauen : spart beim Start und bei jedem Listenumbau Hunderte Elemente
+    component LazyMenu: Loader {
+        active: false
+        visible: false
+        function openMenu(props) {
+            active = true
+            if (!item)
+                return
+            if (props)
+                for (var k in props)
+                    item[k] = props[k]
+            item.popup()
         }
     }
     // Griff am Fensterrand : startet das Ändern der Größe über den Compositor (geht unter Wayland und X11)
@@ -4564,18 +4632,21 @@ QQC2.ApplicationWindow {
         onPressed: win.startSystemResize(edges)
     }
 
-    QQC2.Menu {
-        id: nameMenu
-        QQC2.MenuItem {
-            text: win.trad("Rename…")
-            icon.name: "edit-rename"
-            onTriggered: renameDialog.open()
-        }
-        QQC2.MenuItem {
-            text: win.trad("Reset name")
-            icon.name: "edit-undo"
-            enabled: win.customName !== ""
-            onTriggered: backend.setCustomName("")
+    LazyMenu {
+        id: nameMenuL
+        sourceComponent: QQC2.Menu {
+            id: nameMenu
+            QQC2.MenuItem {
+                text: win.trad("Rename…")
+                icon.name: "edit-rename"
+                onTriggered: renameDialog.open()
+            }
+            QQC2.MenuItem {
+                text: win.trad("Reset name")
+                icon.name: "edit-undo"
+                enabled: win.customName !== ""
+                onTriggered: backend.setCustomName("")
+            }
         }
     }
     QQC2.Dialog {
@@ -4835,9 +4906,25 @@ QQC2.ApplicationWindow {
         return true
     }
     // couleursJauge : bleu des jauges normales et rouge des jauges en alerte (fixes)
-    readonly property color gaugeBlue: "#1e88e5"
-    readonly property color gaugeRed: "#d92b2b"
-    readonly property color rateReadColor: "#06b6d4"    // Sparkline lesen : Cyan
+    // Farben aus dem Plasma-Schema : Blau = Akzentfarbe (bei rötlichem Akzent bleibt das feste Blau, sonst wäre « normal » nicht von
+    // « Alarm » zu unterscheiden), Rot = Warnfarbe. Texte und dünne Linien werden je nach hellem/dunklem Schema abgedunkelt/aufgehellt,
+    // damit der Kontrast reicht (Text 4,5 : 1, Grafik 3 : 1).
+    Item {
+        id: themeProbe
+        visible: false
+        readonly property bool dark: Kirigami.Theme.backgroundColor.hslLightness < 0.5
+        readonly property color accent: Kirigami.Theme.highlightColor
+        // Ohne Plasma-Farbschema (z. B. andere Umgebung) liefert Kirigami Schwarz : dann feste, gut lesbare Ersatzfarben
+        readonly property color negative: Kirigami.Theme.negativeTextColor.hslLightness < 0.05 ? "#da4453" : Kirigami.Theme.negativeTextColor
+        readonly property color neutral: Kirigami.Theme.neutralTextColor.hslLightness < 0.05 ? "#f67400" : Kirigami.Theme.neutralTextColor
+    }
+    readonly property bool darkTheme: themeProbe.dark
+    readonly property color gaugeBlue: (themeProbe.accent.hslHue < 0.06 || themeProbe.accent.hslHue > 0.94) ? "#1e88e5" : themeProbe.accent
+    readonly property color gaugeRed: themeProbe.negative
+    readonly property color warnColor: darkTheme ? themeProbe.neutral : Qt.darker(themeProbe.neutral, 1.3)
+    readonly property color healthFailColor: darkTheme ? Qt.lighter(themeProbe.negative, 1.3) : Qt.darker(themeProbe.negative, 1.5)
+    readonly property color healthWarnColor: darkTheme ? Qt.lighter(themeProbe.neutral, 1.2) : Qt.darker(themeProbe.neutral, 1.5)
+    readonly property color rateReadColor: darkTheme ? "#06b6d4" : "#0e7490"    // Sparkline lesen : Cyan (hell : dunkleres Cyan)
     readonly property color rateWriteColor: "#d946ef"   // Sparkline schreiben : Magenta
     // Disque ou emplacement réseau sélectionné par un clic (point de montage), vide si aucun
     property string selectedKey: ""
@@ -5335,6 +5422,18 @@ QQC2.ApplicationWindow {
             return
         }
         ev.accepted = true
+    }
+    // Globale Kürzel : Strg+Q beendet (über close, damit onClosing Größe und Zustand speichert), F2 benennt das Programm um
+    Shortcut {
+        sequence: "Ctrl+Q"
+        context: Qt.ApplicationShortcut
+        onActivated: win.close()
+    }
+    Shortcut {
+        sequence: "F2"
+        context: Qt.ApplicationShortcut
+        enabled: !renameDialog.visible
+        onActivated: renameDialog.open()
     }
     Item {
         id: keyHandler
@@ -6074,18 +6173,21 @@ QQC2.ApplicationWindow {
                 icon.name: "document-export"
                 enabled: hwInfoDialog.reportReady
                 QQC2.DialogButtonBox.buttonRole: QQC2.DialogButtonBox.ActionRole
-                onClicked: exportMenu.popup()
-                QQC2.Menu {
-                    id: exportMenu
-                    QQC2.MenuItem {
-                        text: win.trad("Text report") + " (.txt)"
-                        icon.name: "text-plain"
-                        onTriggered: hwInfoDialog.startExport("txt")
-                    }
-                    QQC2.MenuItem {
-                        text: win.trad("JSON report") + " (.json)"
-                        icon.name: "application-json"
-                        onTriggered: hwInfoDialog.startExport("json")
+                onClicked: exportMenuL.openMenu()
+                LazyMenu {
+                    id: exportMenuL
+                    sourceComponent: QQC2.Menu {
+                        id: exportMenu
+                        QQC2.MenuItem {
+                            text: win.trad("Text report") + " (.txt)"
+                            icon.name: "text-plain"
+                            onTriggered: hwInfoDialog.startExport("txt")
+                        }
+                        QQC2.MenuItem {
+                            text: win.trad("JSON report") + " (.json)"
+                            icon.name: "application-json"
+                            onTriggered: hwInfoDialog.startExport("json")
+                        }
                     }
                 }
             }
@@ -6238,7 +6340,6 @@ QQC2.ApplicationWindow {
         // titelBalken : liegt in denselben Farben und derselben Durchsicht wie das Ribbon darunter, ohne Trennlinie :
         // der Blur läuft von der obersten Pixelzeile durch
         Item {
-            id: titleBar
             Kirigami.Theme.colorSet: Kirigami.Theme.Header
             Kirigami.Theme.inherit: false
             Layout.fillWidth: true
@@ -6260,7 +6361,7 @@ QQC2.ApplicationWindow {
             }
             TapHandler {
                 acceptedButtons: Qt.RightButton
-                onTapped: nameMenu.popup()
+                onTapped: nameMenuL.openMenu()
             }
             HoverHandler { id: titleHover }
             QQC2.Label {   // Name mittig im Fenster, unabhängig von Symbol und Knöpfen
@@ -6514,7 +6615,7 @@ QQC2.ApplicationWindow {
                                         verticalAlignment: Text.AlignVCenter
                                         text: "\u26A0"
                                         font.pointSize: win.badgeFont.pointSize * 1.15
-                                        color: "#f5a623"
+                                        color: win.warnColor
                                     }
                                     QQC2.Popup {
                                         id: warnPopup
@@ -6821,7 +6922,7 @@ QQC2.ApplicationWindow {
                                                     // beim Überfahren eine 1-px-Kante in Cyan. Die Animation läuft nur im kritischen Zustand.
                                                     property real pulse: 0
                                                     SequentialAnimation on pulse {
-                                                        running: chip.hot && !chip.isNet && liveGrp.ready
+                                                        running: win.fensterAktiv && chip.hot && !chip.isNet && liveGrp.ready
                                                         loops: Animation.Infinite
                                                         NumberAnimation { to: 1; duration: 900; easing.type: Easing.InOutQuad }
                                                         NumberAnimation { to: 0; duration: 900; easing.type: Easing.InOutQuad }
@@ -6854,7 +6955,7 @@ QQC2.ApplicationWindow {
                                                     QQC2.Label {   // CPU / RAM / Storage / Network : alle vier mit Bezeichnung
                                                         x: 10 + chipIcon.width
                                                         y: 2
-                                                        text: index === 0 ? "CPU" : (index === 1 ? "RAM" : (index === 2 ? "Storage" : "Network"))
+                                                        text: index === 0 ? "CPU" : (index === 1 ? "RAM" : (index === 2 ? win.trad("Storage") : win.trad("Network")))
                                                         font: win.badgeFont
                                                         opacity: 0.65
                                                         color: Kirigami.Theme.textColor
@@ -6890,9 +6991,9 @@ QQC2.ApplicationWindow {
                                                             Behavior on width { NumberAnimation { duration: 400; easing.type: Easing.OutCubic } }
                                                             gradient: Gradient {
                                                                 orientation: Gradient.Horizontal
-                                                                GradientStop { position: 0.0; color: chip.hot ? win.gaugeRed : (chip.warm ? "#f5a623" : Qt.rgba(0.69, 0.26, 1.0, 0.95)) }
-                                                                GradientStop { position: 0.55; color: chip.hot ? win.gaugeRed : (chip.warm ? "#f5a623" : Qt.rgba(0.24, 0.48, 1.0, 0.95)) }
-                                                                GradientStop { position: 1.0; color: chip.hot ? win.gaugeRed : (chip.warm ? "#f5a623" : Qt.rgba(0.0, 0.90, 1.0, 0.95)) }
+                                                                GradientStop { position: 0.0; color: chip.hot ? win.gaugeRed : (chip.warm ? win.warnColor : Qt.rgba(0.69, 0.26, 1.0, 0.95)) }
+                                                                GradientStop { position: 0.55; color: chip.hot ? win.gaugeRed : (chip.warm ? win.warnColor : Qt.rgba(0.24, 0.48, 1.0, 0.95)) }
+                                                                GradientStop { position: 1.0; color: chip.hot ? win.gaugeRed : (chip.warm ? win.warnColor : Qt.rgba(0.0, 0.90, 1.0, 0.95)) }
                                                             }
                                                         }
                                                     }
@@ -6985,55 +7086,58 @@ QQC2.ApplicationWindow {
                     }
                 }
                 // Ein gemeinsames Rechtsklick-Menü für alle Zeilen (wirkt auf rowMenu.t)
-                QQC2.Menu {
-                    id: rowMenu
-                    property var t: ({})
-                    readonly property bool isPin: t.type === "pin"
-                    QQC2.MenuItem {
-                        text: win.trad("Open")
-                        icon.name: "folder-open"
-                        onTriggered: backend.openFolder(rowMenu.t.path)
-                    }
-                    QQC2.MenuItem {
-                        text: win.trad("Open in terminal")
-                        icon.name: "utilities-terminal"
-                        onTriggered: backend.openTerminal(rowMenu.t.path)
-                    }
-                    QQC2.MenuItem {
-                        text: win.trad("Analyze storage")
-                        icon.name: "filelight"
-                        visible: ((backend && backend.tools) ? backend.tools : ({})).analyze
-                        height: visible ? implicitHeight : 0
-                        onTriggered: backend.launchTool("analyze", rowMenu.t.path)
-                    }
-                    QQC2.MenuItem {
-                        text: win.trad("Copy path")
-                        icon.name: "edit-copy"
-                        onTriggered: backend.copyPath(rowMenu.t.path)
-                    }
-                    QQC2.MenuSeparator {}
-                    QQC2.MenuItem {
-                        text: win.trad("Move up")
-                        icon.name: "go-up"
-                        visible: rowMenu.isPin
-                        height: visible ? implicitHeight : 0
-                        enabled: rowMenu.t.pinIndex > 0
-                        onTriggered: backend.movePin(rowMenu.t.path, -1)
-                    }
-                    QQC2.MenuItem {
-                        text: win.trad("Move down")
-                        icon.name: "go-down"
-                        visible: rowMenu.isPin
-                        height: visible ? implicitHeight : 0
-                        enabled: rowMenu.t.pinIndex < rowMenu.t.pinCount - 1
-                        onTriggered: backend.movePin(rowMenu.t.path, 1)
-                    }
-                    QQC2.MenuItem {
-                        text: win.isPinned(rowMenu.t.path || "") ? win.trad("Unpin from Quick access")
-                                                                 : win.trad("Pin to Quick access")
-                        icon.name: win.isPinned(rowMenu.t.path || "") ? "window-unpin" : "window-pin"
-                        onTriggered: win.isPinned(rowMenu.t.path) ? backend.unpinPath(rowMenu.t.path)
-                                                                  : backend.pinPath(rowMenu.t.path, rowMenu.t.label, rowMenu.t.icon)
+                LazyMenu {
+                    id: rowMenuL
+                    sourceComponent: QQC2.Menu {
+                        id: rowMenu
+                        property var t: ({})
+                        readonly property bool isPin: t.type === "pin"
+                        QQC2.MenuItem {
+                            text: win.trad("Open")
+                            icon.name: "folder-open"
+                            onTriggered: backend.openFolder(rowMenu.t.path)
+                        }
+                        QQC2.MenuItem {
+                            text: win.trad("Open in terminal")
+                            icon.name: "utilities-terminal"
+                            onTriggered: backend.openTerminal(rowMenu.t.path)
+                        }
+                        QQC2.MenuItem {
+                            text: win.trad("Analyze storage")
+                            icon.name: "filelight"
+                            visible: ((backend && backend.tools) ? backend.tools : ({})).analyze
+                            height: visible ? implicitHeight : 0
+                            onTriggered: backend.launchTool("analyze", rowMenu.t.path)
+                        }
+                        QQC2.MenuItem {
+                            text: win.trad("Copy path")
+                            icon.name: "edit-copy"
+                            onTriggered: backend.copyPath(rowMenu.t.path)
+                        }
+                        QQC2.MenuSeparator {}
+                        QQC2.MenuItem {
+                            text: win.trad("Move up")
+                            icon.name: "go-up"
+                            visible: rowMenu.isPin
+                            height: visible ? implicitHeight : 0
+                            enabled: rowMenu.t.pinIndex > 0
+                            onTriggered: backend.movePin(rowMenu.t.path, -1)
+                        }
+                        QQC2.MenuItem {
+                            text: win.trad("Move down")
+                            icon.name: "go-down"
+                            visible: rowMenu.isPin
+                            height: visible ? implicitHeight : 0
+                            enabled: rowMenu.t.pinIndex < rowMenu.t.pinCount - 1
+                            onTriggered: backend.movePin(rowMenu.t.path, 1)
+                        }
+                        QQC2.MenuItem {
+                            text: win.isPinned(rowMenu.t.path || "") ? win.trad("Unpin from Quick access")
+                                                                     : win.trad("Pin to Quick access")
+                            icon.name: win.isPinned(rowMenu.t.path || "") ? "window-unpin" : "window-pin"
+                            onTriggered: win.isPinned(rowMenu.t.path) ? backend.unpinPath(rowMenu.t.path)
+                                                                      : backend.pinPath(rowMenu.t.path, rowMenu.t.label, rowMenu.t.icon)
+                        }
                     }
                 }
 
@@ -7183,13 +7287,12 @@ QQC2.ApplicationWindow {
                             }
                             onClicked: function(mouse) {
                                 if (row.isHead && mouse.button === Qt.RightButton && r.key === "pc") {
-                                    nameMenu.popup()
+                                    nameMenuL.openMenu()
                                 } else if (row.isHead) {
                                     if (r.key === "quick") win.quickCollapsed = !win.quickCollapsed
                                     else win.pcCollapsed = !win.pcCollapsed
                                 } else if (mouse.button === Qt.RightButton && r.path) {
-                                    rowMenu.t = r
-                                    rowMenu.popup()
+                                    rowMenuL.openMenu({"t": r})
                                 } else if (row.isNode) {
                                     win.toggleNode(r.path)   // Klick klappt auf/zu
                                 } else if (row.isPinRow) {
@@ -7342,42 +7445,45 @@ QQC2.ApplicationWindow {
                                     }
                                     onClicked: function(mouse) {
                                         if (mouse.button === Qt.RightButton)
-                                            folderMenu.popup()
+                                            folderMenuL.openMenu()
                                         else if (win.singleClick && mouse.button === Qt.LeftButton && win.activationAllowed())
                                             backend.openFolder(modelData.path)
                                     }
                                 }
-                                QQC2.Menu {
-                                    id: folderMenu
-                                    QQC2.MenuItem {
-                                        text: win.trad("Open")
-                                        icon.name: "folder-open"
-                                        onTriggered: backend.openFolder(modelData.path)
-                                    }
-                                    QQC2.MenuItem {
-                                        text: win.trad("Open in terminal")
-                                        icon.name: "utilities-terminal"
-                                        onTriggered: backend.openTerminal(modelData.path)
-                                    }
-                                    QQC2.MenuItem {
-                                        text: win.trad("Analyze storage")
-                                        icon.name: "filelight"
-                                        visible: ((backend && backend.tools) ? backend.tools : ({})).analyze
-                                        height: visible ? implicitHeight : 0
-                                        onTriggered: backend.launchTool("analyze", modelData.path)
-                                    }
-                                    QQC2.MenuItem {
-                                        text: win.trad("Copy path")
-                                        icon.name: "edit-copy"
-                                        onTriggered: backend.copyPath(modelData.path)
-                                    }
-                                    QQC2.MenuSeparator {}
-                                    QQC2.MenuItem {
-                                        text: win.isPinned(modelData.path) ? win.trad("Unpin from Quick access")
-                                                                           : win.trad("Pin to Quick access")
-                                        icon.name: win.isPinned(modelData.path) ? "window-unpin" : "window-pin"
-                                        onTriggered: win.isPinned(modelData.path) ? backend.unpinPath(modelData.path)
-                                                                                  : backend.pinPath(modelData.path, modelData.label, modelData.icon)
+                                LazyMenu {
+                                    id: folderMenuL
+                                    sourceComponent: QQC2.Menu {
+                                        id: folderMenu
+                                        QQC2.MenuItem {
+                                            text: win.trad("Open")
+                                            icon.name: "folder-open"
+                                            onTriggered: backend.openFolder(modelData.path)
+                                        }
+                                        QQC2.MenuItem {
+                                            text: win.trad("Open in terminal")
+                                            icon.name: "utilities-terminal"
+                                            onTriggered: backend.openTerminal(modelData.path)
+                                        }
+                                        QQC2.MenuItem {
+                                            text: win.trad("Analyze storage")
+                                            icon.name: "filelight"
+                                            visible: ((backend && backend.tools) ? backend.tools : ({})).analyze
+                                            height: visible ? implicitHeight : 0
+                                            onTriggered: backend.launchTool("analyze", modelData.path)
+                                        }
+                                        QQC2.MenuItem {
+                                            text: win.trad("Copy path")
+                                            icon.name: "edit-copy"
+                                            onTriggered: backend.copyPath(modelData.path)
+                                        }
+                                        QQC2.MenuSeparator {}
+                                        QQC2.MenuItem {
+                                            text: win.isPinned(modelData.path) ? win.trad("Unpin from Quick access")
+                                                                               : win.trad("Pin to Quick access")
+                                            icon.name: win.isPinned(modelData.path) ? "window-unpin" : "window-pin"
+                                            onTriggered: win.isPinned(modelData.path) ? backend.unpinPath(modelData.path)
+                                                                                      : backend.pinPath(modelData.path, modelData.label, modelData.icon)
+                                        }
                                     }
                                 }
                             }
@@ -7544,7 +7650,7 @@ QQC2.ApplicationWindow {
                                                 // Kritisch (Warnschwelle erreicht) : der Balken atmet sanft
                                                 readonly property bool crit: !(frac < win.alertFrac || modelData.isOptical === true)
                                                 SequentialAnimation on opacity {
-                                                    running: gaugeFill.crit
+                                                    running: win.fensterAktiv && gaugeFill.crit
                                                     loops: Animation.Infinite
                                                     NumberAnimation { to: 0.55; duration: 900; easing.type: Easing.InOutQuad }
                                                     NumberAnimation { to: 1.0; duration: 900; easing.type: Easing.InOutQuad }
@@ -7604,7 +7710,7 @@ QQC2.ApplicationWindow {
                                             text: modelData.healthText || ""
                                             font.pointSize: win.badgeFont.pointSize
                                             font.weight: Font.DemiBold
-                                            color: modelData.health === "fail" ? "#c42b1c" : "#d35400"
+                                            color: modelData.health === "fail" ? win.healthFailColor : win.healthWarnColor
                                             elide: Text.ElideRight
                                             Layout.fillWidth: true
                                         }
@@ -7650,7 +7756,7 @@ QQC2.ApplicationWindow {
                                             readonly property bool wActive: io !== undefined && io.writeRate > 65536
                                             property real glow: 0
                                             SequentialAnimation on glow {
-                                                running: (ioBox.rActive || ioBox.wActive) && ioBox.visible
+                                                running: win.fensterAktiv && (ioBox.rActive || ioBox.wActive) && ioBox.visible
                                                 loops: Animation.Infinite
                                                 NumberAnimation { to: 1; duration: 700; easing.type: Easing.InOutQuad }
                                                 NumberAnimation { to: 0; duration: 700; easing.type: Easing.InOutQuad }
@@ -7746,85 +7852,88 @@ QQC2.ApplicationWindow {
                                     }
                                     onClicked: function(mouse) {
                                         if (mouse.button === Qt.RightButton)
-                                            diskMenu.popup()
+                                            diskMenuL.openMenu()
                                         else if (win.singleClick && mouse.button === Qt.LeftButton && win.activationAllowed())
                                             backend.openFolder(modelData.mountpoint)
                                     }
                                 }
-                                QQC2.Menu {
-                                    id: diskMenu
-                                    QQC2.MenuItem {
-                                        text: win.trad("Open with Dolphin")
-                                        icon.name: "folder-open"
-                                        onTriggered: backend.openFolder(modelData.mountpoint)
-                                    }
-                                    QQC2.MenuItem {
-                                        text: win.trad("Mount")
-                                        icon.name: "media-mount"
-                                        visible: modelData.isUnmounted === true
-                                        height: visible ? implicitHeight : 0
-                                        onTriggered: backend.mountDevice(modelData.device)
-                                    }
-                                    QQC2.MenuItem {
-                                        text: win.trad("Open in terminal")
-                                        icon.name: "utilities-terminal"
-                                        visible: modelData.mountpoint.charAt(0) === "/"
-                                        height: visible ? implicitHeight : 0
-                                        onTriggered: backend.openTerminal(modelData.mountpoint)
-                                    }
-                                    QQC2.MenuItem {
-                                        text: win.trad("Analyze storage")
-                                        icon.name: "filelight"
-                                        visible: ((backend && backend.tools) ? backend.tools : ({})).analyze && modelData.mountpoint.charAt(0) === "/"
-                                        height: visible ? implicitHeight : 0
-                                        onTriggered: backend.launchTool("analyze", modelData.mountpoint)
-                                    }
-                                    QQC2.MenuItem {
-                                        text: win.trad("Copy path")
-                                        icon.name: "edit-copy"
-                                        visible: modelData.mountpoint.charAt(0) === "/"
-                                        height: visible ? implicitHeight : 0
-                                        onTriggered: backend.copyPath(modelData.mountpoint)
-                                    }
-                                    QQC2.MenuItem {
-                                        visible: modelData.mountpoint.charAt(0) === "/"
-                                        height: visible ? implicitHeight : 0
-                                        text: win.isPinned(modelData.mountpoint) ? win.trad("Unpin from Quick access")
-                                                                                 : win.trad("Pin to Quick access")
-                                        icon.name: win.isPinned(modelData.mountpoint) ? "window-unpin" : "window-pin"
-                                        onTriggered: win.isPinned(modelData.mountpoint) ? backend.unpinPath(modelData.mountpoint)
-                                                                                        : backend.pinPath(modelData.mountpoint, modelData.label, "drive-harddisk")
-                                    }
-                                    QQC2.MenuItem {
-                                        text: win.trad("Unmount")
-                                        icon.name: "media-mount"
-                                        // nicht für das System selbst (« / », /boot, /home, /var …) und nicht für optische Laufwerke
-                                        visible: modelData.isUnmounted !== true && modelData.isOptical !== true
-                                                 && modelData.mountpoint.charAt(0) === "/"
-                                                 && !/^[/](boot|home|var|usr|opt|etc|nix)?([/]|$)/.test(modelData.mountpoint)
-                                        height: visible ? implicitHeight : 0
-                                        onTriggered: backend.unmountDevice(modelData.device, modelData.label)
-                                    }
-                                    QQC2.MenuItem {
-                                        text: win.trad("Safely remove")
-                                        icon.name: "media-eject"
-                                        visible: modelData.isUsb && modelData.isUnmounted !== true
-                                        height: visible ? implicitHeight : 0
-                                        onTriggered: backend.ejectDevice(modelData.device, modelData.label)
-                                    }
-                                    QQC2.MenuItem {
-                                        text: win.trad("Eject")
-                                        icon.name: "media-eject"
-                                        visible: modelData.isOptical === true
-                                        height: visible ? implicitHeight : 0
-                                        onTriggered: backend.ejectOptical(modelData.device)
-                                    }
-                                    QQC2.MenuItem {
-                                        text: win.trad("Properties")
-                                        icon.name: "document-properties"
-                                        visible: modelData.isUnmounted !== true
-                                        height: visible ? implicitHeight : 0
-                                        onTriggered: win.showProps(modelData)
+                                LazyMenu {
+                                    id: diskMenuL
+                                    sourceComponent: QQC2.Menu {
+                                        id: diskMenu
+                                        QQC2.MenuItem {
+                                            text: win.trad("Open with Dolphin")
+                                            icon.name: "folder-open"
+                                            onTriggered: backend.openFolder(modelData.mountpoint)
+                                        }
+                                        QQC2.MenuItem {
+                                            text: win.trad("Mount")
+                                            icon.name: "media-mount"
+                                            visible: modelData.isUnmounted === true
+                                            height: visible ? implicitHeight : 0
+                                            onTriggered: backend.mountDevice(modelData.device)
+                                        }
+                                        QQC2.MenuItem {
+                                            text: win.trad("Open in terminal")
+                                            icon.name: "utilities-terminal"
+                                            visible: modelData.mountpoint.charAt(0) === "/"
+                                            height: visible ? implicitHeight : 0
+                                            onTriggered: backend.openTerminal(modelData.mountpoint)
+                                        }
+                                        QQC2.MenuItem {
+                                            text: win.trad("Analyze storage")
+                                            icon.name: "filelight"
+                                            visible: ((backend && backend.tools) ? backend.tools : ({})).analyze && modelData.mountpoint.charAt(0) === "/"
+                                            height: visible ? implicitHeight : 0
+                                            onTriggered: backend.launchTool("analyze", modelData.mountpoint)
+                                        }
+                                        QQC2.MenuItem {
+                                            text: win.trad("Copy path")
+                                            icon.name: "edit-copy"
+                                            visible: modelData.mountpoint.charAt(0) === "/"
+                                            height: visible ? implicitHeight : 0
+                                            onTriggered: backend.copyPath(modelData.mountpoint)
+                                        }
+                                        QQC2.MenuItem {
+                                            visible: modelData.mountpoint.charAt(0) === "/"
+                                            height: visible ? implicitHeight : 0
+                                            text: win.isPinned(modelData.mountpoint) ? win.trad("Unpin from Quick access")
+                                                                                     : win.trad("Pin to Quick access")
+                                            icon.name: win.isPinned(modelData.mountpoint) ? "window-unpin" : "window-pin"
+                                            onTriggered: win.isPinned(modelData.mountpoint) ? backend.unpinPath(modelData.mountpoint)
+                                                                                            : backend.pinPath(modelData.mountpoint, modelData.label, "drive-harddisk")
+                                        }
+                                        QQC2.MenuItem {
+                                            text: win.trad("Unmount")
+                                            icon.name: "media-mount"
+                                            // nicht für das System selbst (« / », /boot, /home, /var …) und nicht für optische Laufwerke
+                                            visible: modelData.isUnmounted !== true && modelData.isOptical !== true
+                                                     && modelData.mountpoint.charAt(0) === "/"
+                                                     && !/^[/](boot|home|var|usr|opt|etc|nix)?([/]|$)/.test(modelData.mountpoint)
+                                            height: visible ? implicitHeight : 0
+                                            onTriggered: backend.unmountDevice(modelData.device, modelData.label)
+                                        }
+                                        QQC2.MenuItem {
+                                            text: win.trad("Safely remove")
+                                            icon.name: "media-eject"
+                                            visible: modelData.isUsb && modelData.isUnmounted !== true
+                                            height: visible ? implicitHeight : 0
+                                            onTriggered: backend.ejectDevice(modelData.device, modelData.label)
+                                        }
+                                        QQC2.MenuItem {
+                                            text: win.trad("Eject")
+                                            icon.name: "media-eject"
+                                            visible: modelData.isOptical === true
+                                            height: visible ? implicitHeight : 0
+                                            onTriggered: backend.ejectOptical(modelData.device)
+                                        }
+                                        QQC2.MenuItem {
+                                            text: win.trad("Properties")
+                                            icon.name: "document-properties"
+                                            visible: modelData.isUnmounted !== true
+                                            height: visible ? implicitHeight : 0
+                                            onTriggered: win.showProps(modelData)
+                                        }
                                     }
                                 }
                             }
@@ -7959,7 +8068,7 @@ QQC2.ApplicationWindow {
                                                 // Kritisch (Warnschwelle erreicht) : der Balken atmet sanft
                                                 readonly property bool crit: !(frac < win.alertFrac || modelData.isOptical === true)
                                                 SequentialAnimation on opacity {
-                                                    running: gaugeFill.crit
+                                                    running: win.fensterAktiv && gaugeFill.crit
                                                     loops: Animation.Infinite
                                                     NumberAnimation { to: 0.55; duration: 900; easing.type: Easing.InOutQuad }
                                                     NumberAnimation { to: 1.0; duration: 900; easing.type: Easing.InOutQuad }
@@ -8048,60 +8157,63 @@ QQC2.ApplicationWindow {
                                     }
                                     onClicked: function(mouse) {
                                         if (mouse.button === Qt.RightButton)
-                                            netMenu.popup()
+                                            netMenuL.openMenu()
                                         else if (win.singleClick && mouse.button === Qt.LeftButton && win.activationAllowed())
                                             activate()
                                     }
                                 }
-                                QQC2.Menu {
-                                    id: netMenu
-                                    QQC2.MenuItem {
-                                        text: win.trad("Open with Dolphin")
-                                        icon.name: "folder-open"
-                                        enabled: !offline
-                                        onTriggered: backend.openFolder(modelData.mountpoint)
-                                    }
-                                    QQC2.MenuItem {
-                                        text: win.trad("Properties")
-                                        icon.name: "document-properties"
-                                        visible: modelData.mounted === true || modelData.total > 0
-                                        height: visible ? implicitHeight : 0
-                                        onTriggered: win.showProps(modelData)
-                                    }
-                                    QQC2.MenuItem {
-                                        text: win.trad("Open in terminal")
-                                        icon.name: "utilities-terminal"
-                                        visible: modelData.mounted === true && modelData.mountpoint.charAt(0) === "/"
-                                        height: visible ? implicitHeight : 0
-                                        onTriggered: backend.openTerminal(modelData.mountpoint)
-                                    }
-                                    QQC2.MenuItem {
-                                        text: win.trad("Copy path")
-                                        icon.name: "edit-copy"
-                                        onTriggered: backend.copyPath(modelData.mountpoint)
-                                    }
-                                    QQC2.MenuItem {
-                                        visible: modelData.mountpoint.charAt(0) === "/"
-                                        height: visible ? implicitHeight : 0
-                                        text: win.isPinned(modelData.mountpoint) ? win.trad("Unpin from Quick access")
-                                                                                 : win.trad("Pin to Quick access")
-                                        icon.name: win.isPinned(modelData.mountpoint) ? "window-unpin" : "window-pin"
-                                        onTriggered: win.isPinned(modelData.mountpoint) ? backend.unpinPath(modelData.mountpoint)
-                                                                                        : backend.pinPath(modelData.mountpoint, modelData.label, "drive-harddisk")
-                                    }
-                                    QQC2.MenuItem {
-                                        text: win.trad("Disconnect")
-                                        icon.name: "network-disconnect"
-                                        visible: modelData.mounted === true && modelData.mountpoint.charAt(0) === "/"
-                                        height: visible ? implicitHeight : 0
-                                        onTriggered: backend.unmountNetwork(modelData.mountpoint)
-                                    }
-                                    QQC2.MenuItem {
-                                        text: win.trad("Remove this location")
-                                        icon.name: "list-remove"
-                                        visible: modelData.configured === true
-                                        height: visible ? implicitHeight : 0
-                                        onTriggered: backend.removeNetwork(modelData.url)
+                                LazyMenu {
+                                    id: netMenuL
+                                    sourceComponent: QQC2.Menu {
+                                        id: netMenu
+                                        QQC2.MenuItem {
+                                            text: win.trad("Open with Dolphin")
+                                            icon.name: "folder-open"
+                                            enabled: !offline
+                                            onTriggered: backend.openFolder(modelData.mountpoint)
+                                        }
+                                        QQC2.MenuItem {
+                                            text: win.trad("Properties")
+                                            icon.name: "document-properties"
+                                            visible: modelData.mounted === true || modelData.total > 0
+                                            height: visible ? implicitHeight : 0
+                                            onTriggered: win.showProps(modelData)
+                                        }
+                                        QQC2.MenuItem {
+                                            text: win.trad("Open in terminal")
+                                            icon.name: "utilities-terminal"
+                                            visible: modelData.mounted === true && modelData.mountpoint.charAt(0) === "/"
+                                            height: visible ? implicitHeight : 0
+                                            onTriggered: backend.openTerminal(modelData.mountpoint)
+                                        }
+                                        QQC2.MenuItem {
+                                            text: win.trad("Copy path")
+                                            icon.name: "edit-copy"
+                                            onTriggered: backend.copyPath(modelData.mountpoint)
+                                        }
+                                        QQC2.MenuItem {
+                                            visible: modelData.mountpoint.charAt(0) === "/"
+                                            height: visible ? implicitHeight : 0
+                                            text: win.isPinned(modelData.mountpoint) ? win.trad("Unpin from Quick access")
+                                                                                     : win.trad("Pin to Quick access")
+                                            icon.name: win.isPinned(modelData.mountpoint) ? "window-unpin" : "window-pin"
+                                            onTriggered: win.isPinned(modelData.mountpoint) ? backend.unpinPath(modelData.mountpoint)
+                                                                                            : backend.pinPath(modelData.mountpoint, modelData.label, "drive-harddisk")
+                                        }
+                                        QQC2.MenuItem {
+                                            text: win.trad("Disconnect")
+                                            icon.name: "network-disconnect"
+                                            visible: modelData.mounted === true && modelData.mountpoint.charAt(0) === "/"
+                                            height: visible ? implicitHeight : 0
+                                            onTriggered: backend.unmountNetwork(modelData.mountpoint)
+                                        }
+                                        QQC2.MenuItem {
+                                            text: win.trad("Remove this location")
+                                            icon.name: "list-remove"
+                                            visible: modelData.configured === true
+                                            height: visible ? implicitHeight : 0
+                                            onTriggered: backend.removeNetwork(modelData.url)
+                                        }
                                     }
                                 }
                             }
@@ -8277,49 +8389,52 @@ QQC2.ApplicationWindow {
                                     }
                                     onClicked: function(mouse) {
                                         if (mouse.button === Qt.RightButton)
-                                            printerMenu.popup()
+                                            printerMenuL.openMenu()
                                         else if (win.singleClick && mouse.button === Qt.LeftButton && win.activationAllowed())
                                             activate()
                                     }
                                 }
-                                QQC2.Menu {
-                                    id: printerMenu
-                                    readonly property bool isPrinter: !modelData.indicator
-                                    QQC2.MenuItem {
-                                        visible: modelData.scanner === true && backend.hasScanApp()
-                                        text: win.trad("Scan…")
-                                        icon.name: "document-scan"
-                                        onTriggered: backend.launchApp("skanpage")
-                                    }
-                                    QQC2.MenuItem {
-                                        visible: printerMenu.isPrinter
-                                        text: win.trad("Properties")
-                                        icon.name: "document-properties"
-                                        onTriggered: win.showPrinter(modelData)
-                                    }
-                                    QQC2.MenuItem {
-                                        visible: printerMenu.isPrinter && modelData.statusText.indexOf(win.trad("Default")) < 0
-                                        text: win.trad("Set as default printer")
-                                        icon.name: "emblem-default"
-                                        onTriggered: backend.setDefaultPrinter(modelData.name)
-                                    }
-                                    QQC2.MenuItem {
-                                        visible: printerMenu.isPrinter && modelData.offline !== true
-                                        text: win.trad("Print test page")
-                                        icon.name: "document-print"
-                                        onTriggered: backend.printTestPage(modelData.name)
-                                    }
-                                    QQC2.MenuSeparator { visible: settingsMod !== "" && ((backend && backend.hasSettings) ? backend.hasSettings(settingsMod) : false) }
-                                    QQC2.MenuItem {
-                                        visible: settingsMod !== "" && ((backend && backend.hasSettings) ? backend.hasSettings(settingsMod) : false)
-                                        text: win.trad("Open settings")
-                                        icon.name: "configure"
-                                        onTriggered: backend.openSettings(settingsMod)
-                                    }
-                                    QQC2.MenuItem {
-                                        text: win.trad("Copy name")
-                                        icon.name: "edit-copy"
-                                        onTriggered: backend.copyText(modelData.name)
+                                LazyMenu {
+                                    id: printerMenuL
+                                    sourceComponent: QQC2.Menu {
+                                        id: printerMenu
+                                        readonly property bool isPrinter: !modelData.indicator
+                                        QQC2.MenuItem {
+                                            visible: modelData.scanner === true && backend.hasScanApp()
+                                            text: win.trad("Scan…")
+                                            icon.name: "document-scan"
+                                            onTriggered: backend.launchApp("skanpage")
+                                        }
+                                        QQC2.MenuItem {
+                                            visible: printerMenu.isPrinter
+                                            text: win.trad("Properties")
+                                            icon.name: "document-properties"
+                                            onTriggered: win.showPrinter(modelData)
+                                        }
+                                        QQC2.MenuItem {
+                                            visible: printerMenu.isPrinter && modelData.statusText.indexOf(win.trad("Default")) < 0
+                                            text: win.trad("Set as default printer")
+                                            icon.name: "emblem-default"
+                                            onTriggered: backend.setDefaultPrinter(modelData.name)
+                                        }
+                                        QQC2.MenuItem {
+                                            visible: printerMenu.isPrinter && modelData.offline !== true
+                                            text: win.trad("Print test page")
+                                            icon.name: "document-print"
+                                            onTriggered: backend.printTestPage(modelData.name)
+                                        }
+                                        QQC2.MenuSeparator { visible: settingsMod !== "" && ((backend && backend.hasSettings) ? backend.hasSettings(settingsMod) : false) }
+                                        QQC2.MenuItem {
+                                            visible: settingsMod !== "" && ((backend && backend.hasSettings) ? backend.hasSettings(settingsMod) : false)
+                                            text: win.trad("Open settings")
+                                            icon.name: "configure"
+                                            onTriggered: backend.openSettings(settingsMod)
+                                        }
+                                        QQC2.MenuItem {
+                                            text: win.trad("Copy name")
+                                            icon.name: "edit-copy"
+                                            onTriggered: backend.copyText(modelData.name)
+                                        }
                                     }
                                 }
                             }
@@ -8395,7 +8510,7 @@ QQC2.ApplicationWindow {
 """
 
 
-APP_VERSION = '2.0.0-rc3'
+APP_VERSION = '2.0.0-rc4'
 APP_AUTEUR = """Original Copyright (C) 2026 naykkalak
 Modified and maintained by Christian (2026), with help from his son Leon"""
 APP_LICENCE = 'GPL-3.0-or-later'

@@ -10,6 +10,23 @@ hidden and everything else works).
 
 ---
 
+## 2.0.0-rc4 – 2026-11-14 (Release candidate 4)
+
+### Added
+- **Keyboard shortcuts.** `Ctrl+Q` quits, `F2` renames the program.
+- **Accessibility.** The window buttons can be reached with Tab and operated with Enter or Space, show a focus ring and carry screen-reader names.
+
+### Changed
+- **Settings are saved in bundles.** The warning-threshold slider, section state and window size are written once, 300 ms after the last change (and at exit), instead of at every step.
+- **Context menus are built on first use.** Faster start and fewer elements rebuilt with the drive list.
+- **Colours follow the Plasma colour scheme.** Gauge, warning and health colours adapt to light and dark schemes for better contrast; "Storage" and "Network" in the live chips are translated.
+
+### Fixed
+- Pulsing animations stop while the window is minimized.
+- A harmless "object has been deleted" message at exit is no longer printed.
+
+---
+
 ## 2.0.0-rc3 – 2026-11-09 (Release candidate 3)
 
 ### Fixed
