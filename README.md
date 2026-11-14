@@ -251,6 +251,8 @@ DRIVEDECK_MULTI=1 python3 drivedeck.py
 Bug reports and pull requests are welcome. If you find a problem, please include the terminal output of
 `python3 drivedeck.py`.
 
+Quality audits (stress, performance, code and UI) and what they found are summarised in [audits.md](audits.md).
+
 ---
 
 ## Credits and licence
