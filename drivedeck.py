@@ -32,6 +32,9 @@ os.environ["QT_QUICK_CONTROLS_STYLE"] = "org.kde.desktop"
 os.environ["QT_LOGGING_RULES"] = ";".join(r for r in ("qt.svg.warning=false", os.environ.get("QT_LOGGING_RULES", "")) if r)
 
 from PyQt6.QtCore import QEvent, QObject, QTimer, QUrl, pyqtProperty, pyqtSignal, pyqtSlot
+# Die Typdateien von PyQt6 6.12.1 verlangen bei pyqtSignal(...) fälschlich das Schlüsselwort « arguments » (zur Laufzeit optional) :
+# für pyright als Any behandeln, sonst meldet es jede Signal-Deklaration. Kein Laufzeiteffekt.
+pyqtSignal = cast(Any, pyqtSignal)
 from PyQt6.QtGui import QIcon, QWindow
 from PyQt6.QtQml import QQmlApplicationEngine
 from PyQt6.QtWidgets import QApplication
@@ -4415,7 +4418,8 @@ QQC2.ApplicationWindow {
     onClosing: backend.saveWindow(win.width, win.height, win.visibility === 4)
     // fensterAktiv : 0 = versteckt, 3 = minimiert -> Hintergrundabfragen ruhen, Endlos-Animationen stehen still
     readonly property bool fensterAktiv: win.visibility !== 0 && win.visibility !== 3
-    onVisibilityChanged: backend.setActive(win.fensterAktiv)
+    // direkt aus visibility : die Property fensterAktiv ist beim Auslösen dieses Handlers noch nicht nachgezogen (Startfehler rc4)
+    onVisibilityChanged: backend.setActive(win.visibility !== 0 && win.visibility !== 3)
     Component.onCompleted: {
         if (winInit.max)
             win.showMaximized()
@@ -8510,7 +8514,7 @@ QQC2.ApplicationWindow {
 """
 
 
-APP_VERSION = '2.0.0-rc4'
+APP_VERSION = '2.0.0-rc5'
 APP_AUTEUR = """Original Copyright (C) 2026 naykkalak
 Modified and maintained by Christian (2026), with help from his son Leon"""
 APP_LICENCE = 'GPL-3.0-or-later'

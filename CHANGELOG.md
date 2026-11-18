@@ -10,6 +10,13 @@ hidden and everything else works).
 
 ---
 
+## 2.0.0-rc5 – 2026-11-18 (Release candidate 5)
+
+### Fixed
+- **Live chips and I/O graph missing after start.** In rc4 the CPU/RAM/storage/network chips and the I/O graph stayed hidden until the window was maximized: at start the window reported "not visible" to the background loops, which then stayed paused. The window state is now passed on directly.
+
+---
+
 ## 2.0.0-rc4 – 2026-11-14 (Release candidate 4)
 
 ### Added
