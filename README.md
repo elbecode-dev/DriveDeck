@@ -67,6 +67,26 @@ small **live graph** of their read and write speed, and warn you when they are a
   main area (Shift+Tab backwards, Esc back to the main area); `Ctrl+I` shows or hides the inspector.
 - Works with light and dark Plasma colour schemes.
 
+### New in 2.1.0 (in progress)
+
+- **Compact toolbar.** When the four ribbon groups do not fit between the side panels (about 2300 px window width with
+  both panels in German, 2200 px in English), the ribbon becomes a centred 48 px toolbar with the same commands as icons,
+  tooltips and screen-reader names. *Show* and the warning threshold move into the "…" menu. Right-click the toolbar (or
+  use "…") to keep the compact toolbar always. Wide windows keep the full ribbon.
+- **SMART health without a password.** For internal NVMe and SATA drives DriveDeck reads the key SMART values through
+  udisks2: wear, spare capacity, power-on time, power cycles, unsafe shutdowns, data written and read, media errors or
+  reallocated/pending sectors, temperature and the last self-test, with an overall "Good / Warning / Critical". They appear
+  in a collapsible *SMART health* section of the inspector and in the Properties window. Drives in a USB enclosure still
+  use the full `smartctl` report with the existing bridge fallbacks (administrator password).
+- **One card per scanner.** A network scanner seen by several drivers (eSCL, airscan, epson2 …) is merged by IP address
+  or model name; the more descriptive entry ("Epson WF-4830 (Flatbed & ADF)") wins.
+- **Wi-Fi printers no longer flicker.** A printer turns grey only after three failed checks in a row; during a short
+  drop-out its last ink levels stay on the card.
+- **Live click setting.** Changing "single click / double click" in System Settings applies to DriveDeck at once.
+- **Ink names and warning.** Cartridge names are recognised by part of the name ("Photo Black ink" → "Photo black",
+  "Black Toner Cartridge" → "Black (toner)") and translated. A cartridge is low at the printer's own threshold, or at 10 %
+  if the printer declares none.
+
 ### It is much faster and smoother
 
 - **The window opens instantly.** Slow checks (disks, disk health, network, printers) now run **in the background**
@@ -105,9 +125,8 @@ small **live graph** of their read and write speed, and warn you when they are a
     total, **Storage** of all mounted local drives together and **Network** throughput ▲ sent, ▼ received; thin
     purple-to-cyan bars that turn amber at 80 % and red at 90 %).
   - What does not fit is left out in a fixed order: first the distribution card (below about 1990 px window width), then
-    the summary panel (below about 1710 px). If the window is narrower than the buttons need, the ribbon scrolls sideways
-    (mouse wheel, drag or the thin bar under it) and the window can be made much smaller than before. The ribbon grows
-    with a larger system font.
+    the summary panel (below about 1710 px). If the window is narrower than the buttons need, the full ribbon gives way to a
+    48 px **compact toolbar** (see below). The ribbon grows with a larger system font.
 - **Single or double click – as your desktop says.** Folders, drives, network locations and devices open with a
   **double click** by default, and with one click if your desktop explicitly uses single-click (KDE: *System Settings →
   Workspace Behavior → General Behavior*). You can also force it in `~/.config/drivedeck/settings.json` with
@@ -246,9 +265,6 @@ To remove it again: `bash uninstall.sh` (keeps your settings) or `bash uninstall
   delete entries.
 - Drive temperature of USB enclosures needs administrator rights (see *Disk temperature* above), so those cards show no
   chip by default. The SMART dialog works for them.
-- With both side panels open, the ribbon needs about 2200 px of window width (English; about 2300 px in German). In
-  narrower windows it scrolls sideways (mouse wheel, drag, or Tab moves to hidden buttons); `Ctrl+I` hides the inspector
-  and gives the ribbon more room (in German it then fits from about 2000 px).
 - Tested on KDE Plasma 6 (CachyOS) with a Btrfs system disk and an NVIDIA GPU. Other setups should work, but have not been
   tested by the fork maintainer. This includes AMD/Intel graphics and Wi-Fi details in the *System information* window, and
   the package installation on Fedora and Debian/Ubuntu.

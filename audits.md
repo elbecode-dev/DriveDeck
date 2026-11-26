@@ -1,7 +1,7 @@
 # Audits – DriveDeck
 
 Summary of the quality audits run on DriveDeck during the 2.0.0 release-candidate phase (rc1 to rc4) and after the
-2.0.0 release (5e–5l): what was tested,
+2.0.0 release (5e–5n): what was tested,
 what was found, what was changed, and what could **not** be verified. Line numbers refer to `drivedeck.py` at the time of
 the audit and move with every edit.
 
@@ -355,6 +355,81 @@ because they open through Dolphin/KIO). `pyright` 0 errors, `qmllint` 0 errors a
 (1022 notes: the new helper reads `backend`, same category as item 4), right-click test on folder, drive, USB drive, printer
 and sidebar rows (all menus open, 0 messages). The user confirmed on the real desktop that right-click opens at the pointer
 and that File Explorer and Kitty start.
+
+---
+
+## 5m. Upstream cherry-picks for 2.1.0 (in progress)
+
+Five non-destructive ideas from the comparison with Fenestra This PC 2.1.1 (code was not copied; each is written for
+DriveDeck's architecture). Formatting, the surface scan and the 3-second disk refresh in the GUI thread were deliberately
+not taken over.
+
+| # | Area | Status | What was done and how it was checked |
+|---|------|--------|---------------------------------------|
+| 1 | Scanners | ✅ | `scanner_ip()` reads the address from `ip=`, `http(s)://` (IPv4 and IPv6) and `:net:`; `scanner_modellkern()` drops the source list and "Series"; `scanner_zusammenfassen()` groups by address **or** model and keeps the entry with a source list / eSCL address. Applied after each search, to the merged known list and to the cache on start. Real case on the test machine: `escl:https://<IP>` + `airscan:e0:…` → one card "Epson WF-4830 (Flachbett & ADF)". Unit test with three drivers for one Epson, an HP via `hpaio …?ip=`, and a USB scanner → three cards. |
+| 2 | SMART | ✅ | `smart_udisks()` (busctl, no root): NVMe `SmartGetAttributes` + controller properties, ATA attributes 5/12/197/198/231–233/202 + `SmartFailing`, `SmartPowerOnSeconds`; Kelvin → °C; Good/Warning/Critical with reasons; 60 s cache per drive, plus a 60 s throttle per device in `requestSmart()`; read in a thread, result handed to the GUI thread by a queued signal. Real data: both NVMe drives (3 % / 0 % wear, 14 482 h / 14 880 h, 52.7 / 29.5 TB written, 46 / 39 °C, "Good"); USB SSD → `None` (no `Drive.Ata`), so the card says so and the `smartctl` report stays the way. ATA path checked with mocked udisks2 data (8 reallocated sectors → "Warning"). Shown in inspector mode B (collapsible, keyboard/screen-reader button) and the Properties window. |
+| 3 | Toolbar | ✅ | Automatic 48 px compact toolbar. Measured offscreen with both panels: full ribbon at 2560/2400/2300 px (need 1610 px, available 1874/1714/1614 px), compact at 2005/1600/1279/1024 px, compact row centred in the middle column (≤ 0.5 px off), back to full when widened. First draft used a `Binding` whose `when` depended on the result → "Binding loop" (caught by the test); replaced by `Qt.callLater` hand-over, 0 messages since. Tab chain in compact mode: sidebar → 10 enabled buttons + "…" → inspector toggle → window buttons → main. Found on the way: the ribbon scroll bar stayed visible above the compact toolbar because attaching it to the Flickable overrides its `visible`; it now lives in a wrapper item. |
+| 4a | Printers | ✅ | Debounce with `DRUCKER_MAX_FEHLER = 3` under a lock (one probe thread per printer). Unit test with the sequence reachable/–/–/reachable/–/–/–/–: offline only on the 3rd failure in a row, counter reset by a success, ink levels kept during the drop-out. |
+| 4b | Click mode | ✅ | `QFileSystemWatcher` on `~/.config` and `kdeglobals`, 300 ms single-shot timer, read only on a changed mtime, file re-added after replacement. Test: replace (as KConfig does) true/false/true and an in-place edit → singleClick follows each within 800 ms. In the stress run the mode switched both ways. Limitation: a `~/.config` that does not exist at start is not watched (never the case in a real session). |
+| 4c | Inks | ✅ | `tinte_name()` by partial match (photo/matte black, light cyan/magenta/gray, black, cyan, magenta, yellow, gray; "toner" kept as suffix); `TINTE_SCHWELLE = 10` when `marker-low-levels` is missing or ≤ 0. QML (pills, pulse, tooltip, inspector, dialog) now reads only `low`, so there is one rule instead of the former fixed 15 % in the card. |
+
+**Checks:** `pyright` 0 errors; `qmllint` exit 0, 0 errors, 0 warnings outside *unqualified* (1117 notes, the same
+architectural category as 5l item 4; the new toolbar and SMART code read `backend` and `win` like the rest); function test
+39/39; right-click test (cards and sidebar) 0 messages; offscreen layout test above 0 messages; 60 s stress run on the final
+code (about 5300 random actions incl. resizes between 1024 and 2560 px through the compact/full switch, Ctrl+I, mode A/B
+switches that request SMART, right-clicks on cards and the toolbar, replacing `kdeglobals`) with **0 QML messages**,
+0 exceptions, RSS 179–203 MB without a trend, click mode seen as both single and double. Translations: all new texts
+have German entries (a scan of all `trad("…")` literals leaves only words that are the same in German).
+
+**Not verified:** a real SATA disk through udisks2 (none in the test machine), the compact toolbar on the real desktop
+(only offscreen screenshots), and Orca reading the new sections.
+
+---
+
+## 5n. SMART for NVMe drives in USB enclosures (2.1.0, in progress)
+
+**Report (user):** Properties → SMART status of a FIKWOT FN501Pro 1 TB in a USB enclosure showed only "SMART support is:
+Unavailable - device lacks SMART capability."
+
+**Cause:** for USB disks the cascade started with `-d sat`. A USB-to-NVMe bridge answers ATA pass-through with an identity
+placeholder and no SMART data. `smart_ok()` only rejected a fixed list of error texts, and "Unavailable" / "lacks SMART
+capability" / "Unknown" were not in it, so the placeholder ended the cascade as if it were a result.
+
+**Measured on the device** (root via pkexec, read-only `smartctl -a`; the password was entered by the user):
+
+| Call | Result |
+|------|--------|
+| `smartctl -a` (no `-d`) | full NVMe health log, rc 0 (smartmontools 7.5 knows `0bda:9210` in its USB database) |
+| `-d sat -T permissive` | "SMART support is: Unknown … A mandatory SMART command failed", rc 4 |
+| `-d sntrealtek` | full NVMe health log, rc 0 |
+
+Bridge from sysfs: USB `0bda:9210` "RTL9210 M.2 NVME Adapter". The device reports 25 media and data integrity errors,
+which the new SMART section shows as a warning.
+
+**Fix:** `usb_bridge_hersteller()` reads the USB vendor ID from sysfs; `smart_varianten(usb, base)` tries the matching
+`snt*` driver first, then no `-d`, `-d sat`, the other `snt*` drivers and `-d nvme`; `_SMART_FEHLER` rejects the
+placeholder texts; smartctl runs with `LC_ALL=C`. `smartctl_werte()` turns a report (NVMe health log or ATA attribute
+table) into the same values as `smart_udisks()`; `_smartWerteMelden()` caches report and values for 60 s and hands the
+values to the inspector and the Properties window. New slot `readSmartUsb()` and an inspector button for drives without
+udisks2 SMART data. A cancelled password prompt (pkexec 126/127) no longer opens a message.
+
+**Checks:**
+- Real device through DriveDeck's own root path (same `pkexec sh -c SMART_ROOT_SKRIPT` call, new order): first driver
+  `-d sntrealtek` answered, no placeholder in the report, parsed: 0 % wear, spare 100 % (limit 1 %), 1781 h, 5621 power
+  cycles, 88 unsafe shutdowns, 3.89 TB written (shown as 3.54 TB because DriveDeck uses binary units everywhere),
+  25 media errors → "Warning". The parser also reads the locale-formatted numbers of the first probe ("1.781").
+- Unit tests: placeholder and "Unknown" answers rejected, a good report accepted; ATA attribute table parsed (hours
+  21 345, cycles 1204, 2 pending sectors → warning); the last self-test "Completed without error" is a success. A first
+  draft matched "error" inside "without error" and called it a failed test; caught by this test and fixed. Second
+  `_smart()` call within 60 s: 0 further pkexec calls, values delivered from the cache.
+- Offscreen screenshot of the inspector card for the USB disk: before reading (hint + **Read SMART…**) and after (values,
+  "Read with smartctl at 22:31", warning pill), 0 QML messages.
+- `pyright` 0 errors; `qmllint` exit 0, 0 errors, 0 warnings outside *unqualified* (1118); function test 39/39;
+  60 s stress run on this code (about 5400 random actions incl. selecting the USB disk, which requests udisks2 SMART and
+  falls back to the cached smartctl values, never to pkexec) with 0 QML messages, 0 exceptions, RSS 188–204 MB.
+
+**Not verified:** JMicron and ASMedia bridges (only the Realtek path exists on the test machine); SATA disks in a USB
+enclosure on real hardware.
 
 ---
 

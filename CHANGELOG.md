@@ -10,6 +10,30 @@ hidden and everything else works).
 
 ---
 
+## 2.1.0 – in progress
+
+Groundwork for 2.1.0: five non-destructive ideas from the upstream comparison with Fenestra This PC 2.1.1, built on DriveDeck's own architecture (background threads, lazy menus, inspector, keyboard chain, screen-reader names). The version number in `drivedeck.py` stays 2.0.1 until the release.
+
+### Added
+- **Compact toolbar (48 px).** When the fixed ribbon groups no longer fit into the middle column, the ribbon switches automatically to a centred toolbar with the same commands as icons (tooltip, screen-reader name, Tab chain, focus ring). *Show* (sections), the warning threshold and the toolbar choice are in a "…" menu built on first use. "Always use the compact toolbar" (in "…" or by right-clicking the toolbar) keeps it on wide windows too; the setting is saved. The width the ribbon needs is measured only while it is shown and applied after the current evaluation, so the switch cannot feed back into itself.
+- **SMART health through udisks2, without a password.** NVMe: wear (percent used), spare and its limit, power-on hours, power cycles, unsafe shutdowns, data written and read, media errors, critical warnings, temperature, self-test result. SATA/ATA: failing flag, power-on time, power cycles, reallocated, pending and uncorrectable sectors, SSD life, temperature, self-test. Read in a background thread (`busctl`, at most once a minute per drive) and shown as a collapsible *SMART health* section in inspector mode B and in the Properties window, with a Good/Warning/Critical pill. Drives without udisks2 SMART data (USB enclosures) say so and keep the full `smartctl` report with its bridge fallbacks.
+- **Live click mode.** A `QFileSystemWatcher` on `~/.config` and `kdeglobals` (KConfig replaces the file when saving) re-reads the single/double-click setting 300 ms after a change; only a changed `kdeglobals` triggers a read.
+
+### Changed
+- **Scanner duplicates merged by IP address or model.** The address comes from `ip=` (airscan), `http(s)://<address>` (eSCL) or `:net:<address>` (epson2 and others); the model is compared without its source list ("platen,adf") and "Series". The entry with a source list or an eSCL address wins, so the card reads "Epson WF-4830 (Flatbed & ADF)". Old duplicates in the scanner cache are merged on start. `epson2:net:` scanners count as network scanners.
+- **Wi-Fi printers are debounced:** offline only after three failed checks in a row; in between the card keeps its last ink levels.
+- **Ink names by partial match** ("photo black", "matte black", "light cyan", "light magenta", "black", "cyan", "magenta", "yellow", "gray"; "toner" is kept as a suffix), translated. **Low ink** is the printer's own `marker-low-levels` threshold or 10 % if it declares none; card pills, tooltip, inspector and dialog all use this one flag (2.0.1 used a fixed 15 % in the card).
+
+### Fixed
+- **SMART status of NVMe drives in USB enclosures.** For a USB disk DriveDeck tried `-d sat` first; a USB-to-NVMe bridge answers that with an empty ATA placeholder ("SMART support is: Unavailable – device lacks SMART capability" or "Unknown"), which was accepted as the result, so the report showed nothing useful. Now:
+  - The bridge is identified from sysfs (USB vendor `0bda` Realtek → `-d sntrealtek`, `152d` JMicron → `-d sntjmicron`, `174c` ASMedia → `-d sntasmedia`) and its driver is tried first, then smartctl's own USB database (no `-d`), then `-d sat` for SATA enclosures, then the other NVMe bridge drivers and `-d nvme`.
+  - "SMART support is: Unavailable / Unknown" and "device lacks SMART capability" count as a failed attempt and move on to the next driver.
+  - smartctl runs with `LC_ALL=C`, so numbers have no locale thousands separators.
+  - The values of a successful report (NVMe: wear, spare and limit, power-on hours, power cycles, unsafe shutdowns, data written/read, media errors, critical warning, temperature; SATA: reallocated/pending/uncorrectable sectors, hours, cycles, temperature, life, last self-test) also fill the *SMART health* section of the inspector and the Properties window, with "Read with smartctl at HH:MM". For such drives the inspector offers **Read SMART…** (one password prompt, no report window). A report is kept for 60 s, so opening it again or reading it from the inspector does not ask for the password again; a cancelled password prompt now stays silent.
+  - NVMe media and data integrity errors are reported as their own reason ("Media errors reported") instead of "Bad sectors".
+  Checked on a FIKWOT FN501Pro 1 TB behind a Realtek RTL9210 (`0bda:9210`): `-d sntrealtek` answers first with the full NVMe health log.
+- The ribbon's horizontal scroll bar could stay visible when the ribbon was hidden: attaching it to the Flickable overrides its `visible` binding. It now sits in a wrapper item that alone decides.
+
 ## 2.0.1 – 2026-11-26
 
 Default file manager and terminal, an inspector toggle, full-height side panels, more system details, and the fixes from a full end-to-end audit (see `audits.md`, section 5l).

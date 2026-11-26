@@ -32,7 +32,7 @@ os.environ["QT_QUICK_CONTROLS_STYLE"] = "org.kde.desktop"
 # wird ausgeblendet ; eigene QT_LOGGING_RULES des Benutzers bleiben erhalten und haben Vorrang (stehen weiter hinten).
 os.environ["QT_LOGGING_RULES"] = ";".join(r for r in ("qt.svg.warning=false", os.environ.get("QT_LOGGING_RULES", "")) if r)
 
-from PyQt6.QtCore import QEvent, QObject, QTimer, QUrl, pyqtProperty, pyqtSignal, pyqtSlot
+from PyQt6.QtCore import QEvent, QFileSystemWatcher, QObject, QTimer, QUrl, pyqtProperty, pyqtSignal, pyqtSlot
 # Die Typdateien von PyQt6 6.12.1 verlangen bei pyqtSignal(...) fälschlich das Schlüsselwort « arguments » (zur Laufzeit optional) :
 # für pyright als Any behandeln, sonst meldet es jede Signal-Deklaration. Kein Laufzeiteffekt.
 pyqtSignal = cast(Any, pyqtSignal)
@@ -106,11 +106,26 @@ except Exception:
 
 # Neue Texte dieses Forks, die in den gettext-Dateien (.mo) nicht vorkommen : deutsche Übersetzung als Rückfall
 EXTRA_DE = {
-    # Tintennamen, wie CUPS sie meldet (marker-names)
-    "Black ink": "Schwarz", "Cyan ink": "Cyan", "Magenta ink": "Magenta", "Yellow ink": "Gelb",
-    "Photo Black ink": "Fotoschwarz", "Matte Black ink": "Mattschwarz", "Light Cyan ink": "Hell-Cyan",
-    "Light Magenta ink": "Hell-Magenta", "Gray ink": "Grau", "Black": "Schwarz", "Yellow": "Gelb",
-    "Black Toner": "Schwarz (Toner)", "Cyan Toner": "Cyan (Toner)", "Magenta Toner": "Magenta (Toner)", "Yellow Toner": "Gelb (Toner)",
+    # 2.1.0 : SMART über udisks2, kompakte Symbolleiste
+    "SMART health": "SMART-Zustand", "Good": "Gut", "Warning": "Warnung", "Critical": "Kritisch",
+    "Reading SMART data\u2026": "SMART-Daten werden gelesen\u2026", "Note": "Hinweis", "Wear": "Verschleiß",
+    "Spare": "Reserve", "limit {n} %": "Grenze {n} %", "Power-on time": "Betriebszeit", "Power cycles": "Einschaltvorgänge",
+    "Unsafe shutdowns": "Unsaubere Abschaltungen", "Data written": "Geschrieben", "Data read": "Gelesen",
+    "Media errors": "Medienfehler", "Reallocated sectors": "Neu zugewiesene Sektoren", "Pending sectors": "Schwebende Sektoren",
+    "Uncorrectable sectors": "Nicht korrigierbare Sektoren", "Self-test": "Selbsttest", "Passed": "Bestanden",
+    "Running": "Läuft", "Failed": "Fehlgeschlagen", "The drive reports a critical error": "Das Laufwerk meldet einen kritischen Fehler",
+    "Spare capacity below the limit": "Reserve unter der Grenze", "Temperature warning": "Temperaturwarnung",
+    "Bad sectors": "Defekte Sektoren", "Nearly worn out": "Fast verschlissen", "Self-test failed": "Selbsttest fehlgeschlagen",
+    "No SMART data without an administrator password (e.g. a disk in a USB enclosure). The button below shows the full report.":
+        "Ohne Administratorpasswort keine SMART-Daten (z. B. Platte im USB-Gehäuse). Der Knopf darunter zeigt den vollen Bericht.",
+    "Show and options": "Anzeigen und Optionen", "Media errors reported": "Medienfehler gemeldet",
+    "This drive needs smartctl with the administrator password (e.g. a disk in a USB enclosure).":
+        "Dieses Laufwerk braucht smartctl mit dem Administratorpasswort (z. B. Platte im USB-Gehäuse).",
+    "Read SMART\u2026": "SMART lesen\u2026", "Read with smartctl at {time}": "Mit smartctl gelesen um {time}", "Always use the compact toolbar": "Immer kompakte Symbolleiste",
+    # Tintennamen (tinte_name : per Teilstring aus marker-names, z. B. « Photo Black ink » -> « Photo black »)
+    "Photo black": "Fotoschwarz", "Matte black": "Mattschwarz", "Light cyan": "Hell-Cyan", "Light magenta": "Hell-Magenta",
+    "Light gray": "Hellgrau", "Black": "Schwarz", "Cyan": "Cyan", "Magenta": "Magenta", "Yellow": "Gelb", "Gray": "Grau",
+    "{ink} (toner)": "{ink} (Toner)",
     "Ctrl+I": "Strg+I",
     "{free} free": "{free} frei",
     "Mount": "Einbinden",
@@ -610,6 +625,121 @@ def _udisks_prop(objet, interface, nom):
         return None
 
 
+def _udisks_alle(objet, interface):
+    """Alle Eigenschaften einer udisks2-Schnittstelle als {Name: Wert} ; {} wenn es sie nicht gibt."""
+    try:
+        r = subprocess.run(["busctl", "--system", "--json=short", "call", _UDISKS, objet, "org.freedesktop.DBus.Properties",
+                            "GetAll", "s", interface], capture_output=True, text=True, timeout=4)
+        if r.returncode != 0:
+            return {}
+        return {k: v.get("data") for k, v in json.loads(r.stdout)["data"][0].items()}
+    except Exception:
+        return {}
+
+
+def _udisks_smart_attribute(objet, interface):
+    """Rohdaten von SmartGetAttributes (ohne Root : udisks2 liest sie selbst) ; None bei Fehler."""
+    try:
+        r = subprocess.run(["busctl", "--system", "--json=short", "call", _UDISKS, objet, interface,
+                            "SmartGetAttributes", "a{sv}", "0"], capture_output=True, text=True, timeout=6)
+        return json.loads(r.stdout)["data"][0] if r.returncode == 0 else None
+    except Exception:
+        return None
+
+
+def _kelvin_c(k):
+    try:
+        return int(round(float(k) - 273.15)) if float(k) > 0 else None
+    except (TypeError, ValueError):
+        return None
+
+
+_SMART_CACHE: dict[str, tuple[float, dict | None]] = {}   # Drive-Objekt -> (Zeit, Ergebnis)
+_SMART_BERICHT: dict[str, tuple[float, str, dict | None]] = {}   # Platte -> (monotonic, smartctl-Bericht, Kennzahlen) : 60 s ohne neues pkexec
+_SMART_SPERRE = threading.Lock()
+
+
+def smart_udisks(device):
+    """SMART-Kennzahlen eines internen NVMe- oder SATA-Laufwerks über udisks2 (D-Bus), ohne pkexec/Passwort.
+    {kind, state, reasons, lifeUsed, spare, spareThresh, hours, cycles, unsafe, written, read, mediaErrors,
+    reallocated, pending, uncorrectable, temp, selftest} (fehlende Werte None) oder None, wenn udisks2 für dieses
+    Gerät keine SMART-Daten hat (z. B. Platte im USB-Gehäuse : dann bleibt smartctl der Weg). 60 s zwischengespeichert."""
+    drive = ""
+    for kandidat in (device, get_base_disk_device(device)):
+        name = os.path.basename(os.path.realpath(kandidat or ""))
+        if not re.fullmatch(r"[A-Za-z0-9_]+", name):
+            continue
+        d = _udisks_prop("/org/freedesktop/UDisks2/block_devices/" + name, _UDISKS + ".Block", "Drive")
+        if d and d != "/":
+            drive = d
+            break
+    if not drive:
+        return None
+    with _SMART_SPERRE:
+        memo = _SMART_CACHE.get(drive)
+    if memo and time.time() - memo[0] < 60:
+        return memo[1]
+    res = {"kind": "", "state": "", "reasons": [], "lifeUsed": None, "spare": None, "spareThresh": None, "hours": None,
+           "cycles": None, "unsafe": None, "written": None, "read": None, "mediaErrors": None, "reallocated": None,
+           "pending": None, "uncorrectable": None, "temp": None, "selftest": ""}
+    gruende = []
+    nv = _udisks_alle(drive, _UDISKS + ".NVMe.Controller")
+    ata = {} if nv else _udisks_alle(drive, _UDISKS + ".Drive.Ata")
+    if nv and nv.get("SmartUpdated"):
+        a = {k: (v or {}).get("data") for k, v in (_udisks_smart_attribute(drive, _UDISKS + ".NVMe.Controller") or {}).items()}
+        res.update({"kind": "nvme", "lifeUsed": a.get("percent_used"), "spare": a.get("avail_spare"),
+                    "spareThresh": a.get("spare_thresh"), "hours": nv.get("SmartPowerOnHours"),
+                    "cycles": a.get("power_cycles"), "unsafe": a.get("unsafe_shutdowns"),
+                    "written": a.get("total_data_written"), "read": a.get("total_data_read"),
+                    "mediaErrors": a.get("media_errors"), "temp": _kelvin_c(nv.get("SmartTemperature")),
+                    "selftest": nv.get("SmartSelftestStatus") or ""})
+        warnungen = nv.get("SmartCriticalWarning") or []
+        if set(warnungen) - {"temperature"}:
+            gruende.append("fail:critical")
+        if "temperature" in warnungen:
+            gruende.append("warn:temp")
+        if isinstance(res["spare"], int) and isinstance(res["spareThresh"], int) and res["spare"] < res["spareThresh"]:
+            gruende.append("fail:spare")
+        if isinstance(res["mediaErrors"], int) and res["mediaErrors"] > 0:
+            gruende.append("warn:media")
+    elif ata.get("SmartSupported") and ata.get("SmartEnabled") and ata.get("SmartUpdated"):
+        # a(ysqiiixia{sv}) : Nummer, Name, Flags, Wert, Schlechtester, Schwelle, Klartext, Einheit (1 = Anzahl, 3 = Sektoren)
+        liste = _udisks_smart_attribute(drive, _UDISKS + ".Drive.Ata") or []
+        attr = {x[0]: x for x in liste if isinstance(x, list) and len(x) >= 8}
+
+        def anzahl(num):
+            x = attr.get(num)
+            return x[6] if x and x[7] in (1, 3) and isinstance(x[6], int) and x[6] >= 0 else None
+        sek = ata.get("SmartPowerOnSeconds") or 0
+        res.update({"kind": "ata", "hours": sek // 3600 if sek else None, "cycles": anzahl(12),
+                    "reallocated": anzahl(5), "pending": anzahl(197), "uncorrectable": anzahl(198),
+                    "temp": _kelvin_c(ata.get("SmartTemperature")), "selftest": ata.get("SmartSelftestStatus") or ""})
+        for num in (231, 232, 233, 202):   # SSD-Restlebensdauer : das erste vorhandene Attribut
+            x = attr.get(num)
+            if x and isinstance(x[3], int) and 0 <= x[3] <= 100:
+                res["lifeUsed"] = 100 - x[3]
+                break
+        if ata.get("SmartFailing"):
+            gruende.append("fail:critical")
+        if any((res[k] or 0) > 0 for k in ("reallocated", "pending", "uncorrectable")) or (ata.get("SmartNumBadSectors") or 0) > 0 \
+                or (ata.get("SmartNumAttributesFailing") or 0) > 0:
+            gruende.append("warn:sectors")
+        if (res["temp"] or 0) >= 60:
+            gruende.append("warn:temp")
+    else:
+        res = None
+    if res is not None:
+        if isinstance(res["lifeUsed"], int) and res["lifeUsed"] >= 90:
+            gruende.append("warn:life")
+        if res["selftest"] not in ("", "success", "inprogress", "aborted", "interrupted"):
+            gruende.append("warn:test")
+        res["reasons"] = gruende
+        res["state"] = "fail" if any(g.startswith("fail") for g in gruende) else ("warn" if gruende else "good")
+    with _SMART_SPERRE:
+        _SMART_CACHE[drive] = (time.time(), res) if res is not None else (time.time() - 50, res)   # kein Ergebnis : nach 10 s erneut
+    return res
+
+
 def disk_health(device, mountpoint=""):
     test = os.environ.get("DRIVEDECK_SANTE_TEST", "")
     if mountpoint == "/" and test in ("warn", "fail"):
@@ -759,23 +889,142 @@ SMART_USB_VARIANTEN = (["-d", "sat", "-T", "permissive"], ["-d", "nvme", "-T", "
                        ["-d", "sntjmicron", "-T", "permissive"], ["-d", "sntasmedia", "-T", "permissive"],
                        ["-d", "sntrealtek", "-T", "permissive"])
 _SMART_FEHLER = ("unsupported field", "mandatory smart command failed", "scsi error", "read device identity failed",
-                 "unknown usb bridge", "please specify device type")
+                 "unknown usb bridge", "please specify device type",
+                 # NVMe-Bridges antworten auf einen falschen Treiber (z. B. -d sat) mit einem ATA-Platzhalter ohne Daten :
+                 # das ist kein Ergebnis, sondern Anlass für den nächsten Treiber
+                 "smart support is: unavailable", "device lacks smart capability", "smart support is: unknown")
 SMART_ROOT_MARKE = "##SMART-ALL-FAILED##"
 # Dieselbe Prüfung wie smart_ok(), aber als Shell-Skript : läuft komplett in EINER pkexec-Sitzung (Argumente : Gerät, Varianten …)
 SMART_ROOT_SKRIPT = r"""dev="$1"; shift; first=""
 for v in "$@"; do
-  out=$(timeout 25 smartctl -a $v "$dev" 2>&1); rc=$?
+  out=$(LC_ALL=C timeout 25 smartctl -a $v "$dev" 2>&1); rc=$?
   [ -z "$first" ] && first="$out"
   if [ $((rc & 3)) -eq 0 ] && ! printf '%s' "$out" | grep -qiE '@FEHLER@'; then printf '%s\n' "$out"; exit $rc; fi
 done
 printf '%s\n' "$first"; echo '@MARKE@'; exit 1""".replace("@FEHLER@", "|".join(_SMART_FEHLER)).replace("@MARKE@", SMART_ROOT_MARKE)
 
 
-def smart_varianten(usb):
-    """Reihenfolge der smartctl-Versuche : Standard zuerst, bei USB-Laufwerken gleich SAT (spart die Fehlerrunde)."""
-    if usb:
-        return [SMART_USB_VARIANTEN[0], []] + list(SMART_USB_VARIANTEN[1:])
-    return [[]] + list(SMART_USB_VARIANTEN)
+# USB-Hersteller-ID der Bridge -> passender smartctl-Treiber für NVMe hinter USB
+_SMART_BRIDGES = {"0bda": ["-d", "sntrealtek"], "152d": ["-d", "sntjmicron", "-T", "permissive"],
+                  "174c": ["-d", "sntasmedia", "-T", "permissive"]}
+
+
+def usb_bridge_hersteller(base):
+    """USB-Hersteller-ID (« 0bda » Realtek, « 152d » JMicron, « 174c » ASMedia …) der Bridge vor einer Platte, aus sysfs ;
+    leer, wenn keine USB-Platte oder unbekannt."""
+    name = os.path.basename(os.path.realpath(base or ""))
+    if not re.fullmatch(r"[A-Za-z0-9]+", name):
+        return ""
+    d = os.path.realpath("/sys/class/block/%s/device" % name)
+    while d not in ("/", "") and d.startswith("/sys/"):
+        wert = (_lire_texte(os.path.join(d, "idVendor")) or "").strip().lower()
+        if wert:
+            return wert
+        d = os.path.dirname(d)
+    return ""
+
+
+def smart_varianten(usb, base=""):
+    """Reihenfolge der smartctl-Versuche. Intern : ohne -d, dann die USB-Treiber. USB : zuerst der zur Bridge passende
+    NVMe-Treiber (sysfs : Realtek, JMicron, ASMedia), dann ohne -d (smartctl erkennt viele Bridges über seine eigene
+    Datenbank), dann SAT (SATA-Gehäuse), dann die übrigen NVMe-Bridge-Treiber und -d nvme. Eine Platzhalter-Antwort
+    (« SMART support is: Unavailable ») zählt nie als Ergebnis (_SMART_FEHLER), sondern führt zum nächsten Treiber."""
+    if not usb:
+        return [[]] + list(SMART_USB_VARIANTEN)
+    reihe = []
+    passend = _SMART_BRIDGES.get(usb_bridge_hersteller(base))
+    if passend:
+        reihe.append(passend)
+    reihe += [[], SMART_USB_VARIANTEN[0]]
+    for v in list(_SMART_BRIDGES.values()) + [list(SMART_USB_VARIANTEN[1])]:
+        if v not in reihe:
+            reihe.append(v)
+    return reihe
+
+
+def _smart_zahl(text):
+    """Erste Zahl eines smartctl-Werts, Tausendertrenner (« , » « . » Leerzeichen) entfernt : « 7,603,589 [3.89 TB] » -> 7603589."""
+    m = re.match(r"\s*([0-9][0-9.,\u00a0' ]*)", text or "")
+    if not m:
+        return None
+    ziffern = re.sub(r"[^0-9]", "", m.group(1).split("[")[0])
+    return int(ziffern) if ziffern else None
+
+
+def smartctl_werte(text):
+    """SMART-Kennzahlen aus einem « smartctl -a »-Bericht (LC_ALL=C), im selben Schema wie smart_udisks() : so zeigen Inspector
+    und Eigenschaften-Dialog auch Platten im USB-Gehäuse (NVMe hinter snt*-Bridges, SATA über -d sat). None ohne Daten."""
+    if not text or not re.search(r"=== START OF SMART DATA SECTION ===|SMART/Health Information", text):
+        return None
+    res = {"kind": "", "state": "", "reasons": [], "lifeUsed": None, "spare": None, "spareThresh": None, "hours": None,
+           "cycles": None, "unsafe": None, "written": None, "read": None, "mediaErrors": None, "reallocated": None,
+           "pending": None, "uncorrectable": None, "temp": None, "selftest": "", "source": "smartctl"}
+    felder = {}
+    for zeile in text.splitlines():
+        if ":" in zeile:
+            k, _, v = zeile.partition(":")
+            felder.setdefault(k.strip().lower(), v.strip())
+    gruende = []
+    gesamt = felder.get("smart overall-health self-assessment test result", "")
+    if "smart/health information (nvme log 0x02" in text.lower() or "percentage used" in felder:
+        res["kind"] = "nvme"
+        einheit = 512000   # NVMe « Data Units » : je 1000 Sektoren zu 512 Bytes
+        res.update({"lifeUsed": _smart_zahl(felder.get("percentage used", "")),
+                    "spare": _smart_zahl(felder.get("available spare", "")),
+                    "spareThresh": _smart_zahl(felder.get("available spare threshold", "")),
+                    "hours": _smart_zahl(felder.get("power on hours", "")),
+                    "cycles": _smart_zahl(felder.get("power cycles", "")),
+                    "unsafe": _smart_zahl(felder.get("unsafe shutdowns", "")),
+                    "mediaErrors": _smart_zahl(felder.get("media and data integrity errors", "")),
+                    "temp": _smart_zahl(felder.get("temperature", ""))})
+        for k, ziel in (("data units written", "written"), ("data units read", "read")):
+            n = _smart_zahl(felder.get(k, ""))
+            res[ziel] = n * einheit if n is not None else None
+        try:
+            warnung = int(felder.get("critical warning", "0x00"), 16)
+        except ValueError:
+            warnung = 0
+        if warnung & ~0x02:   # Bit 1 = Temperatur ; alle anderen sind kritisch
+            gruende.append("fail:critical")
+        if warnung & 0x02:
+            gruende.append("warn:temp")
+        if isinstance(res["spare"], int) and isinstance(res["spareThresh"], int) and res["spare"] < res["spareThresh"]:
+            gruende.append("fail:spare")
+        if (res["mediaErrors"] or 0) > 0:
+            gruende.append("warn:media")
+    else:
+        res["kind"] = "ata"
+        attr = {}
+        for zeile in text.splitlines():
+            m = re.match(r"^\s*(\d{1,3})\s+\S+\s+0x[0-9a-fA-F]+\s+(\d+)\s+\d+\s+\S+\s+\S+\s+\S+\s+\S+\s+(.+)$", zeile)
+            if m:
+                attr[int(m.group(1))] = (int(m.group(2)), _smart_zahl(m.group(3)))
+        roh = lambda n: attr[n][1] if n in attr else None
+        res.update({"hours": roh(9), "cycles": roh(12), "reallocated": roh(5), "pending": roh(197),
+                    "uncorrectable": roh(198), "temp": roh(194) if roh(194) is not None else roh(190)})
+        for n in (231, 232, 233, 202):
+            if n in attr and 0 <= attr[n][0] <= 100:
+                res["lifeUsed"] = 100 - attr[n][0]
+                break
+        if any((res[k] or 0) > 0 for k in ("reallocated", "pending", "uncorrectable")):
+            gruende.append("warn:sectors")
+        if (res["temp"] or 0) >= 60:
+            gruende.append("warn:temp")
+        if not attr and not gesamt:
+            return None
+    if "FAILED" in gesamt.upper():
+        gruende.append("fail:critical")
+    if isinstance(res["lifeUsed"], int) and res["lifeUsed"] >= 90:
+        gruende.append("warn:life")
+    # jüngster Selbsttest : erst « ohne Fehler » prüfen (sonst passt « error » in « Completed without error »)
+    if re.search(r"^# ?1\s+.*completed without error", text, re.I | re.M):
+        res["selftest"] = "success"
+    elif re.search(r"^# ?1\s+.*\b(?:failed|failure)\b|self-test status:.*\bfail", text, re.I | re.M):
+        gruende.append("warn:test")
+        res["selftest"] = "failed"
+    res["reasons"] = list(dict.fromkeys(gruende))
+    res["state"] = "fail" if any(g.startswith("fail") for g in gruende) else ("warn" if gruende else "good")
+    return res
 
 
 def laufwerk_ist_usb(base):
@@ -1135,6 +1384,7 @@ def lade_einstellungen():
     return {"warn_threshold_percent": warn_begrenzen(data.get("warn_threshold_percent", WARN_STD)),
             "click_mode": modus if modus in CLICK_MODES else "system",
             "custom_name": name_begrenzen(data.get("custom_name", "")),
+            "compact_toolbar": data.get("compact_toolbar") is True,   # immer die kompakte Leiste (sonst nur, wenn das Ribbon nicht passt)
             "desktop_name": name_begrenzen(data.get("desktop_name", ""))}   # zuletzt in die Starter geschriebener Name
 
 
@@ -1265,6 +1515,13 @@ def einfachklick_system():
         return bool(hints and hints.singleClickActivation())
     except Exception:
         return False
+
+
+def _mtime_oder_0(pfad):
+    try:
+        return os.stat(pfad).st_mtime_ns
+    except OSError:
+        return 0
 
 
 def einfachklick_aktiv(modus="system"):
@@ -2079,16 +2336,40 @@ def _encre_url(url):
             seuil = int(bas[i])
         except (IndexError, ValueError):
             seuil = 0
+        if seuil <= 0:   # der Drucker nennt keine eigene « fast leer »-Marke (marker-low-levels) : 10 %
+            seuil = TINTE_SCHWELLE
         couleur = couleur_encre(couleurs[i] if i < len(couleurs) else "", n)
-        # Name übersetzt, wenn bekannt (« Black ink » -> « Schwarz ») ; Warnung ab der Schwelle des Druckers oder unter 15 %
-        # (dieselbe Grenze wie das ⚠ in Karte und Inspector)
-        res.append({"name": tr(n), "color": couleur, "level": niveau, "low": niveau <= seuil or niveau < 15})
+        # « low » ist die eine Regel für Karte, Tooltip, Inspector und Dialog (QML liest nur dieses Feld)
+        res.append({"name": tinte_name(n), "color": couleur, "level": niveau, "low": niveau <= seuil})
     return res
+
+
+TINTE_SCHWELLE = 10   # Warnschwelle in %, wenn der Drucker keine eigene meldet
+# Reihenfolge zählt : « photo black » vor « black », « light cyan » vor « cyan »
+_TINTEN_NAMEN = (("photo black", "Photo black"), ("matte black", "Matte black"), ("light cyan", "Light cyan"),
+                 ("light magenta", "Light magenta"), ("light black", "Light gray"), ("light gray", "Light gray"),
+                 ("light grey", "Light gray"), ("black", "Black"), ("cyan", "Cyan"), ("magenta", "Magenta"),
+                 ("yellow", "Yellow"), ("gray", "Gray"), ("grey", "Gray"))
+
+
+def tinte_name(roh):
+    """Lesbarer, übersetzter Patronenname per Teilstring : « Photo Black ink » -> « Fotoschwarz », « Black Toner
+    Cartridge » -> « Schwarz (Toner) » ; unbekannte Namen (z. B. « Chroma Optimizer ») bleiben, wie der Drucker sie meldet."""
+    klein = (roh or "").lower()
+    for teil, name in _TINTEN_NAMEN:
+        if teil in klein:
+            text = tr(name)
+            return tr("{ink} (toner)").replace("{ink}", text) if "toner" in klein else text
+    return roh
 
 
 PRN_CONNUES = os.path.join(CONFIG_DIR, "imprimantes.json")   # imprimantesConnues
 _PRN_CONNUES_ECRIT: list[str | None] = [None]
 _PRN_ESSAI = {}
+DRUCKER_MAX_FEHLER = 3                    # so viele Fehlversuche in Folge, bis ein Netzwerkdrucker grau wird
+_DRUCKER_FEHLER: dict[str, int] = {}      # Druckername -> Fehlversuche in Folge
+_DRUCKER_TINTEN: dict[str, list] = {}     # Druckername -> letzte gelesene Tintenstände (für die Zeit eines Aussetzers)
+_DRUCKER_FEHLER_SPERRE = threading.Lock()   # sonde() läuft je Drucker in einem eigenen Thread
 
 
 def charger_imprimantes_connues():
@@ -2238,6 +2519,13 @@ def list_printers():
             if cible is not None and cible_uri(uri) is None:
                 fiche["addr"], fiche["port"] = cible
             injoignable = (cible is not None and ok is False)
+        # WLAN-Entprellung : erst nach DRUCKER_MAX_FEHLER Fehlversuchen in Folge « offline » (ein Drucker, der aufwacht,
+        # oder ein kurzer WLAN-Aussetzer lässt die Karte nicht flackern) ; bis dahin bleiben die letzten Tintenstände stehen
+        with _DRUCKER_FEHLER_SPERRE:
+            fehler = _DRUCKER_FEHLER[nom] = (_DRUCKER_FEHLER.get(nom, 0) + 1) if injoignable else 0
+            alte_tinten = _DRUCKER_TINTEN.get(nom)
+        nur_aussetzer = injoignable and fehler < DRUCKER_MAX_FEHLER
+        injoignable = injoignable and not nur_aussetzer
         etat = tr("Offline") if injoignable else etats[nom]
         texte = etat + ((" · " + tr("Default")) if nom == defaut else "")
         peripherique = libelle_connexion(uri)
@@ -2245,8 +2533,12 @@ def list_printers():
         carte = {"key": "printer:" + nom, "label": nom.replace("_", " "), "name": nom,
                  "uri": re.sub(r"//[^/@]*@", "//", uri or ""),   # Zugangsdaten in der Adresse (smb://user:pass@…) nie anzeigen
                  "icon": disk_icon(["printer"]), "statusText": texte,
-                 "device": peripherique, "inks": [] if injoignable else niveaux_encre(nom, cible),
+                 "device": peripherique,
+                 "inks": [] if injoignable else ((alte_tinten or []) if nur_aussetzer else niveaux_encre(nom, cible)),
                  "offline": injoignable, "absent": False}
+        if not injoignable and not nur_aussetzer:
+            with _DRUCKER_FEHLER_SPERRE:
+                _DRUCKER_TINTEN[nom] = carte["inks"]
         return nom, fiche, carte
 
     if ordre:
@@ -2357,23 +2649,73 @@ def detecter_scanners():
         out = subprocess.run(["scanimage", "-L"], capture_output=True, text=True, timeout=45).stdout
     except Exception:
         return None
-    res, vus = [], set()
+    res = []
     for ligne in out.splitlines():
         m = re.search(r"device [`'](.+?)' is an? (.+)$", ligne.strip())   # la page HTML de certaines imprimantes peut précéder
         if not m:
             continue
         device, desc = m.group(1), m.group(2).strip()
+        ip = scanner_ip(device, desc)   # vor dem Kürzen : « ip=… » steht nur in der Beschreibung des airscan-Treibers
         desc = re.sub(r"\s+ip=\S+$", "", re.sub(r"^(?:eSCL|WSD)\s+", "", desc))   # forme du pilote airscan
         backend = device.split(":", 1)[0].lower()
         if backend in ("v4l", "test", "pixma_test") or desc.lower().endswith("virtual device"):
             continue   # webcams et périphériques de test vus par SANE : pas des scanners
         model = _SCAN_TYPE.sub("", desc).strip() or desc
-        if _norme(model) in vus:   # même scanner vu par deux pilotes (escl et airscan)
+        # « epson2:net:192.168.1.20 » ist ebenfalls ein Netzwerkscanner (nicht USB)
+        res.append({"device": device, "model": model, "ip": ip,
+                    "network": backend in ("escl", "airscan", "net") or "://" in device or ":net:" in device})
+    return scanner_zusammenfassen(res)
+
+
+def scanner_ip(device, desc=""):
+    """Adresse eines Netzwerkscanners aus « ip=… » (airscan), « http(s)://<Adresse> » (escl) oder « :net:<Adresse> »
+    (epson2 und andere SANE-Treiber) ; leer, wenn keine erkennbar ist."""
+    for quelle, muster in ((desc, r"\bip=\[?([0-9A-Fa-f:.]+?)\]?(?:\s|$)"),
+                           (device, r"://\[?([0-9A-Fa-f:.]+?)\]?(?::\d+)?(?:/|$)"),
+                           (device, r":net:([0-9A-Za-z.:-]+)$")):
+        m = re.search(muster, quelle or "")
+        if m and re.search(r"\d", m.group(1)):
+            return m.group(1).lower()
+    return ""
+
+
+def scanner_modellkern(model):
+    """Vergleichbarer Kern eines Scannernamens : ohne Quellenliste (« platen,adf »), « Series » und Satzzeichen.
+    « Epson WF-4830 Series platen,adf » und « EPSON WF-4830 Series » ergeben beide « epsonwf4830 »."""
+    name = model or ""
+    teile = name.rsplit(" ", 1)
+    if len(teile) == 2 and all(q.strip().lower() in _SCAN_QUELLEN for q in teile[1].split(",") if q.strip()):
+        name = teile[0]
+    name = re.sub(r"\s+series$", "", name.strip(), flags=re.I)
+    return _norme(name)
+
+
+def _scanner_rang(s, gefunden=None):
+    """Welcher Eintrag eines doppelt gesehenen Scanners die Karte stellt : erst einer mit Quellenliste (wird zu
+    « Flachbett & ADF »), dann eine eSCL/HTTP-Adresse statt eines Treiber-Namens, dann ein gerade gefundener.
+    (Ein Netzwerkscanner übernimmt seinen Zustand ohnehin vom Drucker, nicht von der Suche.)"""
+    hat_quellen = scanner_anzeigename(s.get("model", "")) != s.get("model", "")
+    escl = s.get("device", "").split(":", 1)[0].lower() == "escl" or "://" in s.get("device", "")
+    return (hat_quellen, escl, gefunden is None or s.get("device") in gefunden)
+
+
+def scanner_zusammenfassen(liste, gefunden=None):
+    """Dasselbe Gerät, von mehreren Treibern gemeldet (escl, airscan, epson2 …), wird EINE Karte : gleiche Adresse
+    oder gleicher Modellkern. Reihenfolge bleibt die der ersten Meldung ; die Karte stellt der beste Eintrag."""
+    gruppen = []   # [[ips], [kerne], bester Eintrag]
+    for s in liste:
+        ip, kern = s.get("ip") or scanner_ip(s.get("device", "")), scanner_modellkern(s.get("model", ""))
+        g = next((g for g in gruppen if (ip and ip in g[0]) or (len(kern) >= 4 and kern in g[1])), None)
+        if g is None:
+            gruppen.append([{ip} - {""}, {kern} - {""}, s])
             continue
-        vus.add(_norme(model))
-        res.append({"device": device, "model": model,
-                    "network": backend in ("escl", "airscan", "net") or "://" in device})
-    return res
+        if ip:
+            g[0].add(ip)
+        if kern:
+            g[1].add(kern)
+        if _scanner_rang(s, gefunden) > _scanner_rang(g[2], gefunden):
+            g[2] = s
+    return [g[2] for g in gruppen]
 
 
 def charger_cache_scanners():
@@ -3365,6 +3707,9 @@ class Backend(QObject):
     sharesFound = pyqtSignal(list)
     sharesError = pyqtSignal(str)
     smartReady = pyqtSignal(str, str)
+    smartInfoChanged = pyqtSignal()
+    compactToolbarChanged = pyqtSignal()
+    _smartGelesen = pyqtSignal(str, object)   # Thread -> GUI-Thread (verbunden in __init__)
     netUpdated = pyqtSignal(list)
     disksUpdated = pyqtSignal(list)
     printersUpdated = pyqtSignal(list)
@@ -3431,7 +3776,7 @@ class Backend(QObject):
         self._netWake = threading.Event()
         self._prnWake = threading.Event()
         threading.Thread(target=lambda: sync_places(load_net_locations()), daemon=True).start()
-        self._scanners = charger_cache_scanners()   # scannersInfo : dernière liste connue
+        self._scanners = scanner_zusammenfassen(charger_cache_scanners())   # scannersInfo : dernière liste connue (alte Dubletten weg)
         self._scanTrouves = {s["device"] for s in self._scanners}
         self._scanWake = threading.Event()
         self._schleifen = []   # die Dauer-Threads : beim Beenden kurz abwarten (shutdown)
@@ -3439,6 +3784,11 @@ class Backend(QObject):
         self._maj = charger_maj()
         self._einst = lade_einstellungen()
         self._einfachklick = einfachklick_aktiv(self._einst["click_mode"])
+        self._kdeglobalsBeobachten()
+        self._smartInfo: dict[str, dict] = {}   # Gerät -> SMART-Kennzahlen über udisks2 (siehe smart_udisks)
+        self._smartLaeuft: set[str] = set()
+        self._smartZeit: dict[str, float] = {}
+        self._smartGelesen.connect(self._smartSetzen)
         self._warn = self._einst["warn_threshold_percent"]
         if self._einst["desktop_name"] != self._einst["custom_name"] or self._einst["custom_name"]:
             self._desktopAbgleichen()   # nachholen, falls das Beenden den letzten Abgleich abgeschnitten hat ; und nach einer Neuinstallation
@@ -4164,6 +4514,80 @@ class Backend(QObject):
         """Öffnen mit einem Klick (Systemeinstellung des Desktops) ; Doppelklick bleibt sonst die Regel."""
         return self._einfachklick
 
+    @pyqtProperty(bool, notify=compactToolbarChanged)
+    def compactToolbar(self):
+        """Immer die kompakte Symbolleiste (48 px) ; sonst erscheint sie nur, wenn das volle Ribbon nicht in die Breite passt."""
+        return self._einst["compact_toolbar"]
+
+    @pyqtSlot(bool)
+    def setCompactToolbar(self, ja):
+        if bool(ja) != self._einst["compact_toolbar"]:
+            self._einst["compact_toolbar"] = bool(ja)
+            self._verzoegert("einst", lambda: speichere_einstellungen(dict(self._einst)))
+            self.compactToolbarChanged.emit()
+
+    @pyqtProperty("QVariantMap", notify=smartInfoChanged)
+    def smartInfo(self):
+        return self._smartInfo
+
+    @pyqtSlot(str)
+    def requestSmart(self, device):
+        """SMART-Kennzahlen eines Laufwerks im Hintergrund lesen (udisks2, kein Passwort). Ergebnis in smartInfo[device] :
+        die Kennzahlen, oder {"none": true}, wenn udisks2 keine hat (USB-Gehäuse : dann hilft der volle smartctl-Bericht)."""
+        if not device.startswith("/dev/") or device in self._smartLaeuft \
+                or time.monotonic() - self._smartZeit.get(device, -1e9) < 60:   # frisch genug : kein neuer Thread
+            return
+        self._smartLaeuft.add(device)
+
+        def lesen():
+            try:
+                res = smart_udisks(device)
+            except Exception:
+                res = None
+            if res is None:   # kein udisks2-SMART (USB-Gehäuse) : die Werte des letzten smartctl-Berichts, falls es einen gab
+                with _SMART_SPERRE:
+                    alt = _SMART_BERICHT.get(get_base_disk_device(device))
+                res = alt[2] if alt else None
+            if not _ENDE.is_set():
+                try:
+                    self._smartGelesen.emit(device, res if res is not None else {"none": True})
+                except RuntimeError:   # Backend beim Beenden schon gelöscht
+                    pass
+        threading.Thread(target=lesen, daemon=True).start()
+
+    def _smartSetzen(self, device, res):
+        self._smartLaeuft.discard(device)
+        self._smartZeit[device] = time.monotonic() - (50 if res.get("none") else 0)   # ohne Daten : nach 10 s erneut
+        if self._smartInfo.get(device) != res:
+            self._smartInfo = dict(self._smartInfo, **{device: res})
+            self.smartInfoChanged.emit()
+
+    def _kdeglobalsBeobachten(self):
+        """Klickmodus live : KConfig ersetzt kdeglobals beim Speichern durch eine neue Datei (Umbenennen), deshalb wird
+        auch der Ordner beobachtet. Viele Programme schreiben in ~/.config : 300 ms gebündelt, gelesen wird nur, wenn sich
+        kdeglobals selbst geändert hat (mtime)."""
+        self._kdgDatei = os.path.expanduser("~/.config/kdeglobals")
+        self._kdgStand = _mtime_oder_0(self._kdgDatei)
+        self._kdgTimer = QTimer(self)
+        self._kdgTimer.setSingleShot(True)
+        self._kdgTimer.setInterval(300)
+        self._kdgTimer.timeout.connect(self._kdeglobalsGeaendert)
+        self._kdgWatch = QFileSystemWatcher(self)
+        pfade = [p for p in (os.path.dirname(self._kdgDatei), self._kdgDatei) if os.path.exists(p)]
+        if pfade:
+            self._kdgWatch.addPaths(pfade)
+        self._kdgWatch.directoryChanged.connect(lambda _p: self._kdgTimer.start())
+        self._kdgWatch.fileChanged.connect(lambda _p: self._kdgTimer.start())
+
+    def _kdeglobalsGeaendert(self):
+        if os.path.isfile(self._kdgDatei) and self._kdgDatei not in self._kdgWatch.files():
+            self._kdgWatch.addPath(self._kdgDatei)   # ersetzte Datei : neu anmelden
+        stand = _mtime_oder_0(self._kdgDatei)
+        if stand == self._kdgStand:
+            return
+        self._kdgStand = stand
+        self.refreshClickMode()
+
     @pyqtSlot()
     def refreshClickMode(self):
         """Neu lesen, wenn das Fenster den Fokus bekommt : eine Änderung in den Systemeinstellungen gilt ohne Neustart."""
@@ -4243,13 +4667,12 @@ class Backend(QObject):
                 elif trouves:
                     essais_rapides = 0
                 if trouves is not None:
-                    # rangés par modèle : un scanner réseau qui change d'adresse (DHCP) ne fait pas de doublon
-                    connus = {_norme(s["model"]): s for s in self._scanners}
-                    for s in trouves:
-                        connus[_norme(s["model"])] = s
+                    # zusammengefasst nach Adresse oder Modellkern : ein Netzwerkscanner, der seine Adresse wechselt (DHCP)
+                    # oder von zwei Treibern gemeldet wird, ergibt keine zweite Karte ; gerade gefundene Einträge gehen vor
                     vus = {s["device"] for s in trouves}
+                    connus = scanner_zusammenfassen(trouves + self._scanners, vus)
                     # un scanner disparu reste affiché « hors ligne », comme une imprimante éteinte
-                    self._scanners = [s for s in connus.values() if s["device"] in vus or s.get("network")]
+                    self._scanners = [s for s in connus if s["device"] in vus or s.get("network")]
                     self._scanTrouves = vus
                     enregistrer_cache_scanners(self._scanners)
                     self._prnWake.set()
@@ -4711,14 +5134,51 @@ class Backend(QObject):
         threading.Thread(target=self._smart, args=(device,),
                          daemon=True).start()
 
-    def _smart(self, device):
+    @pyqtSlot(str)
+    def readSmartUsb(self, device):
+        """SMART einer Platte im USB-Gehäuse für die Inspector-Karte lesen : dieselbe smartctl-Kaskade wie der Bericht
+        (einmal pkexec), aber ohne Berichtsfenster. Ein Bericht, der jünger als 60 s ist, wird wiederverwendet."""
+        threading.Thread(target=self._smart, args=(device, False), daemon=True).start()
+
+    def _smartWerteMelden(self, device, base, text):
+        """Kennzahlen aus einem smartctl-Bericht übernehmen (Inspector, Eigenschaften) und den Bericht 60 s merken."""
+        werte = smartctl_werte(text)
+        if werte is not None:
+            werte["stand"] = time.strftime("%H:%M")
+        with _SMART_SPERRE:
+            _SMART_BERICHT[base] = (time.monotonic(), text, werte)
+        if werte is not None and not _ENDE.is_set():
+            try:
+                self._smartGelesen.emit(device, werte)
+            except RuntimeError:
+                pass
+
+    def _smart(self, device, bericht=True):
         base = get_base_disk_device(device)
         titre = tr("SMART unavailable")
-        varianten = smart_varianten(laufwerk_ist_usb(base))
+        with _SMART_SPERRE:
+            frisch = _SMART_BERICHT.get(base)
+        if frisch and time.monotonic() - frisch[0] < 60:   # eben erst gelesen : kein zweites pkexec
+            if frisch[2] is not None:
+                try:
+                    self._smartGelesen.emit(device, frisch[2])
+                except RuntimeError:
+                    pass
+            if bericht:
+                self.smartReady.emit("SMART - " + base, frisch[1])
+            return
+        varianten = smart_varianten(laufwerk_ist_usb(base), base)
         hinweis_text = tr("Note: the external USB enclosure or bridge controller does not support SMART pass-through.")
 
-        def run(extra, timeout):
-            return subprocess.run(["smartctl", "-a", *extra, base], capture_output=True, text=True, timeout=timeout)
+        def run(extra, timeout):   # LC_ALL=C : Zahlen ohne Tausenderpunkte der Systemsprache (smartctl_werte liest sie)
+            return subprocess.run(["smartctl", "-a", *extra, base], capture_output=True, text=True, timeout=timeout,
+                                  env=dict(os.environ, LC_ALL="C"))
+
+        def melden(text, gut):
+            if gut:
+                self._smartWerteMelden(device, base, text)
+            if bericht:
+                self.smartReady.emit("SMART - " + base, text)
 
         # Ohne Root : alle Varianten nacheinander (kostet nichts). Erst wenn der Zugriff verweigert wird, folgt EIN pkexec.
         erstes, brauchbar, rechte = None, None, False
@@ -4732,7 +5192,8 @@ class Backend(QObject):
                 return
             except (subprocess.SubprocessError, OSError):
                 if erstes is None:
-                    self.messageRequested.emit(titre, tr("Reading SMART timed out."))
+                    if bericht:
+                        self.messageRequested.emit(titre, tr("Reading SMART timed out."))
                     return
                 continue
             erstes = erstes or r
@@ -4756,22 +5217,27 @@ class Backend(QObject):
                        "(graphical elevation) was not found on this system."))
                 return
             except (subprocess.SubprocessError, OSError):
-                self.messageRequested.emit(titre, tr("Reading SMART timed out."))
+                if bericht:
+                    self.messageRequested.emit(titre, tr("Reading SMART timed out."))
+                return
+            if r.returncode in (126, 127) and not (r.stdout or "").strip():   # Passwortabfrage abgebrochen
                 return
             ausgabe = (r.stdout or "").strip()
-            if SMART_ROOT_MARKE in ausgabe:   # keine Variante lieferte Daten
+            gut = SMART_ROOT_MARKE not in ausgabe
+            if not gut:   # keine Variante lieferte Daten
                 ausgabe = hinweis_text + "\n\n" + ausgabe.replace(SMART_ROOT_MARKE, "").strip()
-            self.smartReady.emit("SMART - " + base, ausgabe or (r.stderr or "").strip() or tr("No information available."))
+            melden(ausgabe or (r.stderr or "").strip() or tr("No information available."), gut and bool(ausgabe))
             return
 
         r = brauchbar or erstes
         if r is None:   # keine Variante hat überhaupt ein Ergebnis geliefert
-            self.smartReady.emit("SMART - " + base, tr("No information available."))
+            if bericht:
+                self.smartReady.emit("SMART - " + base, tr("No information available."))
             return
         output = (r.stdout.strip() or r.stderr.strip() or tr("No information available."))
         if brauchbar is None:
             output = hinweis_text + "\n\n" + output
-        self.smartReady.emit("SMART - " + base, output)
+        melden(output, brauchbar is not None)
 
     @pyqtSlot(str, str, str)
     def renameDevice(self, device, fstype, label):
@@ -5424,8 +5890,24 @@ QQC2.ApplicationWindow {
     readonly property real infoW: Math.min(400, infoCard.implicitWidth)   // so breit wie der längste Text
     readonly property real sysGap: Kirigami.Units.largeSpacing * 2
     // Reihenfolge in der Gruppe von links : Schaltflächen, Info-Karte, Telemetrie (füllt den Rest). Zuerst fällt die Info-Karte weg, dann das Panel.
-    readonly property bool showPanel: !inspectorShown && sysAvail >= sysButtonsW + sysGap + panelMinW
-    readonly property bool showInfo: !inspectorShown && sysAvail >= sysButtonsW + sysGap + panelMinW + infoW + sysGap
+    readonly property bool showPanel: !ribbonCompact && !inspectorShown && sysAvail >= sysButtonsW + sysGap + panelMinW
+    readonly property bool showInfo: !ribbonCompact && !inspectorShown && sysAvail >= sysButtonsW + sysGap + panelMinW + infoW + sysGap
+    // ---- Kompakte Symbolleiste (48 px) : sobald die festen Ribbon-Gruppen nicht in die Mittelspalte passen, oder immer
+    // (backend.compactToolbar). Der Bedarf wird nur im vollen Modus gemessen und im kompakten Modus festgehalten : so hängt
+    // die Umschaltung nie von ihrem eigenen Ergebnis ab (kein Binding-Loop, kein Flackern an der Grenze).
+    property real ribbonNeedW: 0
+    // Messwert live (aussagekräftig nur im vollen Modus) ; übernommen wird er erst nach dem laufenden Auswertungsdurchlauf
+    // (Qt.callLater) : so löst die Übernahme nie eine Neuberechnung in derselben Kette aus
+    readonly property real ribbonNeedNow: sysGrp.x - (ribLeadItem.visible ? ribLeadItem.width : 0) + sysButtonsW + 10
+    onRibbonNeedNowChanged: Qt.callLater(ribbonNeedUebernehmen)
+    onRibbonCompactChanged: Qt.callLater(ribbonNeedUebernehmen)
+    function ribbonNeedUebernehmen() {
+        if (!ribbonCompact && ribbonFlick.width > 0 && sysGrp.x > 0 && Math.abs(ribbonNeedW - ribbonNeedNow) > 0.5)
+            ribbonNeedW = ribbonNeedNow
+    }
+    readonly property real ribbonAvailW: barRoot.width - 2 * Kirigami.Units.largeSpacing
+    readonly property bool ribbonCompact: (backend && backend.compactToolbar === true) || (ribbonNeedW > 0 && ribbonNeedW > ribbonAvailW + 0.5)
+    readonly property real compactBarH: Math.round(48 * fontGrow)
     function sizeShort(b) {   // Dezimalzeichen wie überall (trDecimal, Sprache der Oberfläche), nicht Qt.locale() : sonst « 2,9 MB » neben « 173.1 GB »
         if (b < 1048576)
             return Math.max(1, Math.round(b / 1024)) + " KB"
@@ -5539,6 +6021,80 @@ QQC2.ApplicationWindow {
             hoverEnabled: true
             onClicked: qb.activated()
         }
+    }
+    // Knopf der kompakten Symbolleiste (48 px) : nur Symbol, Name im Tooltip und für den Screenreader ; Halt der Tab-Kette
+    component CompactBtn: Item {
+        id: cb
+        property string title: ""
+        property string sub: ""
+        property string iconName: ""
+        property bool usable: true
+        signal activated()
+        readonly property bool ribbonStop: true
+        Accessible.role: Accessible.Button
+        Accessible.name: cb.title + (cb.sub !== "" ? ", " + cb.sub : "")
+        Accessible.onPressAction: if (cb.usable) cb.activated()
+        Keys.onTabPressed: win.ribbonMove(cb, 1)
+        Keys.onBacktabPressed: win.ribbonMove(cb, -1)
+        Keys.onReturnPressed: if (cb.usable) cb.activated()
+        Keys.onEnterPressed: if (cb.usable) cb.activated()
+        Keys.onSpacePressed: if (cb.usable) cb.activated()
+        Keys.onEscapePressed: win.leaveWinButtons(true)
+        implicitWidth: Math.round(36 * win.fontGrow)
+        implicitHeight: implicitWidth
+        Rectangle {
+            anchors.fill: parent
+            radius: 8
+            visible: cb.usable && (cbMouse.containsMouse || cbMouse.pressed || cb.activeFocus)
+            color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
+                           Kirigami.Theme.highlightColor.b, cbMouse.pressed ? 0.30 : 0.15)
+            border.width: cb.activeFocus ? 2 : 1
+            border.color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
+                                  Kirigami.Theme.highlightColor.b, cb.activeFocus ? 0.95 : 0.5)
+        }
+        Item {
+            id: cbIcon
+            anchors.centerIn: parent
+            width: Math.round(22 * win.fontGrow)
+            height: width
+            opacity: !cb.usable ? 0.42 : ((cbMouse.containsMouse || cb.activeFocus) ? 1.0 : 0.8)
+            Behavior on opacity { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+            readonly property string src: barIconsRuban[cb.iconName] || cb.iconName
+            readonly property bool isFile: src.indexOf("file://") === 0
+            Image {
+                anchors.fill: parent
+                visible: cbIcon.isFile
+                source: cbIcon.isFile ? cbIcon.src : ""
+                sourceSize.width: 64
+                sourceSize.height: 64
+                fillMode: Image.PreserveAspectFit
+                smooth: true
+                mipmap: true
+            }
+            Kirigami.Icon {
+                anchors.fill: parent
+                visible: !cbIcon.isFile
+                source: cbIcon.isFile ? "" : cbIcon.src
+            }
+        }
+        MouseArea {
+            id: cbMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: cb.usable ? Qt.PointingHandCursor : Qt.ArrowCursor
+            onClicked: if (cb.usable) cb.activated()
+        }
+        QQC2.ToolTip.visible: cbMouse.containsMouse || cb.activeFocus
+        QQC2.ToolTip.delay: 400
+        QQC2.ToolTip.text: cb.title + (cb.sub !== "" ? " \u00B7 " + cb.sub : "")
+    }
+    component CompactSep: Rectangle {
+        implicitWidth: 1
+        implicitHeight: Math.round(22 * win.fontGrow)
+        Layout.leftMargin: Kirigami.Units.largeSpacing
+        Layout.rightMargin: Kirigami.Units.largeSpacing
+        Layout.alignment: Qt.AlignVCenter
+        color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.18)
     }
     // Logo der Distribution : das Bild, das os-release nennt (LOGO=…), unverändert und in Originalfarben
     component DistroLogo: Item {
@@ -5870,6 +6426,74 @@ QQC2.ApplicationWindow {
         }
         return r
     }
+    // ---- SMART über udisks2 (backend.smartInfo, ohne Passwort) : Inspector Modus B und Eigenschaften-Dialog
+    property bool smartOffen: true   // Inspector : Sektion « SMART-Zustand » auf-/zugeklappt
+    function smartFuer(dev) {
+        return dev ? ((backend && backend.smartInfo) ? backend.smartInfo : ({}))[dev] : undefined
+    }
+    function smartGeeignet(d) {   // nur echte Laufwerke : kein Netzwerkort, kein optisches Laufwerk
+        return d !== undefined && d !== null && d.isNetwork !== true && d.isOptical !== true && (d.device || "").indexOf("/dev/") === 0
+    }
+    function ganzzahl(n) {   // 14482 -> « 14.482 » (de) bzw. « 14,482 » (en), passend zu trDecimal
+        return String(Math.round(n)).replace(/\\B(?=(\\d{3})+(?!\\d))/g, trDecimal === "," ? "." : ",")
+    }
+    function smartZustand(info) {
+        if (!info || info.none)
+            return ""
+        return info.state === "fail" ? trad("Critical") : (info.state === "warn" ? trad("Warning") : trad("Good"))
+    }
+    function smartFarbe(info) {
+        return (info && info.state === "fail") ? healthFailColor : ((info && info.state === "warn") ? healthWarnColor : (darkTheme ? "#30d158" : "#1f9d45"))
+    }
+    function smartGrund(g) {
+        if (g === "fail:critical") return trad("The drive reports a critical error")
+        if (g === "fail:spare") return trad("Spare capacity below the limit")
+        if (g === "warn:temp") return trad("Temperature warning")
+        if (g === "warn:sectors") return trad("Bad sectors")
+        if (g === "warn:media") return trad("Media errors reported")
+        if (g === "warn:life") return trad("Nearly worn out")
+        if (g === "warn:test") return trad("Self-test failed")
+        return g
+    }
+    function smartRows(info) {
+        const r = []
+        if (!info || info.none)
+            return r
+        if ((info.reasons || []).length > 0)
+            r.push({ k: trad("Note"), v: info.reasons.map(smartGrund).join(", "), m: false })
+        if (info.lifeUsed !== null && info.lifeUsed !== undefined)
+            r.push({ k: trad("Wear"), v: info.lifeUsed + " %", m: true })
+        if (info.spare !== null && info.spare !== undefined)
+            r.push({ k: trad("Spare"), v: info.spare + " %" + (info.spareThresh !== null && info.spareThresh !== undefined
+                                                                ? " (" + trad("limit {n} %").replace("{n}", info.spareThresh) + ")" : ""), m: true })
+        if (info.hours !== null && info.hours !== undefined)
+            r.push({ k: trad("Power-on time"), v: ganzzahl(info.hours) + " h", m: true })
+        if (info.cycles !== null && info.cycles !== undefined)
+            r.push({ k: trad("Power cycles"), v: ganzzahl(info.cycles), m: true })
+        if (info.unsafe !== null && info.unsafe !== undefined)
+            r.push({ k: trad("Unsafe shutdowns"), v: ganzzahl(info.unsafe), m: true })
+        if (info.written !== null && info.written !== undefined)
+            r.push({ k: trad("Data written"), v: taille(info.written), m: true })
+        if (info.read !== null && info.read !== undefined)
+            r.push({ k: trad("Data read"), v: taille(info.read), m: true })
+        if (info.mediaErrors !== null && info.mediaErrors !== undefined)
+            r.push({ k: trad("Media errors"), v: ganzzahl(info.mediaErrors), m: true })
+        if (info.reallocated !== null && info.reallocated !== undefined)
+            r.push({ k: trad("Reallocated sectors"), v: ganzzahl(info.reallocated), m: true })
+        if (info.pending !== null && info.pending !== undefined)
+            r.push({ k: trad("Pending sectors"), v: ganzzahl(info.pending), m: true })
+        if (info.uncorrectable !== null && info.uncorrectable !== undefined)
+            r.push({ k: trad("Uncorrectable sectors"), v: ganzzahl(info.uncorrectable), m: true })
+        if (info.temp !== null && info.temp !== undefined)
+            r.push({ k: trad("Temperature"), v: info.temp + " \u00B0C", m: true })
+        if (info.selftest)
+            r.push({ k: trad("Self-test"), v: info.selftest === "success" ? trad("Passed")
+                                             : (info.selftest === "inprogress" ? trad("Running") : trad("Failed")), m: false })
+        return r
+    }
+    // Laufwerk im Inspector gewählt : SMART im Hintergrund anfordern (Backend drosselt auf einmal pro Minute)
+    onInspectorItemChanged: if (inspectorShown && inspectorItem !== null && inspectorItem.kind === "disk" && smartGeeignet(inspectorItem.d))
+                                backend.requestSmart(inspectorItem.d.device)
     function inspActions(it) {
         if (!it)
             return []
@@ -6166,7 +6790,7 @@ QQC2.ApplicationWindow {
     // (ohne verschachtelte Funktion : eine innere function schaltet bei qmllint die Prüfung « unqualified » für die ganze Datei ab)
     function ribbonStops() {
         const out = []
-        const stapel = [ribbonRow]
+        const stapel = [ribbonCompact ? compactRow : ribbonRow]
         while (stapel.length > 0) {   // Tiefensuche in Anzeigereihenfolge
             const it = stapel.shift()
             const kinder = []
@@ -6194,7 +6818,7 @@ QQC2.ApplicationWindow {
     function focusRibbonStop(c) {
         navZone = "ribbon"
         c.forceActiveFocus(Qt.TabFocusReason)
-        if (c === inspToggle)
+        if (c === inspToggle || ribbonCompact)
             return
         const x = c.mapToItem(ribbonRow, 0, 0).x   // verdeckten Knopf ins Bild schieben (schmales Fenster : Ribbon scrollt)
         if (x < ribbonFlick.contentX)
@@ -6454,6 +7078,8 @@ QQC2.ApplicationWindow {
     }
     function showProps(d) {
         propsDisk = d
+        if (smartGeeignet(d))
+            backend.requestSmart(d.device)
         if (d.isUsb === true) {
             renameField.initial = d.rawLabel || ""
             renameField.text = renameField.initial
@@ -6609,6 +7235,63 @@ QQC2.ApplicationWindow {
                             border.color: pie.lineColor
                         }
                         QQC2.Label { text: win.trad("Capacity: {size}").replace("{size}", win.taille(win.propsDisk.total || 0)) }
+                    }
+                }
+            }
+
+            Kirigami.Separator {
+                Layout.fillWidth: true
+                visible: propsSmart.visible
+            }
+            ColumnLayout {   // SMART-Zustand über udisks2 (ohne Passwort) ; der Knopf darunter zeigt den vollen smartctl-Bericht
+                id: propsSmart
+                readonly property var info: win.smartFuer(win.propsDisk.device || "")
+                // flache Liste für das zweispaltige Raster : Name, Wert, Name, Wert …
+                readonly property var zellen: {
+                    const z = []
+                    const rs = win.smartRows(info)
+                    for (let i = 0; i < rs.length; i++) {
+                        z.push({ t: rs[i].k, schluessel: true })
+                        z.push({ t: rs[i].v, schluessel: false })
+                    }
+                    return z
+                }
+                visible: win.smartGeeignet(win.propsDisk)
+                Layout.fillWidth: true
+                spacing: 4
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    Accessible.role: Accessible.StaticText
+                    Accessible.name: win.trad("SMART health") + ": " + (propsSmart.info === undefined ? win.trad("Reading SMART data\u2026") : win.smartZustand(propsSmart.info))
+                    QQC2.Label { text: win.trad("SMART health"); font.bold: true; Layout.fillWidth: true }
+                    QQC2.Label {
+                        text: propsSmart.info === undefined ? win.trad("Reading SMART data\u2026") : win.smartZustand(propsSmart.info)
+                        color: win.smartFarbe(propsSmart.info)
+                        font.weight: Font.DemiBold
+                    }
+                }
+                QQC2.Label {
+                    visible: propsSmart.info !== undefined && propsSmart.info.none === true
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    opacity: 0.75
+                    text: win.trad("No SMART data without an administrator password (e.g. a disk in a USB enclosure). The button below shows the full report.")
+                }
+                GridLayout {
+                    columns: 2
+                    columnSpacing: 12
+                    rowSpacing: 2
+                    Layout.fillWidth: true
+                    Repeater {
+                        model: propsSmart.zellen
+                        delegate: QQC2.Label {
+                            text: modelData.t
+                            opacity: modelData.schluessel ? 0.75 : 1
+                            font.features: { "tnum": 1 }
+                            Layout.fillWidth: !modelData.schluessel
+                            elide: Text.ElideRight
+                        }
                     }
                 }
             }
@@ -7466,7 +8149,8 @@ QQC2.ApplicationWindow {
             Kirigami.Theme.colorSet: Kirigami.Theme.Header
             Kirigami.Theme.inherit: false
             Layout.fillWidth: true
-            Layout.preferredHeight: win.ribbonH + (ribbonHBar.visible ? Kirigami.Units.largeSpacing + Kirigami.Units.smallSpacing / 2 : 0)
+            Layout.preferredHeight: win.ribbonCompact ? win.compactBarH
+                                                      : win.ribbonH + (ribbonHBarBox.noetig ? Kirigami.Units.largeSpacing + Kirigami.Units.smallSpacing / 2 : 0)
             readonly property var sel: win.selEntry
             readonly property bool canOpen: sel !== null && sel.available !== false
             readonly property bool canProps: sel !== null && sel.isUnmounted !== true
@@ -7516,6 +8200,7 @@ QQC2.ApplicationWindow {
                 Flickable {
                     id: ribbonFlick
                     objectName: "ribbonFlick"
+                    visible: !win.ribbonCompact
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     Layout.topMargin: Kirigami.Units.largeSpacing
@@ -7701,7 +8386,9 @@ QQC2.ApplicationWindow {
                                         padding: Kirigami.Units.largeSpacing * 2
                                         width: Kirigami.Units.gridUnit * 16
                                         onAboutToShow: {
-                                            var p = warnRow.mapToItem(QQC2.Overlay.overlay, 0, warnRow.height + 6)
+                                            // kompakte Leiste : das Kästchen ist unsichtbar, das Fenster öffnet unter dem Knopf « … »
+                                            const quelle = warnRow.visible ? warnRow : compactMoreBtn
+                                            const p = quelle.mapToItem(QQC2.Overlay.overlay, 0, quelle.height + 6)
                                             x = Math.max(8, Math.min(p.x, QQC2.Overlay.overlay.width - width - 8))
                                             y = p.y
                                         }
@@ -8098,16 +8785,156 @@ QQC2.ApplicationWindow {
                 }
                 }
                 // eigene Leiste unter dem Ribbon : sie liegt nicht über den Gruppentiteln
-                QQC2.ScrollBar {
-                    id: ribbonHBar
+                // in einer Hülle : die Anbindung an das Flickable (ScrollBar.horizontal) setzt « visible » der Leiste selbst
+                // und überschreibt dabei jede Bindung ; die Hülle bestimmt allein, ob sie zu sehen ist
+                Item {
+                    id: ribbonHBarBox
+                    readonly property bool noetig: !win.ribbonCompact && ribbonFlick.contentWidth > ribbonFlick.width + 1
+                    visible: noetig
                     Layout.fillWidth: true
                     Layout.leftMargin: Kirigami.Units.largeSpacing
                     Layout.rightMargin: Kirigami.Units.largeSpacing
-                    Layout.preferredHeight: visible ? Kirigami.Units.largeSpacing + Kirigami.Units.smallSpacing / 2 : 0
-                    visible: ribbonFlick.contentWidth > ribbonFlick.width + 1
-                    orientation: Qt.Horizontal
-                    policy: QQC2.ScrollBar.AlwaysOn
+                    Layout.preferredHeight: noetig ? Kirigami.Units.largeSpacing + Kirigami.Units.smallSpacing / 2 : 0
+                    QQC2.ScrollBar {
+                        id: ribbonHBar
+                        anchors.fill: parent
+                        orientation: Qt.Horizontal
+                        policy: QQC2.ScrollBar.AlwaysOn
+                    }
                 }
+                // ===== Kompakte Symbolleiste ===== dieselben Befehle als Symbole, mittig ; « Anzeigen » im Menü « … »
+                RowLayout {
+                    id: compactRow
+                    objectName: "compactRow"
+                    visible: win.ribbonCompact
+                    Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+                    Layout.fillHeight: true
+                    spacing: Kirigami.Units.smallSpacing
+                    Repeater {
+                        model: [
+                            { t: win.trad("Properties"), i: "props", a: "props" },
+                            { t: win.trad("Open"), i: "open", a: "open" },
+                            { t: win.trad("Refresh"), i: "refresh", a: "refresh" },
+                            { t: win.trad("Add a network location"), i: "add", a: "add" }
+                        ]
+                        delegate: CompactBtn {
+                            title: modelData.t
+                            iconName: modelData.i
+                            usable: modelData.a === "open" ? barRoot.canOpen : (modelData.a === "props" ? barRoot.canProps : true)
+                            onActivated: barRoot.runCmd(modelData.a)
+                        }
+                    }
+                    CompactSep {}
+                    CompactBtn {
+                        title: win.trad("System monitor")
+                        iconName: "utilities-system-monitor"
+                        visible: ((backend && backend.tools) ? backend.tools : ({})).monitor !== false
+                        onActivated: barRoot.runCmd("monitor")
+                    }
+                    CompactBtn {
+                        title: win.trad("Analyze storage")
+                        iconName: "filelight"
+                        visible: ((backend && backend.tools) ? backend.tools : ({})).analyze !== false
+                        onActivated: barRoot.runCmd("analyze")
+                    }
+                    CompactBtn {
+                        title: win.trad("SSD optimization")
+                        sub: (backend && backend.trimRunning) ? win.trad("running…") : ""
+                        iconName: "drive-harddisk"
+                        usable: backend && backend.trimSupported && !backend.trimRunning
+                        onActivated: trimDialog.open()
+                    }
+                    CompactBtn {
+                        title: win.trad("Trash")
+                        sub: (backend && backend.trash && backend.trash.count > 0)
+                             ? ((backend.trash.complete ? "" : "\u2265 ") + win.sizeShort(backend.trash.bytes)) : win.trad("Empty")
+                        iconName: (backend && backend.trash && backend.trash.count > 0) ? "user-trash-full" : "user-trash"
+                        onActivated: backend.openTrash()
+                    }
+                    CompactBtn {
+                        title: win.trad("Terminal")
+                        iconName: "utilities-terminal"
+                        visible: ((backend && backend.tools) ? backend.tools : ({})).terminal !== false
+                        onActivated: backend.launchTool("terminal", "")
+                    }
+                    CompactSep {}
+                    CompactBtn { title: win.trad("System information"); iconName: "info"; onActivated: barRoot.runCmd("specs") }
+                    CompactBtn { title: win.trad("System Settings"); iconName: "settings"; onActivated: barRoot.runCmd("settings") }
+                    CompactBtn { title: win.trad("About"); iconName: "about"; onActivated: barRoot.runCmd("about") }
+                    CompactSep {}
+                    CompactBtn {
+                        id: compactMoreBtn
+                        title: win.trad("Show and options")
+                        iconName: "overflow-menu"
+                        onActivated: compactMoreL.openMenu()
+                    }
+                }
+            }
+            // « … » : Anzeigen-Schalter, Warnschwelle und die Wahl der Leiste (erst beim ersten Öffnen aufgebaut)
+            LazyMenu {
+                id: compactMoreL
+                sourceComponent: QQC2.Menu {
+                    id: compactMore
+                    // ein angeklickter Eintrag löst seine checked-Bindung : nach dem Umschalten wieder an den Zustand binden
+                    QQC2.MenuItem {
+                        text: win.sectName(win.trad("Folders ({n})"))
+                        checkable: true
+                        checked: win.foldersShown
+                        onToggled: { win.foldersShown = checked; checked = Qt.binding(function() { return win.foldersShown }) }
+                    }
+                    QQC2.MenuItem {
+                        text: win.sectName(win.trad("Devices and drives ({n})"))
+                        checkable: true
+                        checked: win.disksShown
+                        onToggled: { win.disksShown = checked; checked = Qt.binding(function() { return win.disksShown }) }
+                    }
+                    QQC2.MenuItem {
+                        text: win.sectName(win.trad("Network locations ({n})"))
+                        checkable: true
+                        checked: win.netShown
+                        onToggled: { win.netShown = checked; checked = Qt.binding(function() { return win.netShown }) }
+                    }
+                    QQC2.MenuItem {
+                        text: win.sectName(win.trad("Printers and devices ({n})"))
+                        checkable: true
+                        checked: win.printersShown
+                        onToggled: { win.printersShown = checked; checked = Qt.binding(function() { return win.printersShown }) }
+                    }
+                    QQC2.MenuItem {
+                        text: win.sectName(win.trad("Quick access ({n})"))
+                        checkable: true
+                        checked: win.quickShown
+                        onToggled: { win.quickShown = checked; checked = Qt.binding(function() { return win.quickShown }) }
+                    }
+                    QQC2.MenuSeparator {}
+                    QQC2.MenuItem {
+                        text: win.trad("Warning threshold…")
+                        icon.name: "dialog-warning"
+                        onTriggered: warnPopup.open()
+                    }
+                    QQC2.MenuItem {
+                        text: win.trad("Always use the compact toolbar")
+                        checkable: true
+                        checked: backend.compactToolbar
+                        onToggled: { backend.setCompactToolbar(checked); checked = Qt.binding(function() { return backend.compactToolbar }) }
+                    }
+                }
+            }
+            // Rechtsklick auf die Leiste (beide Modi) : kompakte Leiste immer oder nur bei Platzmangel
+            LazyMenu {
+                id: barMenuL
+                sourceComponent: QQC2.Menu {
+                    QQC2.MenuItem {
+                        text: win.trad("Always use the compact toolbar")
+                        checkable: true
+                        checked: backend.compactToolbar
+                        onToggled: { backend.setCompactToolbar(checked); checked = Qt.binding(function() { return backend.compactToolbar }) }
+                    }
+                }
+            }
+            TapHandler {
+                acceptedButtons: Qt.RightButton
+                onTapped: barMenuL.openMenu()
             }
         }
         // Keine harte Trennlinie unter dem Ribbon : der Übergang entsteht allein durch den Farbton (Header-Farbsatz)
@@ -9223,11 +10050,11 @@ QQC2.ApplicationWindow {
                                                     width: 8
                                                     height: 40
                                                     readonly property bool dark: Qt.colorEqual(modelData.color, "#000000")
-                                                    // Niedrigstand (< 15 %) : rote Kontur, sie pulsiert sanft (nur bei sichtbarem Fenster)
-                                                    readonly property bool low: modelData.level < 15
+                                                    // Niedrigstand (Schwelle des Druckers, sonst 10 % : modelData.low) : rote Kontur, sie pulsiert sanft (nur bei sichtbarem Fenster)
+                                                    readonly property bool low: modelData.low === true
                                                     property real pulse: 0
                                                     SequentialAnimation on pulse {
-                                                        running: win.fensterAktiv && inkBox.visible && modelData.level < 15
+                                                        running: win.fensterAktiv && inkBox.visible && modelData.low === true
                                                         loops: Animation.Infinite
                                                         NumberAnimation { to: 1; duration: 900; easing.type: Easing.InOutQuad }
                                                         NumberAnimation { to: 0; duration: 900; easing.type: Easing.InOutQuad }
@@ -9259,7 +10086,7 @@ QQC2.ApplicationWindow {
                                         QQC2.ToolTip.visible: inkHover.hovered
                                         QQC2.ToolTip.delay: 300
                                         QQC2.ToolTip.text: win.trad("Ink levels") + "\\n" + inks.map(function(i) {
-                                            return i.name + ": " + i.level + " %" + (i.level < 15 ? "  \u26A0" : "") }).join("\\n")
+                                            return i.name + ": " + i.level + " %" + (i.low === true ? "  \u26A0" : "") }).join("\\n")
                                         Accessible.role: Accessible.StaticText
                                         Accessible.name: win.trad("Ink levels") + ": " + inks.map(function(i) { return i.name + " " + i.level + " %" }).join(", ")
                                     }
@@ -10096,6 +10923,117 @@ QQC2.ApplicationWindow {
                             }
                         }
                     }
+                    GlassCard {   // SMART-Zustand (udisks2, ohne Passwort) : einklappbar ; USB-Gehäuse -> voller smartctl-Bericht
+                        id: smartCard
+                        readonly property var it: parent.it
+                        readonly property string dev: (it !== null && it.kind === "disk" && win.smartGeeignet(it.d)) ? it.d.device : ""
+                        readonly property var info: win.smartFuer(dev)
+                        readonly property var rows: win.smartOffen ? win.smartRows(info) : []
+                        visible: dev !== ""
+                        implicitHeight: smartCol.implicitHeight + 24
+                        ColumnLayout {
+                            id: smartCol
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.margins: 12
+                            spacing: 6
+                            RowLayout {   // Kopf : Titel, Zustands-Pille, Pfeil ; Klick, Eingabe oder Leertaste klappt
+                                id: smartHead
+                                Layout.fillWidth: true
+                                spacing: 8
+                                activeFocusOnTab: false
+                                Accessible.role: Accessible.Button
+                                Accessible.name: win.trad("SMART health") + (win.smartZustand(smartCard.info) !== "" ? ": " + win.smartZustand(smartCard.info) : "")
+                                Accessible.onPressAction: win.smartOffen = !win.smartOffen
+                                QQC2.Label {
+                                    text: win.trad("SMART health").toUpperCase()
+                                    font.weight: Font.DemiBold
+                                    font.pointSize: Kirigami.Theme.defaultFont.pointSize * 0.85
+                                    font.letterSpacing: 0.6
+                                    opacity: 0.6
+                                    Layout.fillWidth: true
+                                    elide: Text.ElideRight
+                                }
+                                Rectangle {   // Zustands-Pille : Gut (grün), Warnung (bernstein), Kritisch (rot)
+                                    visible: win.smartZustand(smartCard.info) !== ""
+                                    radius: height / 2
+                                    implicitHeight: smartPill.implicitHeight + 4
+                                    implicitWidth: smartPill.implicitWidth + 14
+                                    color: Qt.rgba(win.smartFarbe(smartCard.info).r, win.smartFarbe(smartCard.info).g, win.smartFarbe(smartCard.info).b, 0.16)
+                                    border.width: 1
+                                    border.color: Qt.rgba(win.smartFarbe(smartCard.info).r, win.smartFarbe(smartCard.info).g, win.smartFarbe(smartCard.info).b, 0.55)
+                                    QQC2.Label {
+                                        id: smartPill
+                                        anchors.centerIn: parent
+                                        text: win.smartZustand(smartCard.info)
+                                        font.pointSize: win.badgeFont.pointSize
+                                        font.weight: Font.DemiBold
+                                        color: win.smartFarbe(smartCard.info)
+                                    }
+                                }
+                                Kirigami.Icon {
+                                    source: win.smartOffen ? "arrow-up" : "arrow-down"
+                                    Layout.preferredWidth: Kirigami.Units.iconSizes.small
+                                    Layout.preferredHeight: Kirigami.Units.iconSizes.small
+                                    opacity: smartHeadHover.hovered ? 0.9 : 0.5
+                                }
+                                HoverHandler { id: smartHeadHover; cursorShape: Qt.PointingHandCursor }
+                                TapHandler { onTapped: win.smartOffen = !win.smartOffen }
+                            }
+                            QQC2.Label {   // noch keine Antwort
+                                visible: win.smartOffen && smartCard.info === undefined
+                                text: win.trad("Reading SMART data\u2026")
+                                font: win.badgeFont
+                                opacity: 0.65
+                            }
+                            QQC2.Label {   // udisks2 hat keine Daten (USB-Gehäuse u. a.)
+                                visible: win.smartOffen && smartCard.info !== undefined && smartCard.info.none === true
+                                Layout.fillWidth: true
+                                wrapMode: Text.Wrap
+                                text: win.trad("This drive needs smartctl with the administrator password (e.g. a disk in a USB enclosure).")
+                                font: win.badgeFont
+                                opacity: 0.65
+                            }
+                            QQC2.Button {   // einmal pkexec ; derselbe Lauf füllt auch den Bericht unter « Eigenschaften » (60 s gemerkt)
+                                visible: win.smartOffen && smartCard.info !== undefined && smartCard.info.none === true
+                                text: win.trad("Read SMART\u2026")
+                                icon.name: "security-high"
+                                onClicked: backend.readSmartUsb(smartCard.dev)
+                            }
+                            QQC2.Label {   // Quelle der Werte, wenn sie aus einem smartctl-Bericht stammen (USB-Bridge)
+                                visible: win.smartOffen && smartCard.info !== undefined && smartCard.info.source === "smartctl"
+                                Layout.fillWidth: true
+                                wrapMode: Text.Wrap
+                                text: win.trad("Read with smartctl at {time}").replace("{time}", (smartCard.info && smartCard.info.stand) || "")
+                                font: win.badgeFont
+                                opacity: 0.55
+                            }
+                            Repeater {
+                                model: smartCard.rows
+                                delegate: RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 8
+                                    Accessible.role: Accessible.StaticText
+                                    Accessible.name: modelData.k + ": " + modelData.v
+                                    QQC2.Label { text: modelData.k; font: win.badgeFont; opacity: 0.65 }
+                                    Item { Layout.fillWidth: true }
+                                    QQC2.Label {
+                                        id: smartVal
+                                        text: modelData.v
+                                        font: modelData.m ? win.monoBadgeFont : win.badgeFont
+                                        elide: Text.ElideRight
+                                        horizontalAlignment: Text.AlignRight
+                                        Layout.maximumWidth: inspScroll.availableWidth * 0.62
+                                        HoverHandler { id: smartValHover }
+                                        QQC2.ToolTip.visible: smartValHover.hovered && smartVal.truncated
+                                        QQC2.ToolTip.delay: 400
+                                        QQC2.ToolTip.text: modelData.v
+                                    }
+                                }
+                            }
+                        }
+                    }
                     GlassCard {
                         readonly property var inks: (parent.it !== null && parent.it.kind === "printer") ? (parent.it.d.inks || []) : []
                         id: inkCard
@@ -10129,7 +11067,7 @@ QQC2.ApplicationWindow {
                                         Layout.alignment: Qt.AlignVCenter
                                         radius: 3
                                         color: win.darkTheme ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(0, 0, 0, 0.10)
-                                        border.width: modelData.level < 15 ? 1 : 0
+                                        border.width: modelData.low === true ? 1 : 0
                                         border.color: win.gaugeRed
                                         Rectangle {
                                             width: Math.max(height, parent.width * modelData.level / 100)
@@ -10144,7 +11082,7 @@ QQC2.ApplicationWindow {
                                     QQC2.Label {
                                         text: modelData.level + " %"
                                         font: win.monoBadgeFont
-                                        color: modelData.level < 15 ? win.gaugeRed : Kirigami.Theme.textColor
+                                        color: modelData.low === true ? win.gaugeRed : Kirigami.Theme.textColor
                                         horizontalAlignment: Text.AlignRight
                                         Layout.preferredWidth: 44
                                     }
