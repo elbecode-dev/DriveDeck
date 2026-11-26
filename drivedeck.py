@@ -143,6 +143,7 @@ EXTRA_DE = {
     "System & Drivers": "System & Treiber",
     "Network": "Netzwerk",
     "Storage": "Speicher",
+    "Open in {app} terminal": "In {app} öffnen",
     "Open with {app}": "Mit {app} öffnen",
     "file manager": "Dateimanager",
     "Toggle inspector": "Inspektor umschalten",
@@ -2528,10 +2529,99 @@ def werkzeug_waehlen(art):
     return next((w for w in WERKZEUGE.get(art, ()) if shutil.which(w[0])), None)
 
 
+# Terminals : wie man das Arbeitsverzeichnis setzt und wie ein Befehl darin gestartet wird
+_TERMINAL_ARTEN = {
+    "konsole": (lambda d: ["--workdir", d], lambda d, a: ["--workdir", d, "-e", *a]),
+    "kitty": (lambda d: ["--directory", d], lambda d, a: ["--directory", d, *a]),
+    "alacritty": (lambda d: ["--working-directory", d], lambda d, a: ["--working-directory", d, "-e", *a]),
+    "foot": (lambda d: ["--working-directory=" + d], lambda d, a: ["--working-directory=" + d, *a]),
+    "wezterm": (lambda d: ["start", "--cwd", d], lambda d, a: ["start", "--cwd", d, "--", *a]),
+    "gnome-terminal": (lambda d: ["--working-directory=" + d], lambda d, a: ["--working-directory=" + d, "--", *a]),
+    "kgx": (lambda d: ["--working-directory=" + d], lambda d, a: ["--working-directory=" + d, "-e", *a]),
+    "xfce4-terminal": (lambda d: ["--working-directory=" + d], lambda d, a: ["--working-directory=" + d, "-x", *a]),
+    "ghostty": (lambda d: ["--working-directory=" + d], lambda d, a: ["--working-directory=" + d, "-e", *a]),
+    "xdg-terminal-exec": (lambda d: [], lambda d, a: list(a)),   # Arbeitsordner über cwd des Prozesses
+}
+
+
+@lru_cache(maxsize=1)
+def standard_terminal():
+    """Eingestelltes Terminal : xdg-terminal-exec, dann KDE (kdeglobals [General] TerminalApplication / TerminalService),
+    dann $TERMINAL, dann konsole, kitty, alacritty, foot, wezterm. {argv, art, name, icon} oder None. Nur Dateien und PATH."""
+    def eintrag(argv, service=""):
+        if not argv or shutil.which(argv[0]) is None:
+            return None
+        art = os.path.basename(argv[0])
+        name, icon = "", ""
+        if art != "xdg-terminal-exec":
+            _, data = _xdg_dirs()
+            for kennung in [service] if service else [art + ".desktop", "org.kde." + art + ".desktop", "org.gnome." + art + ".desktop"]:
+                for d in data:
+                    e = _desktop_eintrag(os.path.join(d, "applications", kennung))
+                    if e:
+                        name, icon = e["name"], e["icon"]
+                        break
+                if name:
+                    break
+            name = name or art.capitalize()
+        return {"argv": argv, "art": art, "name": name, "icon": icon or "utilities-terminal"}
+    gefunden = eintrag(["xdg-terminal-exec"])
+    if gefunden:
+        return gefunden
+    try:
+        cfg, _ = _xdg_dirs()
+        abschnitt, app, service = "", "", ""
+        for zeile in (_lire_texte(os.path.join(cfg[0], "kdeglobals")) or "").splitlines():
+            zeile = zeile.strip()
+            if zeile.startswith("["):
+                abschnitt = zeile
+            elif abschnitt == "[General]" and zeile.startswith("TerminalApplication="):
+                app = zeile.split("=", 1)[1].strip()
+            elif abschnitt == "[General]" and zeile.startswith("TerminalService="):
+                service = zeile.split("=", 1)[1].strip()
+        if app:
+            gefunden = eintrag(shlex.split(app), service)
+        elif service:
+            _, data = _xdg_dirs()
+            for d in data:
+                e = _desktop_eintrag(os.path.join(d, "applications", service))
+                if e:
+                    gefunden = eintrag([a for a in shlex.split(e["exec"]) if not re.fullmatch(r"%[a-zA-Z]", a)][:1], service)
+                    break
+        if gefunden:
+            return gefunden
+    except ValueError:
+        pass
+    if os.environ.get("TERMINAL"):
+        try:
+            gefunden = eintrag(shlex.split(os.environ["TERMINAL"]))
+        except ValueError:
+            gefunden = None
+        if gefunden:
+            return gefunden
+    for prog in ("konsole", "kitty", "alacritty", "foot", "wezterm"):
+        gefunden = eintrag([prog])
+        if gefunden:
+            return gefunden
+    return None
+
+
+def _terminal_aufruf(t, cwd, argv=None):
+    """Aufruf für Terminal t : nur öffnen (argv None) oder argv darin starten ; unbekannte Terminals : -e bzw. nur cwd."""
+    ordner, befehl = _TERMINAL_ARTEN.get(t["art"], (lambda d: [], lambda d, a: ["-e", *a]))
+    return [*t["argv"], *(ordner(cwd) if argv is None else befehl(cwd, argv))]
+
+
 def terminal_befehle(argv, cwd):
-    """Mögliche Aufrufe, um argv in einem Terminalfenster zu starten (Konsole zuerst)."""
-    return (["konsole", "--workdir", cwd, "-e", *argv], ["xdg-terminal-exec", *argv],
-            ["x-terminal-emulator", "-e", *argv])
+    """Mögliche Aufrufe, um argv in einem Terminalfenster zu starten : das eingestellte Terminal zuerst, dann die Rückfälle."""
+    liste = []
+    t = standard_terminal()
+    if t:
+        liste.append(_terminal_aufruf(t, cwd, argv))
+    for rueck in (["konsole", "--workdir", cwd, "-e", *argv], ["xdg-terminal-exec", *argv], ["x-terminal-emulator", "-e", *argv]):
+        if rueck not in liste:
+            liste.append(rueck)
+    return liste
 
 
 IO_FENSTER = 60   # ioVerlauf : Sekunden an Verlauf pro Laufwerk
@@ -3413,6 +3503,17 @@ class Backend(QObject):
         if self._dateimanager is not None and self._dateimanager["name"]:
             return self._dateimanager["name"]
         return "Dolphin" if shutil.which("dolphin") else tr("file manager")
+
+    @pyqtProperty(str, constant=True)
+    def terminalName(self):
+        """Name des eingestellten Terminals für « In … öffnen » ; leer bei xdg-terminal-exec oder unbekanntem Terminal."""
+        t = standard_terminal()
+        return t["name"] if t and t["art"] != "xdg-terminal-exec" else ""
+
+    @pyqtProperty(str, constant=True)
+    def terminalIcon(self):
+        t = standard_terminal()
+        return t["icon"] if t else "utilities-terminal"
 
     @pyqtProperty(str, constant=True)
     def fileManagerIcon(self):
@@ -4507,9 +4608,16 @@ class Backend(QObject):
         if not ist_ordner(path):
             self.messageRequested.emit(titre, tr("Folder not found"))
             return
-        for cmd in (["konsole", "--workdir", path], ["xdg-terminal-exec"], ["x-terminal-emulator"]):
+        befehle = []
+        t = standard_terminal()
+        if t:
+            befehle.append(_terminal_aufruf(t, path))
+        for rueck in (["konsole", "--workdir", path], ["xdg-terminal-exec"], ["x-terminal-emulator"]):
+            if rueck not in befehle:
+                befehle.append(rueck)
+        for cmd in befehle:
             try:
-                lancer(cmd, cwd=path)
+                lancer(cmd, cwd=path)   # cwd zusätzlich : Terminals ohne eigene Ordner-Option starten so im Zielordner
                 return
             except FileNotFoundError:
                 continue
@@ -5741,7 +5849,7 @@ QQC2.ApplicationWindow {
         var d = it.d, a = []
         if (it.kind === "folder") {
             a.push({ a: "open", t: trad("Open"), i: "folder-open" })
-            a.push({ a: "terminal", t: trad("Open in terminal"), i: "utilities-terminal" })
+            a.push({ a: "terminal", t: terminalLabel, i: backend.terminalIcon })
         } else if (it.kind === "disk") {
             if (d.isUnmounted === true)
                 a.push({ a: "mount", t: trad("Mount"), i: "media-mount" })
@@ -5789,6 +5897,9 @@ QQC2.ApplicationWindow {
         else if (a === "settings")
             backend.openSettings(settingsModuleFor(d))
     }
+    // « In Kitty öffnen » bzw. « Im Terminal öffnen » (eingestelltes Terminal, siehe standard_terminal())
+    readonly property string terminalLabel: (backend && backend.terminalName) ? trad("Open in {app} terminal").replace("{app}", backend.terminalName.charAt(0).toUpperCase() + backend.terminalName.slice(1))
+                                                                              : trad("Open in terminal")
     // Anzahl der sichtbaren Elemente im Hauptbereich (steht in der Kopfkarte der Seitenleiste)
     readonly property int itemCount: (win.foldersCollapsed || !win.foldersShown ? 0 : fFolders.length) + (win.disksCollapsed || !win.disksShown ? 0 : fDisks.length) + (win.netCollapsed || !win.netShown ? 0 : fNets.length) + (win.printersCollapsed || !win.printersShown ? 0 : fPrinters.length)
     readonly property string itemCountText: itemCount === 1 ? trad("1 item") : trad("{n} items").replace("{n}", itemCount)
@@ -8055,8 +8166,8 @@ QQC2.ApplicationWindow {
                                             onTriggered: backend.openFolder(modelData.path)
                                         }
                                         QQC2.MenuItem {
-                                            text: win.trad("Open in terminal")
-                                            icon.name: "utilities-terminal"
+                                            text: win.terminalLabel
+                                            icon.name: backend.terminalIcon
                                             onTriggered: backend.openTerminal(modelData.path)
                                         }
                                         QQC2.MenuItem {
@@ -8505,8 +8616,8 @@ QQC2.ApplicationWindow {
                                             onTriggered: backend.mountDevice(modelData.device)
                                         }
                                         QQC2.MenuItem {
-                                            text: win.trad("Open in terminal")
-                                            icon.name: "utilities-terminal"
+                                            text: win.terminalLabel
+                                            icon.name: backend.terminalIcon
                                             visible: modelData.mountpoint.charAt(0) === "/"
                                             height: visible ? implicitHeight : 0
                                             onTriggered: backend.openTerminal(modelData.mountpoint)
@@ -8816,8 +8927,8 @@ QQC2.ApplicationWindow {
                                             onTriggered: win.showProps(modelData)
                                         }
                                         QQC2.MenuItem {
-                                            text: win.trad("Open in terminal")
-                                            icon.name: "utilities-terminal"
+                                            text: win.terminalLabel
+                                            icon.name: backend.terminalIcon
                                             visible: modelData.mounted === true && modelData.mountpoint.charAt(0) === "/"
                                             height: visible ? implicitHeight : 0
                                             onTriggered: backend.openTerminal(modelData.mountpoint)
@@ -9298,8 +9409,8 @@ QQC2.ApplicationWindow {
                     onTriggered: backend.openFolder(rowMenu.t.path)
                 }
                 QQC2.MenuItem {
-                    text: win.trad("Open in terminal")
-                    icon.name: "utilities-terminal"
+                    text: win.terminalLabel
+                    icon.name: backend.terminalIcon
                     onTriggered: backend.openTerminal(rowMenu.t.path)
                 }
                 QQC2.MenuItem {

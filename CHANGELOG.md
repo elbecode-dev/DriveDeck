@@ -13,6 +13,7 @@ hidden and everything else works).
 ## Unreleased
 
 ### Fixed
+- **"Open in terminal" uses your terminal.** DriveDeck always preferred Konsole. It now uses `xdg-terminal-exec` if installed, otherwise the KDE default (`kdeglobals` → `TerminalApplication` / `TerminalService`), then `$TERMINAL`, then the first of Konsole, kitty, Alacritty, foot and WezTerm. The folder is passed with the terminal's own option (`--directory`, `--working-directory`, `--workdir`, `--cwd` …) and as the process working directory. Menus and the inspector say "Open in Kitty" (or the detected terminal) with its icon; the system monitor and storage analysis tools that need a terminal start in it as well.
 - **Folders open in your default file manager.** DriveDeck always started Dolphin, even when another file manager was set as the default for folders. It now reads the default for `inode/directory` from the XDG `mimeapps.list` files and starts that program for local folders; the menu entry says "Open with File Explorer" (or whichever program is set). Network addresses (smb://, sftp://) still go through Dolphin or `xdg-open`, which handle the login. Without any default, Dolphin is used as before, then `xdg-open`.
 
 ### Added

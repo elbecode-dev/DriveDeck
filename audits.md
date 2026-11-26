@@ -289,7 +289,7 @@ Two passes, the second one (design review with the *qt-ui-engineering* skill and
 | Item | Status | Notes |
 |------|--------|-------|
 | Hard-coded Dolphin | ✅ | Reported by the user: "Open with Dolphin" ignored the default file manager (here a custom "File Explorer"). `standard_dateimanager()` reads `inode/directory` from the XDG `mimeapps.list` chain (desktop-specific and general files, config before data dirs, Flatpak exports included) without starting a process; `exec_argumente()` turns the `Exec` line into arguments (`%u/%U/%f/%F` → path, other field codes dropped). Local folders open with that program; network URLs keep the Dolphin/`xdg-open` path. Menu label and icon come from the `.desktop` file. Checked: user's config → "File Explorer" with `/home/…/file-explorer %U`; without user config → system default Dolphin. |
-| Not changed | ➖ | "Open in terminal" still prefers Konsole, then `xdg-terminal-exec` / `x-terminal-emulator`. |
+| Default terminal | ✅ | `standard_terminal()` (cached, only files and `PATH`): `xdg-terminal-exec` → `kdeglobals` `[General]` `TerminalApplication`/`TerminalService` → `$TERMINAL` → konsole, kitty, alacritty, foot, wezterm. `_TERMINAL_ARTEN` maps each known terminal to its working-directory option and its way to run a command; unknown terminals get `-e` and the process `cwd`. Used by "Open in terminal" and by `terminal_befehle()` (terminal tools such as btop). Checked on this system: KDE default kitty → `kitty --directory <dir>`, label "In Kitty öffnen", icon `kitty`; with `$TERMINAL=alacritty` and no KDE config → alacritty; without both → konsole. Actually launching a terminal was not tested (the harness blocks launches). |
 
 ---
 
