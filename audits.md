@@ -200,6 +200,18 @@ Two passes, the second one (design review with the *qt-ui-engineering* skill and
 
 ---
 
+## 5e. Post-release check (after 2.0.0, limited to 30 minutes)
+
+| Check | Result |
+|-------|--------|
+| Soak test, 12 min, 80 000 random actions (drive and printer lists, minimise, resize, mouse, arrow/Tab/Home/End/Esc keys, temperatures, threshold) | No crash (`faulthandler` empty), 0 Qt/QML messages, memory 171–190 MB without upward trend (179 MB at the end). |
+| Idle CPU, real data, offscreen | 1.05 % over 60 s (rc3: 1.2 %). No GPU in this measurement. |
+| `qt-qml-review` lint rules | 348 notes, almost all style (property order, `var`, group notation); no binding or crash findings. |
+| Code review of the changes since rc5 | Two real bugs, both fixed: (1) the window buttons were focusable but the program's own Tab handling never let focus reach them, so the rc4 claim "reachable with Tab" was wrong; Tab now cycles main → sidebar → buttons → main, Shift+Tab backwards, Esc returns (checked with a key sequence test). (2) An empty optical drive showed the green "mounted" dot; it is grey now. |
+| Not done | `qmlprofiler` run (setup did not fit the time limit). |
+
+---
+
 ## 6. Not verified
 
 These need a real desktop session and were **not** covered by the offscreen tests:

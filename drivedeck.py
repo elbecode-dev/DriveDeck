@@ -4648,6 +4648,12 @@ QQC2.ApplicationWindow {
         Accessible.name: win.trad(wbtn.glyph === "min" ? "Minimize" : (wbtn.glyph === "max" ? "Maximize"
                                   : (wbtn.glyph === "restore" ? "Restore" : "Close")))
         Accessible.onPressAction: wbtn.clicked()
+        // Tab/Umschalt+Tab wandern zwischen den drei Knöpfen ; am Ende (oder mit Esc) zurück zur Tastatursteuerung des Hauptbereichs
+        property Item nextBtn: null
+        property Item prevBtn: null
+        Keys.onTabPressed: wbtn.nextBtn ? wbtn.nextBtn.forceActiveFocus() : win.leaveWinButtons(true)
+        Keys.onBacktabPressed: wbtn.prevBtn ? wbtn.prevBtn.forceActiveFocus() : win.leaveWinButtons(false)
+        Keys.onEscapePressed: win.leaveWinButtons(true)
         Keys.onReturnPressed: wbtn.clicked()
         Keys.onEnterPressed: wbtn.clicked()
         Keys.onSpacePressed: wbtn.clicked()
@@ -5336,6 +5342,14 @@ QQC2.ApplicationWindow {
         navZone = "sidebar"
         sideSetSel(sideIndexOfKey(sideSelKey) >= 0 ? sideSelKey : sideNavRows()[0].selKey)
     }
+    // Fokus von den Fensterknöpfen zurück : vorwärts in den Hauptbereich, rückwärts in die Seitenleiste (wenn vorhanden)
+    function leaveWinButtons(vorwaerts) {
+        keyHandler.forceActiveFocus()
+        if (!vorwaerts && sidebarUsable)
+            enterSidebar()
+        else
+            enterMain()
+    }
     function enterMain() {
         navZone = "main"
         var secs = navSections()
@@ -5475,13 +5489,19 @@ QQC2.ApplicationWindow {
         var strg = (ev.modifiers & Qt.ControlModifier) !== 0
         if (ev.key === Qt.Key_F5) {
             backend.refreshAll()
-        } else if (ev.key === Qt.Key_Tab || ev.key === Qt.Key_Backtab) {
+        } else if (ev.key === Qt.Key_Tab) {
+            // Tab-Reihenfolge : Hauptbereich -> Seitenleiste -> Fensterknöpfe (Minimieren, Maximieren, Schließen) -> Hauptbereich
             if (seite)
-                enterMain()
+                winMinBtn.forceActiveFocus()
             else if (sidebarUsable)
                 enterSidebar()
             else
-                return
+                winMinBtn.forceActiveFocus()
+        } else if (ev.key === Qt.Key_Backtab) {
+            if (seite)
+                enterMain()
+            else
+                winCloseBtn.forceActiveFocus()
         } else if (ev.key === Qt.Key_Return || ev.key === Qt.Key_Enter) {
             if (seite)
                 sideActivate(false)
@@ -6506,16 +6526,23 @@ QQC2.ApplicationWindow {
                 RowLayout {
                     spacing: Kirigami.Units.largeSpacing
                     WinBtn {
+                        id: winMinBtn
+                        nextBtn: winMaxBtn
                         tone: "#febc2e"
                         glyph: "min"
                         onClicked: win.showMinimized()
                     }
                     WinBtn {
+                        id: winMaxBtn
+                        prevBtn: winMinBtn
+                        nextBtn: winCloseBtn
                         tone: "#28c840"
                         glyph: win.visibility === 4 ? "restore" : "max"
                         onClicked: win.toggleMax()
                     }
                     WinBtn {
+                        id: winCloseBtn
+                        prevBtn: winMaxBtn
                         tone: "#ff5f57"
                         glyph: "close"
                         onClicked: win.close()
@@ -8006,7 +8033,7 @@ QQC2.ApplicationWindow {
                                             Layout.fillWidth: true
                                             spacing: Kirigami.Units.largeSpacing
                                             Item {   // Statuspunkt : grün leuchtend = eingehängt, gedämpftes Grau = ausgehängt
-                                                readonly property bool mounted: modelData.isUnmounted !== true
+                                                readonly property bool mounted: modelData.isUnmounted !== true && !(modelData.isOptical === true && modelData.total === 0)   // leeres CD-/DVD-Laufwerk : grau
                                                 Layout.preferredWidth: 6
                                                 Layout.preferredHeight: 6
                                                 Layout.rightMargin: -Kirigami.Units.smallSpacing

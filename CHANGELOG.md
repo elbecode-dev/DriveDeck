@@ -10,6 +10,14 @@ hidden and everything else works).
 
 ---
 
+## Unreleased
+
+### Fixed
+- **Window buttons reachable by keyboard.** Tab now cycles main area → sidebar → minimize, maximize, close → main area (Shift+Tab backwards, Esc returns). Before, the program's own Tab handling never let the focus reach the buttons, although 2.0.0 claimed so.
+- **Empty CD/DVD drive** showed the green "mounted" dot; it is grey now.
+
+---
+
 ## 2.0.0 – 2026-11-26
 
 First stable release of DriveDeck. On top of rc5 it adds a calmer "liquid glass" look and closes the last open accessibility gap.
