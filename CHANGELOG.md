@@ -10,9 +10,9 @@ hidden and everything else works).
 
 ---
 
-## 2.1.0 – in progress
+## 2.1.0 – 2026-11-26
 
-Groundwork for 2.1.0: five non-destructive ideas from the upstream comparison with Fenestra This PC 2.1.1, built on DriveDeck's own architecture (background threads, lazy menus, inspector, keyboard chain, screen-reader names). The version number in `drivedeck.py` stays 2.0.1 until the release.
+Five non-destructive ideas from the upstream comparison with Fenestra This PC 2.1.1, built on DriveDeck's own architecture (background threads, lazy menus, inspector, keyboard chain, screen-reader names), and SMART for NVMe drives in USB enclosures.
 
 ### Added
 - **Compact toolbar (48 px).** When the fixed ribbon groups no longer fit into the middle column, the ribbon switches automatically to a centred toolbar with the same commands as icons (tooltip, screen-reader name, Tab chain, focus ring). *Show* (sections), the warning threshold and the toolbar choice are in a "…" menu built on first use. "Always use the compact toolbar" (in "…" or by right-clicking the toolbar) keeps it on wide windows too; the setting is saved. The width the ribbon needs is measured only while it is shown and applied after the current evaluation, so the switch cannot feed back into itself.
@@ -20,6 +20,7 @@ Groundwork for 2.1.0: five non-destructive ideas from the upstream comparison wi
 - **Live click mode.** A `QFileSystemWatcher` on `~/.config` and `kdeglobals` (KConfig replaces the file when saving) re-reads the single/double-click setting 300 ms after a change; only a changed `kdeglobals` triggers a read.
 
 ### Changed
+- **New preview** (`preview.png`, English, version 2.1.0; the IP address is a placeholder).
 - **Scanner duplicates merged by IP address or model.** The address comes from `ip=` (airscan), `http(s)://<address>` (eSCL) or `:net:<address>` (epson2 and others); the model is compared without its source list ("platen,adf") and "Series". The entry with a source list or an eSCL address wins, so the card reads "Epson WF-4830 (Flatbed & ADF)". Old duplicates in the scanner cache are merged on start. `epson2:net:` scanners count as network scanners.
 - **Wi-Fi printers are debounced:** offline only after three failed checks in a row; in between the card keeps its last ink levels.
 - **Ink names by partial match** ("photo black", "matte black", "light cyan", "light magenta", "black", "cyan", "magenta", "yellow", "gray"; "toner" is kept as a suffix), translated. **Low ink** is the printer's own `marker-low-levels` threshold or 10 % if it declares none; card pills, tooltip, inspector and dialog all use this one flag (2.0.1 used a fixed 15 % in the card).

@@ -12,7 +12,7 @@ locations, printers and devices in one clean window, and it follows your Plasma 
 
 <p align="center"><img src="preview.png" alt="DriveDeck main window"></p>
 
-**Version 2.0.1** – feedback and bug reports are very welcome.
+**Version 2.1.0** – feedback and bug reports are very welcome.
 
 ---
 
@@ -67,7 +67,7 @@ small **live graph** of their read and write speed, and warn you when they are a
   main area (Shift+Tab backwards, Esc back to the main area); `Ctrl+I` shows or hides the inspector.
 - Works with light and dark Plasma colour schemes.
 
-### New in 2.1.0 (in progress)
+### New in 2.1.0
 
 - **Compact toolbar.** When the four ribbon groups do not fit between the side panels (about 2300 px window width with
   both panels in German, 2200 px in English), the ribbon becomes a centred 48 px toolbar with the same commands as icons,

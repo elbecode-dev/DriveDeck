@@ -358,7 +358,7 @@ and that File Explorer and Kitty start.
 
 ---
 
-## 5m. Upstream cherry-picks for 2.1.0 (in progress)
+## 5m. Upstream cherry-picks (2.1.0)
 
 Five non-destructive ideas from the comparison with Fenestra This PC 2.1.1 (code was not copied; each is written for
 DriveDeck's architecture). Formatting, the surface scan and the 3-second disk refresh in the GUI thread were deliberately
@@ -386,7 +386,7 @@ have German entries (a scan of all `trad("…")` literals leaves only words that
 
 ---
 
-## 5n. SMART for NVMe drives in USB enclosures (2.1.0, in progress)
+## 5n. SMART for NVMe drives in USB enclosures (2.1.0)
 
 **Report (user):** Properties → SMART status of a FIKWOT FN501Pro 1 TB in a USB enclosure showed only "SMART support is:
 Unavailable - device lacks SMART capability."
