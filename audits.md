@@ -212,10 +212,39 @@ Two passes, the second one (design review with the *qt-ui-engineering* skill and
 
 ---
 
+## 5f. Inspector panel and toolbar pass (after 2.0.0)
+
+| Item | Status | Change |
+|------|--------|--------|
+| Inspector, system overview | ✅ | Right glass panel (`radius: 14`, 8 px margin right/top/bottom, hairline edge), shown from 1280 px. Hero tile with logo, host, OS, kernel, Plasma, uptime, install date; four `LiveCard`s with `Spark` sparklines (60 s history kept in QML, only collected while the inspector is visible and the window is not minimized). |
+| Inspector, details | ✅ | `inspectorItem` follows `selectedKey` (folder, drive, network location, printer/device). Key/value rows, ink levels with bars, action buttons (`focusPolicy: Qt.NoFocus`, so the arrow keys stay with the main area). Clicks inside the inspector no longer clear the selection. |
+| Not available | ➖ | No UUID and no printer driver: the backend does not read them. Instead the device path and, new in the printer data, the CUPS/eSCL address (credentials in the URI are stripped). |
+| Toolbar | ✅ | `showInfo`/`showPanel` are off while the inspector is visible; below 1280 px the ribbon keeps its info block and telemetry (with their accessible names). |
+| Sidebar header, section hairlines, drive-row overlap, scanner names | ✅ | Turquoise-blue gradient and cyan badge with dark text; solid 1 px hairline; drive rows use the full width and the size label keeps its minimum width; `scanner_anzeigename()` turns eSCL source lists into "(Flatbed & ADF)". |
+
+**Finding during testing:** the first `Spark` was a `Shape` inside a layout; its implicit width followed the path, which produced a "Binding loop detected for property path" warning 1296 times in the stress test. Wrapping the `Shape` in an `Item` fixed it (0 messages afterwards).
+
+**Checks:** `pyright` 0 errors, `qmllint` clean, 100 s stress test (10 000 actions incl. window sizes with and without inspector, keyboard selection changes) with 0 messages and no crash, click test (a click in the inspector keeps the selection). Visual check on the real desktop (dark scheme, blur) via the new preview; light scheme not checked.
+
+---
+
+## 5g. Final 2.0.0 polish: toolbar opacity and Breeze Light check
+
+| Item | Status | Change |
+|------|--------|--------|
+| Ribbon opacity | ✅ | The title bar and ribbon fill is one rectangle over the full width; a screenshot showed identical pixels from left to right. The brighter look on the right came from the wallpaper behind it at 90 % alpha. Raised to 95 % with blur so it no longer shows. |
+| Breeze Light check | ✅ | Switched the Plasma scheme to Breeze Light with `plasma-apply-colorscheme`, took real screenshots, switched back to the user's scheme (`VividVioletDarkColorscheme`, verified with `kreadconfig6`). |
+| Bug found: light schemes treated as dark | ✅ | `themeProbe` (the item behind `win.darkTheme`) was `visible: false`. Kirigami gives invisible items no scheme colours (background `#000000`), so `darkTheme` was always true: in light schemes glass panels and cards used white edges (invisible), count badges used light text, and the cyan sparkline used the light-on-dark variant. Fixed with a visible zero-size probe (verified: background now `#182030` in the dark scheme, light variants in Breeze Light). This also explains why earlier offscreen checks reported "dark" for a light window. |
+| Light contrast | ✅ | Glass outlines in light schemes 0.08 → 0.13 (panels) and 0.07 → 0.12 (cards), card fill 0.03 → 0.045, section count text darker accent. The cyan `2.0.0` badge with dark text reads well in both schemes. |
+
+**Checks:** `pyright` 0 errors, `qmllint` clean, 90 s stress test (8000 actions) with 0 messages and no crash, Tab cycle test passed.
+
+---
+
 ## 6. Not verified
 
 These need a real desktop session and were **not** covered by the offscreen tests:
-- Real Plasma **dark colour scheme** (the offscreen platform does not apply it; the contrast values are therefore unmeasured).
+- Contrast ratios were judged on real screenshots (dark scheme and Breeze Light), not measured with a contrast tool.
 - Real pointer behaviour: drag, resize at the window edge, hover and hit-testing, double click on the title bar buttons.
 - Screen readers (Orca) and the real Tab order.
 - GPU overdraw and GPU load.

@@ -142,6 +142,30 @@ EXTRA_DE = {
     "System & Drivers": "System & Treiber",
     "Network": "Netzwerk",
     "Storage": "Speicher",
+    "Flatbed": "Flachbett",
+    "ADF duplex": "ADF beidseitig",
+    "Sheet feeder": "Einzug",
+    "Film": "Film",
+    "Storage I/O": "Speicher-I/O",
+    "File system": "Dateisystem",
+    "Mount point": "Einhängepunkt",
+    "Device": "Gerät",
+    "Size": "Größe",
+    "Free": "Frei",
+    "Used": "Belegt",
+    "Read": "Lesen",
+    "Write": "Schreiben",
+    "Health": "Zustand",
+    "Path": "Pfad",
+    "Address": "Adresse",
+    "Status": "Status",
+    "Connection": "Verbindung",
+    "Details": "Details",
+    "Mounted": "Eingehängt",
+    "Connected": "Verbunden",
+    "Folder": "Ordner",
+    "Settings": "Einstellungen",
+    "System overview": "Systemübersicht",
     "day": "Tag",
     "1 item": "1 Element",
     "{n} items": "{n} Elemente",
@@ -1980,6 +2004,7 @@ def list_printers():
         peripherique = libelle_connexion(uri)
         fiche.update({"label": nom.replace("_", " "), "device": peripherique, "default": nom == defaut})
         carte = {"key": "printer:" + nom, "label": nom.replace("_", " "), "name": nom,
+                 "uri": re.sub(r"//[^/@]*@", "//", uri or ""),   # Zugangsdaten in der Adresse (smb://user:pass@…) nie anzeigen
                  "icon": disk_icon(["printer"]), "statusText": texte,
                  "device": peripherique, "inks": [] if injoignable else niveaux_encre(nom, cible),
                  "offline": injoignable, "absent": False}
@@ -2131,6 +2156,28 @@ def enregistrer_cache_scanners(liste):
         pass
 
 
+_SCAN_QUELLEN = {"platen": "Flatbed", "flatbed": "Flatbed", "adf": "ADF", "adf-duplex": "ADF duplex", "duplex": "Duplex",
+                 "sheetfed": "Sheet feeder", "sheet-fed": "Sheet feeder", "film": "Film"}
+
+
+def scanner_anzeigename(modell):
+    """« Epson WF-4830 Series platen,adf » -> « Epson WF-4830 (Flachbett & ADF) » : rohe eSCL/SANE-Quellenliste lesbar machen.
+    Ohne erkennbare Quellen bleibt der Name unverändert."""
+    teile = modell.rsplit(" ", 1)
+    if len(teile) != 2:
+        return modell
+    quellen = [q.strip().lower() for q in teile[1].split(",")]
+    if not quellen or not all(q in _SCAN_QUELLEN for q in quellen):
+        return modell
+    name = re.sub(r"\s+Series$", "", teile[0].strip(), flags=re.I)
+    namen = []
+    for q in quellen:
+        t = tr(_SCAN_QUELLEN[q])
+        if t not in namen:
+            namen.append(t)
+    return "%s (%s)" % (name, " & ".join(namen))
+
+
 def cartes_scanners(scanners, trouves, imprimantes):
     """Cartes des scanners à afficher. scanners : dernière liste connue ; trouves : appareils vus à la
     dernière recherche (les autres sont « hors ligne ») ; imprimantes : cartes des imprimantes installées."""
@@ -2169,9 +2216,9 @@ def cartes_scanners(scanners, trouves, imprimantes):
         texte = tr("Scanner") + " · " + (tr("Network") if s.get("network") else "USB")
         if not present:
             texte += " · " + tr("Offline")
-        res.append({"key": "scanner:" + s["device"], "label": s["model"], "name": s["model"],
+        res.append({"key": "scanner:" + s["device"], "label": scanner_anzeigename(s["model"]), "name": s["model"],
                     "icon": disk_icon(["scanner", "document-scan", "printer"]), "statusText": texte,
-                    "device": "", "inks": [], "indicator": True, "scanner": True, "offline": not present})
+                    "device": "", "uri": s["device"], "inks": [], "indicator": True, "scanner": True, "offline": not present})
     return res
 
 
@@ -4437,7 +4484,7 @@ QQC2.ApplicationWindow {
     // Compositor Blur anbietet (glassFx) ; sonst bleiben sie deckend.
     flags: Qt.Window | Qt.FramelessWindowHint
     color: "transparent"
-    readonly property real glassHead: glassFx.active ? 0.90 : 1.0   // Titelbalken und Ribbon
+    readonly property real glassHead: glassFx.active ? 0.95 : 1.0   // Titelbalken und Ribbon
     readonly property real glassBody: glassFx.active ? 0.93 : 1.0   // Inhalt und Fußzeile
     readonly property bool framed: visibility !== 4 && visibility !== 5   // weder maximiert noch Vollbild : Rand und Griffe
     readonly property real cornerR: framed ? 12 : 0   // Eckenradius (Python liest ihn für die Blur-Region)
@@ -4507,6 +4554,86 @@ QQC2.ApplicationWindow {
             PathSvg {
                 path: "M0.5," + se.r + " A" + (se.r - 0.5) + "," + (se.r - 0.5) + " 0 0 1 " + se.r + ",0.5 H" + (se.width - se.r)
                       + " A" + (se.r - 0.5) + "," + (se.r - 0.5) + " 0 0 1 " + (se.width - 0.5) + "," + se.r
+            }
+        }
+    }
+    // Ruhige Glas-Kachel für den Inspector
+    component GlassCard: Rectangle {
+        Layout.fillWidth: true
+        radius: 12
+        color: win.darkTheme ? Qt.rgba(1, 1, 1, 0.04) : Qt.rgba(0, 0, 0, 0.045)
+        border.width: 1
+        border.color: win.darkTheme ? Qt.rgba(1, 1, 1, 0.07) : Qt.rgba(0, 0, 0, 0.12)
+        SpecEdge { r: 12 }
+    }
+    // Sparkline der letzten 60 s : Linie mit weich auslaufender Fläche darunter
+    component Spark: Item {
+        id: sp
+        property var values: []
+        property real maxV: 100
+        property color tone: "#1e88e5"
+        // Die Form liegt in einem Item : so hängt die Breite nicht an der Pfadgröße (sonst Binding-Schleife über implicitWidth)
+        function pts(geschlossen) {
+            var n = values.length, out = [], step = width / 59
+            if (n === 0)
+                return out
+            var x0 = width - (n - 1) * step
+            if (geschlossen)
+                out.push(Qt.point(x0, height))
+            for (var i = 0; i < n; i++)
+                out.push(Qt.point(x0 + i * step, height - 1 - (height - 3) * Math.min(1, values[i] / Math.max(1e-9, maxV))))
+            if (geschlossen)
+                out.push(Qt.point(width, height))
+            return out
+        }
+        Shape {
+            anchors.fill: parent
+            preferredRendererType: Shape.CurveRenderer
+            ShapePath {
+                strokeColor: "transparent"
+                fillGradient: LinearGradient {
+                    x1: 0; y1: 0; x2: 0; y2: sp.height
+                    GradientStop { position: 0.0; color: Qt.alpha(sp.tone, 0.28) }
+                    GradientStop { position: 1.0; color: Qt.alpha(sp.tone, 0.0) }
+                }
+                PathPolyline { path: sp.pts(true) }
+            }
+            ShapePath {
+                strokeColor: sp.tone
+                strokeWidth: 1.5
+                fillColor: "transparent"
+                joinStyle: ShapePath.RoundJoin
+                PathPolyline { path: sp.pts(false) }
+            }
+        }
+    }
+    // Live-Karte im Inspector : Symbol, Titel, Wert (Messschrift, Tabellenziffern), darunter die Sparkline
+    component LiveCard: GlassCard {
+        id: lc
+        property int idx: 0
+        implicitHeight: lcCol.implicitHeight + 20
+        Accessible.role: Accessible.StaticText
+        Accessible.name: win.liveTitle(idx) + ": " + win.liveText(idx)
+        ColumnLayout {
+            id: lcCol
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: 10
+            spacing: 6
+            RowLayout {
+                spacing: 6
+                Kirigami.Icon { source: win.liveIcon(lc.idx); Layout.preferredWidth: 16; Layout.preferredHeight: 16 }
+                QQC2.Label { text: win.liveTitle(lc.idx); font: win.badgeFont; opacity: 0.75 }
+                Item { Layout.fillWidth: true }
+                QQC2.Label { text: win.liveText(lc.idx); font: win.monoBadgeFont }
+            }
+            Spark {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 40
+                values: win.liveHist(lc.idx)
+                maxV: win.liveMax(lc.idx)
+                tone: win.liveTone(lc.idx)
             }
         }
     }
@@ -4787,17 +4914,14 @@ QQC2.ApplicationWindow {
                 text: count
                 font.bold: true
                 font.pointSize: Kirigami.Theme.defaultFont.pointSize
-                color: Qt.lighter(accent, 1.6)
+                color: win.darkTheme ? Qt.lighter(accent, 1.6) : Qt.darker(accent, 1.25)   // hell : dunkler Akzent, sonst kaum lesbar
             }
         }
-        Rectangle {
+        Rectangle {   // feine, durchgehende Haarlinie bis zum rechten Rand
             Layout.fillWidth: true
             Layout.preferredHeight: 1
-            gradient: Gradient {
-                orientation: Gradient.Horizontal
-                GradientStop { position: 0.0; color: Qt.rgba(accent.r, accent.g, accent.b, 0.6) }
-                GradientStop { position: 1.0; color: Qt.rgba(accent.r, accent.g, accent.b, 0.0) }
-            }
+            Layout.alignment: Qt.AlignVCenter
+            color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.14)
         }
     }
 
@@ -4845,6 +4969,9 @@ QQC2.ApplicationWindow {
     readonly property real lineH: lineMetrics.height
     // fontGrow : 1 bei der Standardschrift (Zeilenhöhe 14,4 px), grösser bei grösserer Schrift ; Ribbon und Schaltflächen wachsen mit
     readonly property real fontGrow: Math.max(1.0, lineH / 14.4)
+    // Inspector rechts : ab 1280 px Fensterbreite ; dann wandern Systeminfo und Telemetrie aus dem Ribbon dorthin
+    readonly property bool inspectorShown: width >= 1280
+    readonly property real inspectorW: Math.round(330 * fontGrow)
     readonly property real panelMinW: Math.round(170 * fontGrow)   // Telemetrie-Panel : wächst mit der Schrift, sonst werden « Storage » und « Network » abgeschnitten
     readonly property real ribbonBtnH: Math.round(84 * fontGrow)
     readonly property real ribbonH: Math.round(122 * fontGrow)
@@ -4856,8 +4983,8 @@ QQC2.ApplicationWindow {
     readonly property real infoW: Math.min(400, infoCard.implicitWidth)   // so breit wie der längste Text
     readonly property real sysGap: Kirigami.Units.largeSpacing * 2
     // Reihenfolge in der Gruppe von links : Schaltflächen, Info-Karte, Telemetrie (füllt den Rest). Zuerst fällt die Info-Karte weg, dann das Panel.
-    readonly property bool showPanel: sysAvail >= sysButtonsW + sysGap + panelMinW
-    readonly property bool showInfo: sysAvail >= sysButtonsW + sysGap + panelMinW + infoW + sysGap
+    readonly property bool showPanel: !inspectorShown && sysAvail >= sysButtonsW + sysGap + panelMinW
+    readonly property bool showInfo: !inspectorShown && sysAvail >= sysButtonsW + sysGap + panelMinW + infoW + sysGap
     function sizeShort(b) {
         var l = Qt.locale()
         if (b < 1048576)
@@ -4994,7 +5121,9 @@ QQC2.ApplicationWindow {
     // damit der Kontrast reicht (Text 4,5 : 1, Grafik 3 : 1).
     Item {
         id: themeProbe
-        visible: false
+        // sichtbar (Größe 0) : ein unsichtbares Item bekommt von Kirigami keine Schemafarben, alles wäre « dunkel »
+        width: 0
+        height: 0
         readonly property bool dark: Kirigami.Theme.backgroundColor.hslLightness < 0.5
         readonly property color accent: Kirigami.Theme.highlightColor
         // Ohne Plasma-Farbschema (z. B. andere Umgebung) liefert Kirigami Schwarz : dann feste, gut lesbare Ersatzfarben
@@ -5132,6 +5261,210 @@ QQC2.ApplicationWindow {
             })
         }
         function onDisksChanged() { win.probeRoots() }
+    }
+    // ---- Inspector : Verlauf der letzten 60 s für die Sparklines (nur gesammelt, solange der Inspector sichtbar ist)
+    property var histCpu: []
+    property var histRam: []
+    property var histIo: []
+    property var histNet: []
+    function pushHist(a, v) {
+        var b = a.length >= 60 ? a.slice(a.length - 59) : a.slice()
+        b.push(v)
+        return b
+    }
+    function ioRates() {
+        var s = (backend && backend.ioStats) ? backend.ioStats : ({}), r = 0, w = 0
+        for (var k in s) {
+            r += s[k].readRate || 0
+            w += s[k].writeRate || 0
+        }
+        return { r: r, w: w }
+    }
+    Connections {
+        target: backend
+        function onStatsChanged() {
+            if (!win.inspectorShown || !win.fensterAktiv)
+                return
+            var st = backend.sysStats
+            if (!st || st.cpu === undefined)
+                return
+            var io = win.ioRates()
+            win.histCpu = win.pushHist(win.histCpu, st.cpu)
+            win.histRam = win.pushHist(win.histRam, st.ramTotal > 0 ? 100 * st.ramUsed / st.ramTotal : 0)
+            win.histIo = win.pushHist(win.histIo, io.r + io.w)
+            win.histNet = win.pushHist(win.histNet, (st.up || 0) + (st.down || 0))
+        }
+    }
+    function liveTitle(i) { return i === 0 ? "CPU" : (i === 1 ? "RAM" : (i === 2 ? trad("Storage I/O") : trad("Network"))) }
+    function liveIcon(i) { return i === 0 ? liveIcons.cpu : (i === 1 ? liveIcons.ram : (i === 2 ? liveIcons.disk : liveIcons.net)) }
+    function liveText(i) {
+        var st = (backend && backend.sysStats) ? backend.sysStats : ({})
+        if (st.cpu === undefined)
+            return "\u2013"
+        if (i === 0)
+            return st.cpu + " %"
+        if (i === 1)
+            return taille(st.ramUsed) + " / " + taille(st.ramTotal)
+        if (i === 2) {
+            var io = ioRates()
+            return "\u25BC " + rateText(io.r) + "  \u25B2 " + rateText(io.w)
+        }
+        return "\u25BC " + rateText(st.down) + "  \u25B2 " + rateText(st.up)
+    }
+    function liveHist(i) { return i === 0 ? histCpu : (i === 1 ? histRam : (i === 2 ? histIo : histNet)) }
+    function liveMax(i) {
+        if (i < 2)
+            return 100
+        var h = liveHist(i), m = 65536
+        for (var k = 0; k < h.length; k++)
+            m = Math.max(m, h[k])
+        return m * 1.15
+    }
+    function liveTone(i) { return i === 0 ? gaugeBlue : (i === 1 ? "#a855f7" : (i === 2 ? rateReadColor : "#34d399")) }
+    // Systemzeilen der Kopfkarte im Inspector
+    readonly property var sysRows: {
+        var si = (backend && backend.sysInfo) ? backend.sysInfo : ({})
+        var st = (backend && backend.sysStats) ? backend.sysStats : ({})
+        var r = []
+        if (si.kernel) r.push({ k: "Kernel", v: si.kernel })
+        if (si.plasma) r.push({ k: "Plasma", v: si.plasma })
+        r.push({ k: trad("Uptime"), v: uptimeText(st.uptime || 0) })
+        if (si.installed > 0) {
+            var tage = Math.floor((Date.now() / 1000 - si.installed) / 86400)
+            r.push({ k: trad("Installed"), v: new Date(si.installed * 1000).toLocaleDateString(Qt.locale(), Locale.ShortFormat)
+                     + " \u00B7 " + tage + " " + (tage === 1 ? trad("day") : trad("days")) })
+        }
+        return r
+    }
+    // Gewähltes Element für den Inspector : { kind, d } oder null (dann Systemübersicht)
+    readonly property var inspectorItem: {
+        var k = selectedKey
+        if (k === "")
+            return null
+        var i
+        if (k.indexOf("folder:") === 0) {
+            for (i = 0; i < foldersModel.length; i++)
+                if ("folder:" + foldersModel[i].path === k)
+                    return { kind: "folder", d: foldersModel[i] }
+            return null
+        }
+        var ds = (backend && backend.disks) ? backend.disks : []
+        for (i = 0; i < ds.length; i++)
+            if (ds[i].mountpoint === k)
+                return { kind: "disk", d: ds[i] }
+        var ns = (backend && backend.networks) ? backend.networks : []
+        for (i = 0; i < ns.length; i++)
+            if (ns[i].mountpoint === k)
+                return { kind: "net", d: ns[i] }
+        var ps = (backend && backend.printers) ? backend.printers : []
+        for (i = 0; i < ps.length; i++)
+            if (ps[i].key === k)
+                return { kind: "printer", d: ps[i] }
+        return null
+    }
+    function inspStatus(it) {
+        if (!it)
+            return ""
+        var d = it.d
+        if (it.kind === "folder")
+            return trad("Folder")
+        if (it.kind === "disk")
+            return d.isUnmounted === true ? trad("Not mounted") : (d.isOptical === true ? (d.freeText || "") : trad("Mounted"))
+        if (it.kind === "net")
+            return d.available === false ? trad("Offline") : trad("Connected")
+        return (d.statusText || "").split(" \u00B7 ")[0]
+    }
+    function inspRows(it) {
+        if (!it)
+            return []
+        var d = it.d, r = []
+        if (it.kind === "folder") {
+            r.push({ k: trad("Path"), v: d.path || "", m: true })
+        } else if (it.kind === "disk") {
+            if (d.fstype) r.push({ k: trad("File system"), v: d.fstype, m: true })
+            if (d.mountpoint && d.mountpoint.charAt(0) === "/") r.push({ k: trad("Mount point"), v: d.mountpoint, m: true })
+            if (d.device) r.push({ k: trad("Device"), v: d.device, m: true })
+            if (d.total > 0) {
+                r.push({ k: trad("Size"), v: taille(d.total), m: true })
+                if (d.isUnmounted !== true) {
+                    r.push({ k: trad("Free"), v: taille(d.free), m: true })
+                    r.push({ k: trad("Used"), v: Math.round(100 * d.used / d.total) + " %", m: true })
+                }
+            }
+            var t = ((backend && backend.temps) ? backend.temps : ({}))[d.device]
+            if (t !== undefined) r.push({ k: trad("Temperature"), v: Math.round(t.c) + " \u00B0C", m: true })
+            var io = ((backend && backend.ioStats) ? backend.ioStats : ({}))[d.device]
+            if (io) {
+                r.push({ k: trad("Read"), v: rateText(io.readRate), m: true })
+                r.push({ k: trad("Write"), v: rateText(io.writeRate), m: true })
+            }
+            if (d.healthText) r.push({ k: trad("Health"), v: d.healthText, m: false })
+        } else if (it.kind === "net") {
+            r.push({ k: trad("Address"), v: d.mountpoint || "", m: true })
+            if (d.total > 0) {
+                r.push({ k: trad("Size"), v: taille(d.total), m: true })
+                r.push({ k: trad("Free"), v: taille(d.free), m: true })
+            }
+        } else {
+            r.push({ k: trad("Status"), v: d.statusText || "", m: false })
+            if (d.device) r.push({ k: trad("Connection"), v: d.device, m: false })
+            if (d.uri && d.uri !== d.device) r.push({ k: trad("Address"), v: d.uri, m: true })
+        }
+        return r
+    }
+    function inspActions(it) {
+        if (!it)
+            return []
+        var d = it.d, a = []
+        if (it.kind === "folder") {
+            a.push({ a: "open", t: trad("Open"), i: "folder-open" })
+            a.push({ a: "terminal", t: trad("Open in terminal"), i: "utilities-terminal" })
+        } else if (it.kind === "disk") {
+            if (d.isUnmounted === true)
+                a.push({ a: "mount", t: trad("Mount"), i: "media-mount" })
+            else if (d.mountpoint.charAt(0) === "/")
+                a.push({ a: "open", t: trad("Open"), i: "folder-open" })
+            if (d.isUsb === true && d.isUnmounted !== true && d.mountpoint.charAt(0) === "/")
+                a.push({ a: "eject", t: trad("Safely remove"), i: "media-eject" })
+            if (d.isUnmounted !== true && d.mountpoint.charAt(0) === "/" && ((backend && backend.tools) ? backend.tools : ({})).analyze)
+                a.push({ a: "analyze", t: trad("Analyze storage"), i: "filelight" })
+            if (d.isOptical !== true)
+                a.push({ a: "props", t: trad("Properties"), i: "document-properties" })
+        } else if (it.kind === "net") {
+            if (d.available !== false)
+                a.push({ a: "open", t: trad("Open"), i: "folder-open" })
+            a.push({ a: "props", t: trad("Properties"), i: "document-properties" })
+        } else {
+            if (d.scanner === true && backend.hasScanApp())
+                a.push({ a: "scan", t: trad("Scan…"), i: "document-scan" })
+            if (d.indicator !== true)
+                a.push({ a: "props", t: trad("Properties"), i: "document-properties" })
+            var mod = settingsModuleFor(d)
+            if (mod !== "" && backend.hasSettings(mod))
+                a.push({ a: "settings", t: trad("Settings"), i: "configure" })
+        }
+        return a
+    }
+    function inspRun(a, it) {
+        if (!it)
+            return
+        var d = it.d
+        if (a === "open")
+            backend.openFolder(it.kind === "folder" ? d.path : d.mountpoint)
+        else if (a === "terminal")
+            backend.openTerminal(d.path)
+        else if (a === "mount")
+            backend.mountDevice(d.device)
+        else if (a === "eject")
+            backend.ejectDevice(d.device, d.label)
+        else if (a === "analyze")
+            backend.launchTool("analyze", d.mountpoint)
+        else if (a === "props")
+            it.kind === "printer" ? showPrinter(d) : showProps(d)
+        else if (a === "scan")
+            backend.launchApp("skanpage")
+        else if (a === "settings")
+            backend.openSettings(settingsModuleFor(d))
     }
     // Anzahl der sichtbaren Elemente im Hauptbereich (steht in der Kopfkarte der Seitenleiste)
     readonly property int itemCount: (win.foldersCollapsed || !win.foldersShown ? 0 : foldersModel.length) + (win.disksCollapsed || !win.disksShown ? 0 : ((backend && backend.disks) ? backend.disks : []).length) + (win.netCollapsed || !win.netShown ? 0 : ((backend && backend.networks) ? backend.networks : []).length) + (win.printersCollapsed || !win.printersShown ? 0 : ((backend && backend.printers) ? backend.printers : []).length)
@@ -7233,7 +7566,7 @@ QQC2.ApplicationWindow {
                     radius: 14
                     color: win.darkTheme ? Qt.rgba(1, 1, 1, 0.035) : Qt.rgba(0, 0, 0, 0.03)
                     border.width: 1
-                    border.color: win.darkTheme ? Qt.rgba(1, 1, 1, 0.09) : Qt.rgba(0, 0, 0, 0.08)
+                    border.color: win.darkTheme ? Qt.rgba(1, 1, 1, 0.09) : Qt.rgba(0, 0, 0, 0.13)
                     HoverHandler { id: panelHover }
                     // Cursor-Spotlight : ein sehr zarter Lichtfleck folgt der Maus (nur bei sichtbarem Fenster)
                     Shape {
@@ -7272,13 +7605,14 @@ QQC2.ApplicationWindow {
                     height: 60
                     radius: 12
                     readonly property color accent: Kirigami.Theme.highlightColor
+                    // türkis-blauer Glasverlauf mit feiner Lichtkante oben
                     gradient: Gradient {
                         orientation: Gradient.Horizontal
-                        GradientStop { position: 0.0; color: Qt.rgba(heroCard.accent.r, heroCard.accent.g, heroCard.accent.b, 0.18) }
-                        GradientStop { position: 1.0; color: win.darkTheme ? Qt.rgba(1, 1, 1, 0.04) : Qt.rgba(0, 0, 0, 0.03) }
+                        GradientStop { position: 0.0; color: Qt.rgba(0.0, 0.78, 0.86, win.darkTheme ? 0.26 : 0.18) }
+                        GradientStop { position: 1.0; color: Qt.rgba(0.22, 0.46, 1.0, win.darkTheme ? 0.16 : 0.10) }
                     }
                     border.width: 1
-                    border.color: win.darkTheme ? Qt.rgba(1, 1, 1, 0.07) : Qt.rgba(0, 0, 0, 0.07)
+                    border.color: Qt.rgba(0.35, 0.85, 1.0, win.darkTheme ? 0.30 : 0.40)
                     SpecEdge { r: 12 }
                     RowLayout {
                         anchors.fill: parent
@@ -7313,9 +7647,8 @@ QQC2.ApplicationWindow {
                                     implicitHeight: verText.implicitHeight + 2
                                     implicitWidth: verText.implicitWidth + 12
                                     radius: 8
-                                    color: Qt.rgba(heroCard.accent.r, heroCard.accent.g, heroCard.accent.b, 0.20)
-                                    border.width: 1
-                                    border.color: Qt.rgba(heroCard.accent.r, heroCard.accent.g, heroCard.accent.b, 0.45)
+                                    color: "#22d3ee"   // kontraststarke Versions-Plakette : Cyan mit dunkler Schrift
+                                    border.width: 0
                                     QQC2.Label {
                                         id: verText
                                         anchors.centerIn: parent
@@ -7323,7 +7656,7 @@ QQC2.ApplicationWindow {
                                         font.family: win.uiFont
                                         font.weight: Font.DemiBold
                                         font.pointSize: Kirigami.Theme.defaultFont.pointSize * 0.8
-                                        color: win.darkTheme ? Qt.lighter(heroCard.accent, 1.5) : Qt.darker(heroCard.accent, 1.3)
+                                        color: "#04262c"
                                     }
                                 }
                             }
@@ -7506,7 +7839,7 @@ QQC2.ApplicationWindow {
                             }
                             ColumnLayout {
                                 Layout.fillWidth: !(row.isHead && r.key === "pc")
-                                Layout.maximumWidth: Kirigami.Units.gridUnit * 14
+                                Layout.maximumWidth: row.isHead ? Kirigami.Units.gridUnit * 14 : 100000   // Laufwerkszeilen : volle Breite, Größe und Balken überlappen nicht
                                 Layout.alignment: Qt.AlignVCenter
                                 spacing: 2
                                 QQC2.Label {
@@ -7538,6 +7871,8 @@ QQC2.ApplicationWindow {
                                     }
                                     QQC2.Label {
                                         text: r.size || ""
+                                        Layout.minimumWidth: implicitWidth
+                                        Layout.rightMargin: 2
                                         Layout.alignment: Qt.AlignVCenter
                                         font.family: win.monoFont
                                         font.features: { "tnum": 1 }
@@ -7665,11 +8000,267 @@ QQC2.ApplicationWindow {
                 onAccepted: backend.pinPath(selectedFolder.toString(), "", "")
             }
 
+            // Inspector : schwebendes Glas-Panel rechts. Ohne Auswahl Systemübersicht mit Live-Telemetrie, sonst Details zum gewählten Element
+            Item {
+                id: inspector
+                visible: win.inspectorShown
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                width: visible ? win.inspectorW : 0
+                Rectangle {
+                    id: inspPanel
+                    anchors.fill: parent
+                    anchors.leftMargin: 4
+                    anchors.rightMargin: 8
+                    anchors.topMargin: 8
+                    anchors.bottomMargin: 8
+                    radius: 14
+                    color: win.darkTheme ? Qt.rgba(1, 1, 1, 0.035) : Qt.rgba(0, 0, 0, 0.03)
+                    border.width: 1
+                    border.color: win.darkTheme ? Qt.rgba(1, 1, 1, 0.09) : Qt.rgba(0, 0, 0, 0.13)
+                    SpecEdge { r: 14 }
+                    QQC2.ScrollView {
+                        id: inspScroll
+                        anchors.fill: parent
+                        anchors.margins: 10
+                        contentWidth: availableWidth
+                        clip: true
+                        ColumnLayout {
+                            width: inspScroll.availableWidth
+                            spacing: 10
+                            readonly property var it: win.inspectorItem
+
+                            // ---- Systemübersicht (nichts gewählt)
+                            GlassCard {
+                                visible: parent.it === null
+                                implicitHeight: heroCol.implicitHeight + 24
+                                gradient: Gradient {
+                                    orientation: Gradient.Horizontal
+                                    GradientStop { position: 0.0; color: Qt.rgba(0.0, 0.78, 0.86, win.darkTheme ? 0.20 : 0.14) }
+                                    GradientStop { position: 1.0; color: Qt.rgba(0.22, 0.46, 1.0, win.darkTheme ? 0.12 : 0.08) }
+                                }
+                                Accessible.role: Accessible.StaticText
+                                Accessible.name: win.trad("System overview")
+                                ColumnLayout {
+                                    id: heroCol
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.top: parent.top
+                                    anchors.margins: 12
+                                    spacing: 8
+                                    readonly property var si: (backend && backend.sysInfo) ? backend.sysInfo : ({})
+                                    RowLayout {
+                                        spacing: 10
+                                        DistroLogo {
+                                            logo: heroCol.si.logoFile ? ("file://" + heroCol.si.logoFile) : (heroCol.si.logoName || "")
+                                            Layout.alignment: Qt.AlignVCenter
+                                        }
+                                        ColumnLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 2
+                                            QQC2.Label {
+                                                Layout.fillWidth: true
+                                                text: heroCol.si.host || ""
+                                                font.weight: Font.DemiBold
+                                                font.pointSize: Kirigami.Theme.defaultFont.pointSize * 1.1
+                                                elide: Text.ElideRight
+                                            }
+                                            QQC2.Label {
+                                                Layout.fillWidth: true
+                                                text: (heroCol.si.os || "") + (heroCol.si.osVersion ? " " + heroCol.si.osVersion : "")
+                                                font: win.infoFont
+                                                opacity: 0.7
+                                                elide: Text.ElideRight
+                                            }
+                                        }
+                                    }
+                                    Repeater {
+                                        model: win.sysRows
+                                        delegate: RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 8
+                                            QQC2.Label { text: modelData.k; font: win.badgeFont; opacity: 0.65 }
+                                            Item { Layout.fillWidth: true }
+                                            QQC2.Label { text: modelData.v; font: win.monoBadgeFont; elide: Text.ElideLeft; Layout.maximumWidth: inspScroll.availableWidth * 0.6 }
+                                        }
+                                    }
+                                }
+                            }
+                            Repeater {
+                                model: parent.it === null ? 4 : 0
+                                delegate: LiveCard { idx: index }
+                            }
+
+                            // ---- Details zum gewählten Element
+                            GlassCard {
+                                visible: parent.it !== null
+                                implicitHeight: detHead.implicitHeight + 24
+                                RowLayout {
+                                    id: detHead
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.top: parent.top
+                                    anchors.margins: 12
+                                    spacing: 12
+                                    readonly property var it: win.inspectorItem
+                                    Kirigami.Icon {
+                                        source: detHead.it ? (detHead.it.d.icon || "folder") : ""
+                                        Layout.preferredWidth: 56
+                                        Layout.preferredHeight: 56
+                                    }
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 6
+                                        QQC2.Label {
+                                            Layout.fillWidth: true
+                                            text: detHead.it ? (detHead.it.d.label || "") : ""
+                                            font.weight: Font.DemiBold
+                                            font.pointSize: Kirigami.Theme.defaultFont.pointSize * 1.1
+                                            wrapMode: Text.Wrap
+                                            maximumLineCount: 2
+                                            elide: Text.ElideRight
+                                        }
+                                        Rectangle {
+                                            visible: statText.text !== ""
+                                            implicitHeight: statText.implicitHeight + 4
+                                            implicitWidth: Math.min(statText.implicitWidth + 16, inspScroll.availableWidth - 100)
+                                            radius: height / 2
+                                            color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.18)
+                                            border.width: 1
+                                            border.color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.45)
+                                            QQC2.Label {
+                                                id: statText
+                                                anchors.centerIn: parent
+                                                width: Math.min(implicitWidth, parent.width - 12)
+                                                text: win.inspStatus(detHead.it)
+                                                font: win.badgeFont
+                                                elide: Text.ElideRight
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            GlassCard {
+                                visible: parent.it !== null && kvRep.count > 0
+                                implicitHeight: kvCol.implicitHeight + 24
+                                ColumnLayout {
+                                    id: kvCol
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.top: parent.top
+                                    anchors.margins: 12
+                                    spacing: 6
+                                    QQC2.Label {
+                                        text: win.trad("Details").toUpperCase()
+                                        font.weight: Font.DemiBold
+                                        font.pointSize: Kirigami.Theme.defaultFont.pointSize * 0.85
+                                        font.letterSpacing: 0.6
+                                        opacity: 0.6
+                                    }
+                                    Repeater {
+                                        id: kvRep
+                                        model: win.inspRows(win.inspectorItem)
+                                        delegate: RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 8
+                                            QQC2.Label { text: modelData.k; font: win.badgeFont; opacity: 0.65 }
+                                            Item { Layout.fillWidth: true }
+                                            QQC2.Label {
+                                                id: kvVal
+                                                text: modelData.v
+                                                font: modelData.m ? win.monoBadgeFont : win.badgeFont
+                                                elide: Text.ElideMiddle
+                                                horizontalAlignment: Text.AlignRight
+                                                Layout.maximumWidth: inspScroll.availableWidth * 0.62
+                                                HoverHandler { id: kvHover }
+                                                QQC2.ToolTip.visible: kvHover.hovered && kvVal.truncated
+                                                QQC2.ToolTip.delay: 400
+                                                QQC2.ToolTip.text: modelData.v
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            GlassCard {
+                                readonly property var inks: (parent.it !== null && parent.it.kind === "printer") ? (parent.it.d.inks || []) : []
+                                visible: inks.length > 0
+                                implicitHeight: inkCol.implicitHeight + 24
+                                ColumnLayout {
+                                    id: inkCol
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.top: parent.top
+                                    anchors.margins: 12
+                                    spacing: 8
+                                    QQC2.Label {
+                                        text: win.trad("Ink levels").toUpperCase()
+                                        font.weight: Font.DemiBold
+                                        font.pointSize: Kirigami.Theme.defaultFont.pointSize * 0.85
+                                        font.letterSpacing: 0.6
+                                        opacity: 0.6
+                                    }
+                                    Repeater {
+                                        model: parent.parent.inks
+                                        delegate: RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 8
+                                            Accessible.role: Accessible.StaticText
+                                            Accessible.name: modelData.name + " " + modelData.level + " %"
+                                            QQC2.Label { text: modelData.name; font: win.badgeFont; Layout.preferredWidth: inspScroll.availableWidth * 0.38; elide: Text.ElideRight }
+                                            Rectangle {
+                                                Layout.fillWidth: true
+                                                Layout.preferredHeight: 6
+                                                Layout.alignment: Qt.AlignVCenter
+                                                radius: 3
+                                                color: win.darkTheme ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(0, 0, 0, 0.10)
+                                                border.width: modelData.level < 15 ? 1 : 0
+                                                border.color: win.gaugeRed
+                                                Rectangle {
+                                                    width: Math.max(height, parent.width * modelData.level / 100)
+                                                    height: parent.height
+                                                    radius: 3
+                                                    visible: modelData.level > 0
+                                                    color: Qt.colorEqual(modelData.color, "#000000")
+                                                           ? Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.85)
+                                                           : modelData.color
+                                                }
+                                            }
+                                            QQC2.Label {
+                                                text: modelData.level + " %"
+                                                font: win.monoBadgeFont
+                                                color: modelData.level < 15 ? win.gaugeRed : Kirigami.Theme.textColor
+                                                horizontalAlignment: Text.AlignRight
+                                                Layout.preferredWidth: 44
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            Flow {
+                                visible: parent.it !== null
+                                Layout.fillWidth: true
+                                spacing: 6
+                                Repeater {
+                                    model: win.inspActions(win.inspectorItem)
+                                    delegate: QQC2.Button {
+                                        text: modelData.t
+                                        icon.name: modelData.i
+                                        focusPolicy: Qt.NoFocus   // die Pfeiltasten bleiben bei der Tastatursteuerung des Hauptbereichs
+                                        onClicked: win.inspRun(modelData.a, win.inspectorItem)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             QQC2.ScrollView {
                 id: scroll
                 objectName: "mainScroll"
                 anchors.left: sidebar.right
-                anchors.right: parent.right
+                anchors.right: inspector.left
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
                 contentWidth: availableWidth
@@ -8875,6 +9466,10 @@ QQC2.ApplicationWindow {
                 z: 10
                 anchors.fill: parent
                 onPressed: function(mouse) {
+                    if (inspector.visible && mouse.x >= inspector.x) {   // Inspector : Auswahl bleibt (seine Knöpfe wirken auf sie)
+                        mouse.accepted = false
+                        return
+                    }
                     win.selectedKey = ""
                     // Klick links in die Seitenleiste : Pfeiltasten wirken dort ; sonst im Hauptfenster
                     win.navZone = (sidebar.visible && mouse.x < sidebar.width) ? "sidebar" : "main"

@@ -10,14 +10,6 @@ hidden and everything else works).
 
 ---
 
-## Unreleased
-
-### Fixed
-- **Window buttons reachable by keyboard.** Tab now cycles main area → sidebar → minimize, maximize, close → main area (Shift+Tab backwards, Esc returns). Before, the program's own Tab handling never let the focus reach the buttons, although 2.0.0 claimed so.
-- **Empty CD/DVD drive** showed the green "mounted" dot; it is grey now.
-
----
-
 ## 2.0.0 – 2026-11-26
 
 First stable release of DriveDeck. On top of rc5 it adds a calmer "liquid glass" look and closes the last open accessibility gap.
@@ -27,16 +19,27 @@ First stable release of DriveDeck. On top of rc5 it adds a calmer "liquid glass"
 - **Mount status dot.** Drives show a small green dot when mounted and a muted grey one when not; the details of unmounted drives are slightly dimmed.
 - **Ink level pills.** Four vertical glass pills (8 × 40 px) with a dark track; below 15 % the outline turns red and pulses softly (only while the window is visible). The tooltip lists every colour with its exact percentage; printers that report no individual levels show a dash with an explanatory tooltip.
 - **Screen-reader support.** Drive, network and printer cards, folder cards, temperature chips, the live chips, the ink bars and the ribbon buttons carry roles and localized names (name, free space, temperature, status), so Orca can read them.
+- **Floating glass inspector** on the right (from 1280 px window width). With nothing selected it shows a system overview (distribution logo, host, kernel, Plasma, uptime, install date) and four live cards (CPU, RAM, storage I/O, network) with 60-second sparklines in JetBrains Mono. When a folder, drive, network location, printer or device is selected it shows a large icon, name and status pill, macOS-style key/value details (file system, mount point, device, size, free, used, temperature, read/write rate; printers: status, connection, address and every ink level with a bar and percentage) and quick actions (open, mount, safely remove, analyze storage, properties, scan, settings). Below 1280 px the inspector is hidden and the ribbon shows system info and telemetry as before.
 
 ### Changed
+- **Calmer toolbar:** with the inspector visible, the system info block and the telemetry chips leave the ribbon.
+- **Sidebar header card** with a turquoise-blue glass gradient and a high-contrast version badge.
+- **Section headings** end in a fine continuous hairline instead of a fading accent line.
+- **Readable scanner names:** "Epson WF-4830 Series platen,adf" becomes "Epson WF-4830 (Flatbed & ADF)".
+- **Uniform toolbar and light-scheme contrast:** the title bar and ribbon use one opacity (95 % with blur), so the wallpaper no longer shows through brighter on the right; glass panels, cards and count badges get stronger outlines and darker accent text in light schemes.
 - **Floating glass sidebar.** The sidebar is now a rounded glass panel (14 px) that floats with a margin to the window edge instead of a hard divider, with a hairline glass outline and a very faint cursor spotlight (paused while the window is minimized). The status bar at the bottom is gone; the item count lives in the new header card at the top of the sidebar (icon, name with version pill, "This PC · 17 items").
-- **New preview.** `preview.png` shows the 2.0.0 interface.
+- **New preview.** `preview.png` shows the 2.0.0 interface with the inspector.
 - **Sidebar entries.** Section headings are quiet capitals with a chevron and no big icons; hover and selection pills have a hairline light edge; pin icons rest at 18 % and fade in on row hover. Drives show a slim 3 px capacity bar with their size in the measurement font and an eject button on hover for removable media; unmounted drives are listed dimmed (48 %) and cannot be opened or pinned.
 - **Typography.** If installed, DriveDeck uses **Inter** for the interface and **JetBrains Mono** for live measurements (both OFL, nothing is bundled; otherwise the system font is used). Window title and section headers are DemiBold with fine tracking, card titles DemiBold, details regular in the system size. Inter is set a touch tighter (−0.12 px) and without hinting for smooth, macOS-like outlines. Temperatures, I/O rates, live CPU/RAM/storage/network values and uptime/kernel info use JetBrains Mono with tabular figures. A free-space text that is cut off on a crowded card now shows its full text as a tooltip.
 - **Slim 4 px usage bars** with a fine track and a soft gradient: cool blue/cyan normally, amber from the warning threshold, coral shortly before full.
 - **Tabular figures** (`tnum`) for temperatures, I/O rates, capacity text and live values, so digits never shift when they update.
 - **Calmer toolbar.** Ribbon icons rest slightly muted and light up on hover; disabled actions stay clearly recognisable (42 %). The ribbon and title bar are more opaque with KWin blur, and the main area is slightly denser (86 % to 93 %), so windows behind it no longer show through small labels.
-- **Sidebar.** Pin icons of pinned entries rest at 22 % and fade in on row hover; the selection pill has rounded corners (6 px) with a soft accent tint, also while the focus is in the main area.
+
+### Fixed
+- **Sidebar drive rows:** the size next to the capacity bar can no longer overlap the bar or the row edge.
+- **Window buttons reachable by keyboard.** Tab now cycles main area → sidebar → minimize, maximize, close → main area (Shift+Tab backwards, Esc returns). Before, the program's own Tab handling never let the focus reach the buttons, although rc4 claimed so.
+- **Empty CD/DVD drive** showed the green "mounted" dot; it is grey now.
+- **Light colour schemes were treated as dark.** The hidden helper that reads the Plasma colours got no colours from Kirigami (only an invisible item), so every light/dark decision used the dark variant. It is now a visible zero-size item.
 
 ---
 

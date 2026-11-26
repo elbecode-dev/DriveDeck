@@ -58,7 +58,11 @@ small **live graph** of their read and write speed, and warn you when they are a
   a green or grey mount dot, and ink level pills on printer cards.
 - **Typography:** Inter for the interface and JetBrains Mono with tabular figures for live values, when installed
   (see *Optional tools* below).
-- **Screen readers:** cards, chips and buttons have names that Orca can read.
+- **Floating inspector** on the right (from 1280 px width): a system overview with live CPU, RAM, storage I/O and
+  network graphs when nothing is selected, or details and quick actions for the selected folder, drive, network
+  location, printer or device.
+- **Screen readers:** cards, chips and buttons have names that Orca can read. The window buttons are reachable with Tab.
+- Works with light and dark Plasma colour schemes.
 
 ### It is much faster and smoother
 
