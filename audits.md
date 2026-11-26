@@ -256,6 +256,19 @@ Two passes, the second one (design review with the *qt-ui-engineering* skill and
 
 ---
 
+## 5i. Ribbon balance, live filter, inspector toggle (after 2.0.0)
+
+| Item | Status | Notes |
+|------|--------|-------|
+| Centred groups | ✅ | Stretchable spacers left of the groups and right of "System center" (only while the inspector is visible); `sysGrp` is limited to its buttons then. The ribbon width now uses the row's `implicitWidth` instead of `sysGrp.x` (no dependency on its own layout). `sideWidth` subtracts the left spacer, so the sidebar does not grow. Measured on a 2000 px offscreen screenshot: about 68 px space on the left, about 110 px between "Info" and the filter. |
+| Live filter | ✅ | `filterText` drives `fFolders`/`fDisks`/`fNets`/`fPrinters`; the four `Repeater`s, section counts, `itemCount` and `navSections()` use the filtered lists, so the arrow keys never land on hidden cards. Matches the name plus type text (file system, status, "usb", "cd dvd", path). |
+| Inspector toggle | ✅ | `inspectorWanted` (not saved between starts); button with accessible name and `Ctrl+I`. |
+| Limitation | ➖ | With the inspector hidden on a wide window, the filter area takes room from "System center": at 2000 px the info block and telemetry chips no longer fit into the ribbon (they need about 2200 px). Below 1280 px nothing changed: no filter, no toggle, the ribbon scrolls and shows info/telemetry as before. |
+
+**Checks:** `pyright` 0 errors, `qmllint` clean, scripted test (Ctrl+F, typing "usb" → 4 items, Esc → filter empty and 13 items, Ctrl+I → inspector hidden, resize to 1100 px → narrow layout), 60 s stress test with 0 messages and no crash, Tab cycle test unchanged. One scripted run aborted, but that was a bug in the test script (an exception inside a PyQt timer callback), not in DriveDeck.
+
+---
+
 ## 6. Not verified
 
 These need a real desktop session and were **not** covered by the offscreen tests:

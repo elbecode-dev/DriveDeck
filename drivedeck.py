@@ -142,6 +142,10 @@ EXTRA_DE = {
     "System & Drivers": "System & Treiber",
     "Network": "Netzwerk",
     "Storage": "Speicher",
+    "Filter": "Filtern",
+    "Clear filter": "Filter leeren",
+    "Hide inspector": "Inspector ausblenden",
+    "Show inspector": "Inspector einblenden",
     "Up to date": "Aktuell",
     "1 update": "1 Update",
     "{n} updates": "{n} Updates",
@@ -5160,7 +5164,25 @@ QQC2.ApplicationWindow {
     // fontGrow : 1 bei der Standardschrift (Zeilenhöhe 14,4 px), grösser bei grösserer Schrift ; Ribbon und Schaltflächen wachsen mit
     readonly property real fontGrow: Math.max(1.0, lineH / 14.4)
     // Inspector rechts : ab 1280 px Fensterbreite ; dann wandern Systeminfo und Telemetrie aus dem Ribbon dorthin
-    readonly property bool inspectorShown: width >= 1280
+    readonly property bool wideLayout: width >= 1280
+    property bool inspectorWanted: true   // Strg+I bzw. der Knopf rechts im Ribbon blendet den Inspector aus und ein
+    readonly property bool inspectorShown: wideLayout && inspectorWanted
+    property var ribLead: null   // Platzhalter links im Ribbon (Zentrierung) : die Seitenleiste richtet sich ohne ihn aus
+    // ---- Live-Filter (Strg+F) : Ordner, Laufwerke, Netzwerkorte und Geräte nach Name bzw. Typ
+    property string filterText: ""
+    function matchFilter(o, extra) {
+        if (filterText === "")
+            return true
+        return ((o.label || "") + " " + (extra || "")).toLowerCase().indexOf(filterText.toLowerCase()) >= 0
+    }
+    readonly property var fFolders: filterText === "" ? foldersModel
+        : foldersModel.filter(function(f) { return matchFilter(f, f.path) })
+    readonly property var fDisks: ((backend && backend.disks) ? backend.disks : []).filter(function(d) {
+        return matchFilter(d, (d.fstype || "") + " " + (d.freeText || "") + (d.isUsb === true ? " usb" : "") + (d.isOptical === true ? " cd dvd" : "")) })
+    readonly property var fNets: ((backend && backend.networks) ? backend.networks : []).filter(function(d) {
+        return matchFilter(d, (d.mountpoint || "") + " " + (d.freeText || "")) })
+    readonly property var fPrinters: ((backend && backend.printers) ? backend.printers : []).filter(function(d) {
+        return matchFilter(d, d.statusText || "") })
     readonly property real inspectorW: Math.round(330 * fontGrow)
     readonly property real panelMinW: Math.round(170 * fontGrow)   // Telemetrie-Panel : wächst mit der Schrift, sonst werden « Storage » und « Network » abgeschnitten
     readonly property real ribbonBtnH: Math.round(84 * fontGrow)
@@ -5168,7 +5190,7 @@ QQC2.ApplicationWindow {
     readonly property real sepGap: Kirigami.Units.largeSpacing * 2   // Abstand links und rechts der Ribbon-Trennlinien (16 px)
     // systemZentrale : die letzte Ribbon-Gruppe füllt die ganze restliche Breite ; was hineinpasst, hängt vom Platz ab.
     // Die festen Gruppen davor bestimmen, ab wann das Ribbon waagerecht scrollt ; die Gruppe selbst hebt die Mindestbreite nicht an.
-    readonly property real sysAvail: ribbonRow.width - sysGrp.x      // Breite, die die « System-Zentrale » hat
+    readonly property real sysAvail: ribbonRow.width - sysGrp.x - (wideLayout ? ribTools.width + sysGap : 0)   // Breite, die die « System-Zentrale » hat
     readonly property real sysButtonsW: sysButtons.width               // die drei Schaltflächen bleiben immer sichtbar
     readonly property real infoW: Math.min(400, infoCard.implicitWidth)   // so breit wie der längste Text
     readonly property real sysGap: Kirigami.Units.largeSpacing * 2
@@ -5396,7 +5418,7 @@ QQC2.ApplicationWindow {
     // auch bei anderer Sprache oder Schriftgröße (die Gruppe « Standort » wird dann breiter oder schmaler)
     property var firstGrp: null
     property var firstSep: null
-    readonly property real sideWidth: (firstGrp && firstSep) ? Math.max(180, Math.round(ribbonFlick.x + ribbonRow.x + firstGrp.x + firstSep.x + 1)) : 240
+    readonly property real sideWidth: (firstGrp && firstSep) ? Math.max(180, Math.round(ribbonFlick.x + ribbonRow.x + firstGrp.x - ((ribLead && ribLead.visible) ? ribLead.width : 0) + firstSep.x + 1)) : 240
     property string sideSelKey: ""   // zuletzt angeklickte Zeile der Seitenleiste (bleibt, bis eine andere angeklickt wird)
     property var treeOpen: ({})
     property var treeKids: ({})
@@ -5664,7 +5686,7 @@ QQC2.ApplicationWindow {
             backend.openSettings(settingsModuleFor(d))
     }
     // Anzahl der sichtbaren Elemente im Hauptbereich (steht in der Kopfkarte der Seitenleiste)
-    readonly property int itemCount: (win.foldersCollapsed || !win.foldersShown ? 0 : foldersModel.length) + (win.disksCollapsed || !win.disksShown ? 0 : ((backend && backend.disks) ? backend.disks : []).length) + (win.netCollapsed || !win.netShown ? 0 : ((backend && backend.networks) ? backend.networks : []).length) + (win.printersCollapsed || !win.printersShown ? 0 : ((backend && backend.printers) ? backend.printers : []).length)
+    readonly property int itemCount: (win.foldersCollapsed || !win.foldersShown ? 0 : fFolders.length) + (win.disksCollapsed || !win.disksShown ? 0 : fDisks.length) + (win.netCollapsed || !win.netShown ? 0 : fNets.length) + (win.printersCollapsed || !win.printersShown ? 0 : fPrinters.length)
     readonly property string itemCountText: itemCount === 1 ? trad("1 item") : trad("{n} items").replace("{n}", itemCount)
     // Eine flache Liste aller sichtbaren Zeilen (Kopf, Pin, Hinweis, Baumknoten) ; hängt an allem, was sie liest
     readonly property var sidebarRows: {
@@ -5790,14 +5812,14 @@ QQC2.ApplicationWindow {
     }
     function navSections() {
         var res = []
-        if (foldersShown && !foldersCollapsed && foldersModel.length > 0)
-            res.push({ cols: folderGrid.columns, items: navUnique(foldersModel.map(function(f) { return { key: "folder:" + f.path, kind: "folder", e: f } })) })
-        if (disksShown && !disksCollapsed && ((backend && backend.disks) ? backend.disks : []).length > 0)
-            res.push({ cols: cardCols, items: navUnique(((backend && backend.disks) ? backend.disks : []).map(function(d) { return { key: d.mountpoint, kind: "disk", e: d } })) })
-        if (netShown && !netCollapsed && ((backend && backend.networks) ? backend.networks : []).length > 0)
-            res.push({ cols: cardCols, items: navUnique(((backend && backend.networks) ? backend.networks : []).map(function(d) { return { key: d.mountpoint, kind: "net", e: d } })) })
-        if (printersShown && !printersCollapsed && ((backend && backend.printers) ? backend.printers : []).length > 0)
-            res.push({ cols: cardCols, items: navUnique(((backend && backend.printers) ? backend.printers : []).map(function(p) { return { key: p.key, kind: "printer", e: p } })) })
+        if (foldersShown && !foldersCollapsed && fFolders.length > 0)
+            res.push({ cols: folderGrid.columns, items: navUnique(fFolders.map(function(f) { return { key: "folder:" + f.path, kind: "folder", e: f } })) })
+        if (disksShown && !disksCollapsed && fDisks.length > 0)
+            res.push({ cols: cardCols, items: navUnique(fDisks.map(function(d) { return { key: d.mountpoint, kind: "disk", e: d } })) })
+        if (netShown && !netCollapsed && fNets.length > 0)
+            res.push({ cols: cardCols, items: navUnique(fNets.map(function(d) { return { key: d.mountpoint, kind: "net", e: d } })) })
+        if (printersShown && !printersCollapsed && fPrinters.length > 0)
+            res.push({ cols: cardCols, items: navUnique(fPrinters.map(function(p) { return { key: p.key, kind: "printer", e: p } })) })
         return res
     }
     function navFind(secs, key) {
@@ -6084,6 +6106,18 @@ QQC2.ApplicationWindow {
         sequence: "Ctrl+Q"
         context: Qt.ApplicationShortcut
         onActivated: win.close()
+    }
+    Shortcut {
+        sequence: "Ctrl+F"
+        context: Qt.ApplicationShortcut
+        enabled: win.wideLayout
+        onActivated: { filterField.forceActiveFocus(); filterField.selectAll() }
+    }
+    Shortcut {
+        sequence: "Ctrl+I"
+        context: Qt.ApplicationShortcut
+        enabled: win.wideLayout
+        onActivated: win.inspectorWanted = !win.inspectorWanted
     }
     Shortcut {
         sequence: "F2"
@@ -7156,8 +7190,18 @@ QQC2.ApplicationWindow {
                 RowLayout {
                     id: ribbonRow
                     height: ribbonFlick.height
-                    width: Math.max(ribbonFlick.width, sysGrp.x + win.sysButtonsW + 10)
+                    width: Math.max(ribbonFlick.width, implicitWidth + 10)
                     spacing: 0
+
+                    // Zentrierung (nur mit Inspector) : je ein dehnbarer Platzhalter links und rechts der vier Gruppen
+                    Item {
+                        id: ribLeadItem
+                        visible: win.inspectorShown
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 0
+                        Layout.fillHeight: true
+                        Component.onCompleted: win.ribLead = ribLeadItem
+                    }
 
                     // navigation : Eigenschaften, Öffnen, Aktualisieren, Netzwerkadresse hinzufügen
                     RowLayout {
@@ -7433,11 +7477,11 @@ QQC2.ApplicationWindow {
                     // systemZentrale : Distribution und Rechner, die drei System-Schaltflächen und die Telemetrie (füllt den Rest)
                     ColumnLayout {
                         id: sysGrp
-                        Layout.fillWidth: true
+                        Layout.fillWidth: !win.inspectorShown   // mit Inspector nur so breit wie die drei Knöpfe : der Titel steht mittig darunter
                         Layout.fillHeight: true
                         Layout.preferredWidth: win.sysButtonsW
                         Layout.minimumWidth: win.sysButtonsW
-                        Layout.maximumWidth: 100000
+                        Layout.maximumWidth: win.inspectorShown ? win.sysButtonsW : 100000
                         spacing: Kirigami.Units.smallSpacing
                         Item {
                             Layout.fillWidth: true
@@ -7681,6 +7725,78 @@ QQC2.ApplicationWindow {
                             font: win.badgeFont
                             opacity: 0.75
                             color: Kirigami.Theme.textColor
+                        }
+                    }
+                    Item {
+                        visible: win.inspectorShown
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 0
+                        Layout.fillHeight: true
+                    }
+                    // Rechter Abschluss (breite Fenster) : Live-Filter und Inspector-Knopf
+                    RowLayout {
+                        id: ribTools
+                        visible: win.wideLayout
+                        Layout.alignment: Qt.AlignVCenter
+                        Layout.leftMargin: win.sysGap
+                        Layout.rightMargin: Kirigami.Units.smallSpacing
+                        spacing: Kirigami.Units.smallSpacing
+                        QQC2.TextField {
+                            id: filterField
+                            Layout.preferredWidth: Math.round(190 * win.fontGrow)
+                            font.family: win.uiFont
+                            placeholderText: win.trad("Filter") + " (Ctrl+F)"
+                            leftPadding: Kirigami.Units.iconSizes.small + 14
+                            rightPadding: text !== "" ? Kirigami.Units.iconSizes.small + 12 : 8
+                            text: win.filterText
+                            onTextEdited: win.filterText = text
+                            Accessible.name: win.trad("Filter")
+                            background: Rectangle {
+                                radius: 8
+                                color: win.darkTheme ? Qt.rgba(1, 1, 1, 0.06) : Qt.rgba(0, 0, 0, 0.05)
+                                border.width: 1
+                                border.color: filterField.activeFocus ? Kirigami.Theme.highlightColor
+                                              : (win.darkTheme ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(0, 0, 0, 0.14))
+                            }
+                            Kirigami.Icon {
+                                source: "search"
+                                width: Kirigami.Units.iconSizes.small
+                                height: width
+                                anchors.left: parent.left
+                                anchors.leftMargin: 8
+                                anchors.verticalCenter: parent.verticalCenter
+                                opacity: 0.6
+                            }
+                            QQC2.ToolButton {   // ×  : Filter leeren
+                                visible: filterField.text !== ""
+                                anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: Kirigami.Units.iconSizes.small + 8
+                                height: width
+                                icon.name: "edit-clear"
+                                icon.width: Kirigami.Units.iconSizes.small
+                                icon.height: Kirigami.Units.iconSizes.small
+                                focusPolicy: Qt.NoFocus
+                                Accessible.name: win.trad("Clear filter")
+                                onClicked: win.filterText = ""
+                            }
+                            Keys.onEscapePressed: {
+                                win.filterText = ""
+                                keyHandler.forceActiveFocus()
+                            }
+                            Keys.onReturnPressed: { keyHandler.forceActiveFocus(); win.enterMain() }
+                            Keys.onEnterPressed: { keyHandler.forceActiveFocus(); win.enterMain() }
+                        }
+                        QQC2.ToolButton {
+                            icon.name: win.inspectorWanted ? "sidebar-collapse-right" : "sidebar-expand-right"
+                            checkable: true
+                            checked: win.inspectorWanted
+                            focusPolicy: Qt.NoFocus
+                            onClicked: win.inspectorWanted = !win.inspectorWanted
+                            Accessible.name: win.inspectorWanted ? win.trad("Hide inspector") : win.trad("Show inspector")
+                            QQC2.ToolTip.visible: hovered
+                            QQC2.ToolTip.delay: 400
+                            QQC2.ToolTip.text: (win.inspectorWanted ? win.trad("Hide inspector") : win.trad("Show inspector")) + " (Ctrl+I)"
                         }
                     }
                 }
@@ -8516,7 +8632,7 @@ QQC2.ApplicationWindow {
                             SectionTitle {
                                 Layout.fillWidth: true
                                 fmt: win.trad("Folders ({n})")
-                                count: foldersModel.length
+                                count: win.fFolders.length
                             }
                         }
                         MouseArea {   // flecheSeule : seule la flèche replie la rubrique
@@ -8558,7 +8674,7 @@ QQC2.ApplicationWindow {
                         readonly property real frameWidth: 8 + 67 + 10 + Math.ceil(folderLongest.advanceWidth) + 16
 
                         Repeater {
-                            model: foldersModel
+                            model: win.fFolders
                             delegate: Item {
                                 Layout.fillWidth: false
                                 Layout.preferredWidth: folderGrid.cellWidth
@@ -8677,7 +8793,7 @@ QQC2.ApplicationWindow {
                             SectionTitle {
                                 Layout.fillWidth: true
                                 fmt: win.trad("Devices and drives ({n})")
-                                count: ((backend && backend.disks) ? backend.disks : []).length
+                                count: win.fDisks.length
                             }
                         }
                         MouseArea {   // flecheSeule : seule la flèche replie la rubrique
@@ -8704,7 +8820,7 @@ QQC2.ApplicationWindow {
                         uniformCellWidths: true
 
                         Repeater {
-                            model: ((backend && backend.disks) ? backend.disks : [])
+                            model: win.fDisks
                             delegate: Item {
                                 Layout.fillWidth: false
                                 Layout.preferredWidth: win.cardWidth
@@ -9163,7 +9279,7 @@ QQC2.ApplicationWindow {
                             SectionTitle {
                                 Layout.fillWidth: true
                                 fmt: win.trad("Network locations ({n})")
-                                count: ((backend && backend.networks) ? backend.networks : []).length
+                                count: win.fNets.length
                             }
                         }
                         MouseArea {   // flecheSeule : seule la flèche replie la rubrique
@@ -9189,7 +9305,7 @@ QQC2.ApplicationWindow {
                         uniformCellWidths: true
 
                         Repeater {
-                            model: ((backend && backend.networks) ? backend.networks : [])
+                            model: win.fNets
                             delegate: Item {
                                 Layout.fillWidth: false
                                 Layout.preferredWidth: win.cardWidth
@@ -9448,7 +9564,7 @@ QQC2.ApplicationWindow {
                             SectionTitle {
                                 Layout.fillWidth: true
                                 fmt: win.trad("Printers and devices ({n})")
-                                count: ((backend && backend.printers) ? backend.printers : []).length
+                                count: win.fPrinters.length
                             }
                         }
                         MouseArea {   // flecheSeule : seule la flèche replie la rubrique
@@ -9473,7 +9589,7 @@ QQC2.ApplicationWindow {
                         uniformCellWidths: true
 
                         Repeater {
-                            model: ((backend && backend.printers) ? backend.printers : [])
+                            model: win.fPrinters
                             delegate: Item {
                                 Layout.fillWidth: false
                                 Layout.preferredWidth: win.cardWidth
