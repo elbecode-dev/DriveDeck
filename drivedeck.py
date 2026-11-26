@@ -106,6 +106,13 @@ except Exception:
 
 # Neue Texte dieses Forks, die in den gettext-Dateien (.mo) nicht vorkommen : deutsche Übersetzung als Rückfall
 EXTRA_DE = {
+    # Tintennamen, wie CUPS sie meldet (marker-names)
+    "Black ink": "Schwarz", "Cyan ink": "Cyan", "Magenta ink": "Magenta", "Yellow ink": "Gelb",
+    "Photo Black ink": "Fotoschwarz", "Matte Black ink": "Mattschwarz", "Light Cyan ink": "Hell-Cyan",
+    "Light Magenta ink": "Hell-Magenta", "Gray ink": "Grau", "Black": "Schwarz", "Yellow": "Gelb",
+    "Black Toner": "Schwarz (Toner)", "Cyan Toner": "Cyan (Toner)", "Magenta Toner": "Magenta (Toner)", "Yellow Toner": "Gelb (Toner)",
+    "Ctrl+I": "Strg+I",
+    "{free} free": "{free} frei",
     "Mount": "Einbinden",
     "Open in terminal": "Im Terminal öffnen",
     "Copy path": "Pfad kopieren",
@@ -678,6 +685,7 @@ def list_real_disks():
             "isUsb": (removable or usb) and not optical,
             "isOptical": optical,
             "freeText": tr("{free} free of {total}").format(free=taille(usage.free), total=taille(usage.total)),
+            "freeShort": tr("{free} free").format(free=taille(usage.free)),   # neben der Warn-Pille (die Pille zeigt den Füllstand)
             "health": "" if optical else disk_health(device, mountpoint),
         })
         result[-1]["healthText"] = tr(HEALTH_TEXT[result[-1]["health"]]) if result[-1]["health"] else ""
@@ -828,6 +836,7 @@ def list_network_mounts():
                                "network-workgroup", "folder-remote"]),
             "isKey": False, "isUsb": False, "isNetwork": True,
             "freeText": tr("{free} free of {total}").format(free=taille(usage.free), total=taille(usage.total)),
+            "freeShort": tr("{free} free").format(free=taille(usage.free)),   # neben der Warn-Pille (die Pille zeigt den Füllstand)
         })
     return mounts
 
@@ -1563,6 +1572,8 @@ def standard_dateimanager():
                 continue
             if abschnitt == "[Default Applications]" and zeile.startswith("inode/directory="):
                 for kennung in [k.strip() for k in zeile.split("=", 1)[1].split(";") if k.strip()]:
+                    if "drivedeck" in kennung.lower():   # nie sich selbst als Dateimanager aufrufen
+                        continue
                     for d in data:
                         eintrag = _desktop_eintrag(os.path.join(d, "applications", kennung))
                         if eintrag:
@@ -1870,6 +1881,7 @@ def build_network_list():
             "isKey": False, "isUsb": False, "isNetwork": True,
             "freeText": (tr("{free} free of {total}").format(free=taille(esp[2]), total=taille(esp[0])) if esp
                          else (tr("Available") if ok else tr("Not connected"))),
+            "freeShort": tr("{free} free").format(free=taille(esp[2])) if esp else "",
             "available": ok, "mounted": False, "configured": True, "url": url,
         }
 
@@ -2068,7 +2080,9 @@ def _encre_url(url):
         except (IndexError, ValueError):
             seuil = 0
         couleur = couleur_encre(couleurs[i] if i < len(couleurs) else "", n)
-        res.append({"name": n, "color": couleur, "level": niveau, "low": niveau <= seuil})
+        # Name übersetzt, wenn bekannt (« Black ink » -> « Schwarz ») ; Warnung ab der Schwelle des Druckers oder unter 15 %
+        # (dieselbe Grenze wie das ⚠ in Karte und Inspector)
+        res.append({"name": tr(n), "color": couleur, "level": niveau, "low": niveau <= seuil or niveau < 15})
     return res
 
 
@@ -2570,15 +2584,17 @@ def standard_terminal():
         return gefunden
     try:
         cfg, _ = _xdg_dirs()
-        abschnitt, app, service = "", "", ""
-        for zeile in (_lire_texte(os.path.join(cfg[0], "kdeglobals")) or "").splitlines():
-            zeile = zeile.strip()
-            if zeile.startswith("["):
-                abschnitt = zeile
-            elif abschnitt == "[General]" and zeile.startswith("TerminalApplication="):
-                app = zeile.split("=", 1)[1].strip()
-            elif abschnitt == "[General]" and zeile.startswith("TerminalService="):
-                service = zeile.split("=", 1)[1].strip()
+        app, service = "", ""
+        for ordner in reversed(cfg):   # KDE-Kaskade : systemweite Vorgabe (/etc/xdg) zuerst, die eigene kdeglobals überschreibt sie
+            abschnitt = ""
+            for zeile in (_lire_texte(os.path.join(ordner, "kdeglobals")) or "").splitlines():
+                zeile = zeile.strip()
+                if zeile.startswith("["):
+                    abschnitt = zeile
+                elif abschnitt == "[General]" and zeile.startswith("TerminalApplication="):
+                    app = zeile.split("=", 1)[1].strip()
+                elif abschnitt == "[General]" and zeile.startswith("TerminalService="):
+                    service = zeile.split("=", 1)[1].strip()
         if app:
             gefunden = eintrag(shlex.split(app), service)
         elif service:
@@ -4994,7 +5010,7 @@ QQC2.ApplicationWindow {
             var x0 = width - (n - 1) * step
             if (geschlossen)
                 out.push(Qt.point(x0, height))
-            for (var i = 0; i < n; i++)
+            for (let i = 0; i < n; i++)
                 out.push(Qt.point(x0 + i * step, height - 1 - (height - 3) * Math.min(1, values[i] / Math.max(1e-9, maxV))))
             if (geschlossen)
                 out.push(Qt.point(width, height))
@@ -5186,8 +5202,9 @@ QQC2.ApplicationWindow {
         // Per Tastatur erreichbar (Tab, Enter, Leertaste) und für Screenreader als Knopf benannt
         activeFocusOnTab: true
         Accessible.role: Accessible.Button
-        Accessible.name: win.trad(wbtn.glyph === "min" ? "Minimize" : (wbtn.glyph === "max" ? "Maximize"
-                                  : (wbtn.glyph === "restore" ? "Restore" : "Close")))
+        // je ein trad-Literal : die Übersetzungstabelle sammelt nur trad("…") mit direktem Text
+        Accessible.name: wbtn.glyph === "min" ? win.trad("Minimize") : (wbtn.glyph === "max" ? win.trad("Maximize")
+                         : (wbtn.glyph === "restore" ? win.trad("Restore") : win.trad("Close")))
         Accessible.onPressAction: wbtn.clicked()
         // Tab/Umschalt+Tab wandern zwischen den drei Knöpfen ; am Ende (oder mit Esc) zurück zur Tastatursteuerung des Hauptbereichs
         property Item nextBtn: null
@@ -5236,9 +5253,11 @@ QQC2.ApplicationWindow {
             if (!item)
                 return
             if (props)
-                for (var k in props)
+                for (let k in props)
                     item[k] = props[k]
-            item.popup()
+            // eigene Anweisung mit Variable : eine Zeile, die mit « ( » beginnt, hängt JavaScript an die vorige an (ASI)
+            const menu = item as QQC2.Menu
+            menu.popup()
         }
     }
     // Griff am Fensterrand : startet das Ändern der Größe über den Compositor (geht unter Wayland und X11)
@@ -5326,6 +5345,7 @@ QQC2.ApplicationWindow {
                 id: pillText
                 anchors.centerIn: parent
                 text: count
+                font.features: { "tnum": 1 }
                 font.bold: true
                 font.pointSize: Kirigami.Theme.defaultFont.pointSize
                 color: win.darkTheme ? Qt.lighter(accent, 1.6) : Qt.darker(accent, 1.25)   // hell : dunkler Akzent, sonst kaum lesbar
@@ -5406,13 +5426,12 @@ QQC2.ApplicationWindow {
     // Reihenfolge in der Gruppe von links : Schaltflächen, Info-Karte, Telemetrie (füllt den Rest). Zuerst fällt die Info-Karte weg, dann das Panel.
     readonly property bool showPanel: !inspectorShown && sysAvail >= sysButtonsW + sysGap + panelMinW
     readonly property bool showInfo: !inspectorShown && sysAvail >= sysButtonsW + sysGap + panelMinW + infoW + sysGap
-    function sizeShort(b) {
-        var l = Qt.locale()
+    function sizeShort(b) {   // Dezimalzeichen wie überall (trDecimal, Sprache der Oberfläche), nicht Qt.locale() : sonst « 2,9 MB » neben « 173.1 GB »
         if (b < 1048576)
             return Math.max(1, Math.round(b / 1024)) + " KB"
         if (b < 1073741824)
-            return Number(b / 1048576).toLocaleString(l, "f", 1) + " MB"
-        return Number(b / 1073741824).toLocaleString(l, "f", 1) + " GB"
+            return (b / 1048576).toFixed(1).replace(".", trDecimal) + " MB"
+        return (b / 1073741824).toFixed(1).replace(".", trDecimal) + " GB"
     }
     function uptimeText(sec) {
         if (!sec)
@@ -5432,6 +5451,14 @@ QQC2.ApplicationWindow {
         Accessible.role: Accessible.Button
         Accessible.name: qb.title + (qb.sub !== "" ? ", " + qb.sub : "")
         Accessible.onPressAction: if (qb.usable) qb.activated()
+        // Tastatur : Halt in der Tab-Kette des Ribbons (win.ribbonStops) ; Eingabe/Leertaste lösen aus
+        readonly property bool ribbonStop: true
+        Keys.onTabPressed: win.ribbonMove(qb, 1)
+        Keys.onBacktabPressed: win.ribbonMove(qb, -1)
+        Keys.onReturnPressed: if (qb.usable) qb.activated()
+        Keys.onEnterPressed: if (qb.usable) qb.activated()
+        Keys.onSpacePressed: if (qb.usable) qb.activated()
+        Keys.onEscapePressed: win.leaveWinButtons(true)
         width: Math.max(minW, qbWord.width + 2 * Kirigami.Units.largeSpacing)
         height: win.ribbonBtnH
         TextMetrics {
@@ -5443,12 +5470,12 @@ QQC2.ApplicationWindow {
         Rectangle {
             anchors.fill: parent
             radius: Kirigami.Units.smallSpacing
-            visible: qb.usable && (qbMouse.containsMouse || qbMouse.pressed)
+            visible: qb.usable && (qbMouse.containsMouse || qbMouse.pressed || qb.activeFocus)
             color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
                            Kirigami.Theme.highlightColor.b, qbMouse.pressed ? 0.30 : 0.15)
-            border.width: 1
+            border.width: qb.activeFocus ? 2 : 1   // Tastaturfokus : kräftiger Rand
             border.color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
-                                  Kirigami.Theme.highlightColor.b, 0.5)
+                                  Kirigami.Theme.highlightColor.b, qb.activeFocus ? 0.95 : 0.5)
         }
         Item {
             id: qbIcon
@@ -5458,7 +5485,7 @@ QQC2.ApplicationWindow {
             height: Kirigami.Units.iconSizes.medium
             // Ruhezustand : Symbol zurückgenommen (0,72) ; beim Überfahren leuchtet es auf volle Stärke auf. Bewusst ohne Shader-Effekt :
             // läuft auch mit Software-Rendering
-            opacity: !qb.usable ? 0.42 : ((qbMouse.containsMouse || qbMouse.pressed) ? 1.0 : 0.72)
+            opacity: !qb.usable ? 0.42 : ((qbMouse.containsMouse || qbMouse.pressed || qb.activeFocus) ? 1.0 : 0.72)
             Behavior on opacity { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
             readonly property string src: barIconsRuban[qb.iconName] || qb.iconName   // farbiger Ribbon-Satz, sonst Symbol des Themas
             readonly property bool isFile: src.indexOf("file://") === 0
@@ -5601,10 +5628,10 @@ QQC2.ApplicationWindow {
         var k = selectedKey
         if (k === "")
             return null
-        for (var i = 0; i < ((backend && backend.disks) ? backend.disks : []).length; i++)
+        for (let i = 0; i < ((backend && backend.disks) ? backend.disks : []).length; i++)
             if (((backend && backend.disks) ? backend.disks : [])[i].mountpoint === k)
                 return ((backend && backend.disks) ? backend.disks : [])[i]
-        for (var j = 0; j < ((backend && backend.networks) ? backend.networks : []).length; j++)
+        for (let j = 0; j < ((backend && backend.networks) ? backend.networks : []).length; j++)
             if (((backend && backend.networks) ? backend.networks : [])[j].mountpoint === k)
                 return ((backend && backend.networks) ? backend.networks : [])[j]
         return null
@@ -5698,7 +5725,7 @@ QQC2.ApplicationWindow {
     }
     function ioRates() {
         var s = (backend && backend.ioStats) ? backend.ioStats : ({}), r = 0, w = 0
-        for (var k in s) {
+        for (let k in s) {
             r += s[k].readRate || 0
             w += s[k].writeRate || 0
         }
@@ -5730,7 +5757,7 @@ QQC2.ApplicationWindow {
         if (i === 1)
             return taille(st.ramUsed) + " / " + taille(st.ramTotal)
         if (i === 2) {
-            var io = ioRates()
+            let io = ioRates()
             return "\u25BC " + rateText(io.r) + "  \u25B2 " + rateText(io.w)
         }
         return "\u25BC " + rateText(st.down) + "  \u25B2 " + rateText(st.up)
@@ -5740,7 +5767,7 @@ QQC2.ApplicationWindow {
         if (i < 2)
             return 100
         var h = liveHist(i), m = 65536
-        for (var k = 0; k < h.length; k++)
+        for (let k = 0; k < h.length; k++)
             m = Math.max(m, h[k])
         return m * 1.15
     }
@@ -5761,7 +5788,7 @@ QQC2.ApplicationWindow {
             r.push({ k: trad("Network"), v: (st.ip || "") + (st.ip && si.session ? " \u00B7 " : "") + (si.session || "") })
         r.push({ k: trad("Uptime"), v: uptimeText(st.uptime || 0) })
         if (si.installed > 0) {
-            var tage = Math.floor((Date.now() / 1000 - si.installed) / 86400)
+            let tage = Math.floor((Date.now() / 1000 - si.installed) / 86400)
             r.push({ k: trad("Installed"), v: new Date(si.installed * 1000).toLocaleDateString(Qt.locale(), Locale.ShortFormat)
                      + " \u00B7 " + tage + " " + (tage === 1 ? trad("day") : trad("days")) })
         }
@@ -5822,9 +5849,9 @@ QQC2.ApplicationWindow {
                     r.push({ k: trad("Used"), v: Math.round(100 * d.used / d.total) + " %", m: true })
                 }
             }
-            var t = ((backend && backend.temps) ? backend.temps : ({}))[d.device]
+            let t = ((backend && backend.temps) ? backend.temps : ({}))[d.device]
             if (t !== undefined) r.push({ k: trad("Temperature"), v: Math.round(t.c) + " \u00B0C", m: true })
-            var io = ((backend && backend.ioStats) ? backend.ioStats : ({}))[d.device]
+            let io = ((backend && backend.ioStats) ? backend.ioStats : ({}))[d.device]
             if (io) {
                 r.push({ k: trad("Read"), v: rateText(io.readRate), m: true })
                 r.push({ k: trad("Write"), v: rateText(io.writeRate), m: true })
@@ -5855,6 +5882,10 @@ QQC2.ApplicationWindow {
                 a.push({ a: "mount", t: trad("Mount"), i: "media-mount" })
             else if (d.mountpoint.charAt(0) === "/")
                 a.push({ a: "open", t: trad("Open"), i: "folder-open" })
+            // Aushängen wie im Kartenmenü : nicht für das System selbst (« / », /boot, /home, /var …) und nicht für optische Laufwerke
+            if (d.isUnmounted !== true && d.isOptical !== true && d.mountpoint.charAt(0) === "/"
+                    && !/^[/](boot|home|var|usr|opt|etc|nix)?([/]|$)/.test(d.mountpoint))
+                a.push({ a: "unmount", t: trad("Unmount"), i: "media-mount" })
             if (d.isUsb === true && d.isUnmounted !== true && d.mountpoint.charAt(0) === "/")
                 a.push({ a: "eject", t: trad("Safely remove"), i: "media-eject" })
             if (d.isUnmounted !== true && d.mountpoint.charAt(0) === "/" && ((backend && backend.tools) ? backend.tools : ({})).analyze)
@@ -5870,7 +5901,7 @@ QQC2.ApplicationWindow {
                 a.push({ a: "scan", t: trad("Scan…"), i: "document-scan" })
             if (d.indicator !== true)
                 a.push({ a: "props", t: trad("Properties"), i: "document-properties" })
-            var mod = settingsModuleFor(d)
+            let mod = settingsModuleFor(d)
             if (mod !== "" && backend.hasSettings(mod))
                 a.push({ a: "settings", t: trad("Settings"), i: "configure" })
         }
@@ -5886,6 +5917,8 @@ QQC2.ApplicationWindow {
             backend.openTerminal(d.path)
         else if (a === "mount")
             backend.mountDevice(d.device)
+        else if (a === "unmount")
+            backend.unmountDevice(d.device, d.label)
         else if (a === "eject")
             backend.ejectDevice(d.device, d.label)
         else if (a === "analyze")
@@ -5896,6 +5929,14 @@ QQC2.ApplicationWindow {
             backend.launchApp("skanpage")
         else if (a === "settings")
             backend.openSettings(settingsModuleFor(d))
+    }
+    // « Mit File Explorer öffnen » für lokale Pfade (eingestellter Dateimanager, siehe standard_dateimanager()) ;
+    // Netzwerkadressen (smb://, sftp://) öffnet openFolder über Dolphin bzw. xdg-open : dort nur « Öffnen »
+    function openLabel(pfad) {
+        return (pfad || "").charAt(0) === "/" ? trad("Open with {app}").replace("{app}", backend.fileManagerName) : trad("Open")
+    }
+    function openIcon(pfad) {
+        return (pfad || "").charAt(0) === "/" ? backend.fileManagerIcon : "folder-open"
     }
     // « In Kitty öffnen » bzw. « Im Terminal öffnen » (eingestelltes Terminal, siehe standard_terminal())
     readonly property string terminalLabel: (backend && backend.terminalName) ? trad("Open in {app} terminal").replace("{app}", backend.terminalName.charAt(0).toUpperCase() + backend.terminalName.slice(1))
@@ -5910,7 +5951,7 @@ QQC2.ApplicationWindow {
                     collapsed: quickCollapsed, canAdd: true })
         var ps = ((backend && backend.pins) ? backend.pins : [])
         if (!quickCollapsed) {
-            for (var i = 0; i < ps.length; i++)
+            for (let i = 0; i < ps.length; i++)
                 rows.push({ type: "pin", selKey: "pin:" + ps[i].path, path: ps[i].path, label: ps[i].label, icon: ps[i].icon,
                             exists: ps[i].exists, pinIndex: i, pinCount: ps.length })
             if (ps.length === 0)
@@ -5918,9 +5959,9 @@ QQC2.ApplicationWindow {
         }
         rows.push({ type: "head", key: "pc", selKey: "head:pc", label: customName !== "" ? customName : trad("This PC"), icon: "computer", collapsed: pcCollapsed })
         if (!pcCollapsed) {
-            var ds = ((backend && backend.disks) ? backend.disks : [])
-            for (var j = 0; j < ds.length; j++) {
-                var d = ds[j]
+            let ds = ((backend && backend.disks) ? backend.disks : [])
+            for (let j = 0; j < ds.length; j++) {
+                let d = ds[j]
                 if (d.mountpoint.charAt(0) !== "/" || d.isUnmounted === true || d.isOptical === true) {
                     // Nicht eingehängte Laufwerke : gedimmte Zeile ohne Pfad (nicht öffnen, nicht anheften)
                     if (d.isUnmounted === true && d.isOptical !== true)
@@ -5928,7 +5969,7 @@ QQC2.ApplicationWindow {
                                     depth: 0, open: false, expandable: false, loading: false, drive: true, unmounted: true, device: d.device })
                     continue
                 }
-                var idx = rows.length
+                let idx = rows.length
                 addNode(rows, backend.displayPath(d.mountpoint), d.label, d.icon, 0, true, "head:pc")
                 // Kapazitätsbalken und Größe unter dem Namen ; Auswerfen nur bei Wechselmedien
                 Object.assign(rows[idx], { drive: true, frac: d.total > 0 ? d.used / d.total : 0, size: taille(d.total),
@@ -5946,17 +5987,17 @@ QQC2.ApplicationWindow {
                     expandable: kids !== undefined ? kids.length > 0 : hasKids !== false,
                     loading: open && kids === undefined })
         if (open && kids !== undefined)
-            for (var i = 0; i < kids.length; i++)
+            for (let i = 0; i < kids.length; i++)
                 addNode(rows, kids[i].path, kids[i].name, "folder", depth + 1, kids[i].hasKids, "node:" + path)
     }
     // Laufwerks-Wurzeln gleich lesen, damit auch ein leerer Stick keinen unnötigen Pfeil zeigt
     function probeRoots() {
         var ds = ((backend && backend.disks) ? backend.disks : [])
-        for (var j = 0; j < ds.length; j++) {
-            var d = ds[j]
+        for (let j = 0; j < ds.length; j++) {
+            let d = ds[j]
             if (d.mountpoint.charAt(0) !== "/" || d.isUnmounted === true || d.isOptical === true)
                 continue
-            var pth = backend.displayPath(d.mountpoint)
+            let pth = backend.displayPath(d.mountpoint)
             if (treeKids[pth] === undefined)
                 backend.listDirs(pth)
         }
@@ -5965,8 +6006,8 @@ QQC2.ApplicationWindow {
     function isPinned(path) {
         var k = path.length > 1 ? path.replace(/[/]+$/, "") : path
         var ps = ((backend && backend.pins) ? backend.pins : [])
-        for (var i = 0; i < ps.length; i++) {
-            var q = ps[i].path
+        for (let i = 0; i < ps.length; i++) {
+            let q = ps[i].path
             if ((q.length > 1 ? q.replace(/[/]+$/, "") : q) === k)
                 return true
         }
@@ -6011,14 +6052,14 @@ QQC2.ApplicationWindow {
     // klappt zu bzw. springt zum übergeordneten Ordner. Enter öffnet, Leertaste klappt auf/zu, Pos1/Ende springen an den
     // Anfang/das Ende, F5 aktualisiert, Esc hebt die Auswahl auf, Strg+C kopiert den Pfad. Das Element unten hat nur Fokus,
     // solange kein Dialog/Menü offen ist.
-    property string navZone: "main"      // wohin die Pfeiltasten wirken : "main" oder "sidebar"
+    property string navZone: "main"      // wohin die Pfeiltasten wirken : "main", "sidebar" oder "ribbon" (Tab-Kette)
     property string lastMainKey: ""      // zuletzt gewählter Eintrag im Hauptfenster (Rückkehr aus der Seitenleiste)
     readonly property bool sidebarUsable: quickShown && sidebarRows.length > 0
 
     // Sichtbare Bereiche des Hauptfensters in Anzeigereihenfolge, je mit Spaltenzahl und Einträgen
     function navUnique(items) {   // doppelte Schlüssel überspringen (z. B. zwei Ordnerkarten mit gleichem Pfad)
         var seen = {}, out = []
-        for (var i = 0; i < items.length; i++)
+        for (let i = 0; i < items.length; i++)
             if (!seen[items[i].key]) {
                 seen[items[i].key] = true
                 out.push(items[i])
@@ -6038,8 +6079,8 @@ QQC2.ApplicationWindow {
         return res
     }
     function navFind(secs, key) {
-        for (var s = 0; s < secs.length; s++)
-            for (var i = 0; i < secs[s].items.length; i++)
+        for (let s = 0; s < secs.length; s++)
+            for (let i = 0; i < secs[s].items.length; i++)
                 if (secs[s].items[i].key === key)
                     return { s: s, i: i }
         return null
@@ -6070,7 +6111,7 @@ QQC2.ApplicationWindow {
                 enterSidebar()
                 return
             }
-            var j = i + dx
+            let j = i + dx
             if (j >= 0 && j < items.length) {
                 target = j
             } else if (j < 0 && pos.s > 0) {
@@ -6092,8 +6133,8 @@ QQC2.ApplicationWindow {
                 target = i - cols
             } else if (pos.s > 0) {   // letzte Zeile des vorigen Bereichs
                 ts = pos.s - 1
-                var pn = secs[ts].items.length
-                var pc = Math.max(1, secs[ts].cols)
+                let pn = secs[ts].items.length
+                let pc = Math.max(1, secs[ts].cols)
                 target = Math.min(Math.floor((pn - 1) / pc) * pc + Math.min(col, pc - 1), pn - 1)
             }
         }
@@ -6111,11 +6152,77 @@ QQC2.ApplicationWindow {
     }
     // Fokus von den Fensterknöpfen zurück : vorwärts in den Hauptbereich, rückwärts in die Seitenleiste (wenn vorhanden)
     function leaveWinButtons(vorwaerts) {
+        if (!vorwaerts && ribbonStops().length > 0) {   // Rücktab vom ersten Fensterknopf : zurück ins Ribbon
+            enterRibbon(false)
+            return
+        }
         keyHandler.forceActiveFocus()
         if (!vorwaerts && sidebarUsable)
             enterSidebar()
         else
             enterMain()
+    }
+    // Tab-Kette des Ribbons : sichtbare, bedienbare Knöpfe und Kästchen in Anzeigereihenfolge, dann der Inspector-Knopf
+    // (ohne verschachtelte Funktion : eine innere function schaltet bei qmllint die Prüfung « unqualified » für die ganze Datei ab)
+    function ribbonStops() {
+        const out = []
+        const stapel = [ribbonRow]
+        while (stapel.length > 0) {   // Tiefensuche in Anzeigereihenfolge
+            const it = stapel.shift()
+            const kinder = []
+            for (let i = 0; i < it.children.length; i++) {
+                const c = it.children[i]
+                if (!c.visible)
+                    continue
+                if (c.ribbonStop === true) {
+                    if (c.enabled && c.usable !== false)
+                        kinder.push({ stop: c })
+                } else {
+                    kinder.push(c)
+                }
+            }
+            // Halte direkt übernehmen, Container davor in Reihenfolge weiter durchsuchen
+            for (let k = kinder.length - 1; k >= 0; k--)
+                stapel.unshift(kinder[k])
+            while (stapel.length > 0 && stapel[0].stop !== undefined)
+                out.push(stapel.shift().stop)
+        }
+        if (inspToggle.visible)
+            out.push(inspToggle)
+        return out
+    }
+    function focusRibbonStop(c) {
+        navZone = "ribbon"
+        c.forceActiveFocus(Qt.TabFocusReason)
+        if (c === inspToggle)
+            return
+        const x = c.mapToItem(ribbonRow, 0, 0).x   // verdeckten Knopf ins Bild schieben (schmales Fenster : Ribbon scrollt)
+        if (x < ribbonFlick.contentX)
+            ribbonFlick.contentX = Math.max(0, x - 8)
+        else if (x + c.width > ribbonFlick.contentX + ribbonFlick.width)
+            ribbonFlick.contentX = Math.min(ribbonFlick.contentWidth - ribbonFlick.width, x + c.width + 8 - ribbonFlick.width)
+    }
+    function enterRibbon(vorwaerts) {
+        const s = ribbonStops()
+        if (s.length === 0)
+            winMinBtn.forceActiveFocus(Qt.TabFocusReason)
+        else
+            focusRibbonStop(vorwaerts ? s[0] : s[s.length - 1])
+    }
+    function ribbonMove(von, richtung) {
+        const s = ribbonStops()
+        const i = s.indexOf(von) + richtung
+        if (i >= s.length) {
+            winMinBtn.forceActiveFocus(Qt.TabFocusReason)
+        } else if (i < 0) {
+            keyHandler.forceActiveFocus()
+            if (sidebarUsable)
+                enterSidebar()
+            else
+                enterMain()
+        } else {
+            focusRibbonStop(s[i])
+        }
     }
     function enterMain() {
         navZone = "main"
@@ -6136,7 +6243,7 @@ QQC2.ApplicationWindow {
         } else if (!it.e.indicator) {
             showPrinter(it.e)
         } else {
-            var m = settingsModuleFor(it.e)
+            let m = settingsModuleFor(it.e)
             if (m !== "" && ((backend && backend.hasSettings) ? backend.hasSettings(m) : false))
                 backend.openSettings(m)
         }
@@ -6145,7 +6252,7 @@ QQC2.ApplicationWindow {
     function sideNavRows() { return sidebarRows.filter(function(r) { return r.type !== "hint" }) }
     function sideIndexOfKey(key) {
         var rs = sideNavRows()
-        for (var i = 0; i < rs.length; i++)
+        for (let i = 0; i < rs.length; i++)
             if (rs[i].selKey === key)
                 return i
         return -1
@@ -6157,7 +6264,7 @@ QQC2.ApplicationWindow {
     function sideSetSel(key) {
         sideSelKey = key
         var rs = sidebarRows
-        for (var i = 0; i < rs.length; i++)
+        for (let i = 0; i < rs.length; i++)
             if (rs[i].selKey === key) {
                 sideList.positionViewAtIndex(i, ListView.Contain)
                 break
@@ -6228,7 +6335,7 @@ QQC2.ApplicationWindow {
     }
     // Hält den gewählten Eintrag im sichtbaren Bereich des Hauptfensters (Aufruf aus den Karten, wenn sie gewählt werden)
     function revealItem(it) {
-        var fl = scroll.contentItem
+        const fl = scroll.contentItem as Flickable
         if (!fl || fl.contentY === undefined || !fl.contentItem)
             return
         var y = it.mapToItem(fl.contentItem, 0, 0).y
@@ -6241,7 +6348,7 @@ QQC2.ApplicationWindow {
     }
     function copyTargetPath() {
         if (navZone === "sidebar" && sidebarUsable) {
-            var r = sideCurrent()
+            let r = sideCurrent()
             return (r !== null && r.path) ? r.path : ""
         }
         var it = navEntry(selectedKey)
@@ -6257,13 +6364,13 @@ QQC2.ApplicationWindow {
         if (ev.key === Qt.Key_F5) {
             backend.refreshAll()
         } else if (ev.key === Qt.Key_Tab) {
-            // Tab-Reihenfolge : Hauptbereich -> Seitenleiste -> Fensterknöpfe (Minimieren, Maximieren, Schließen) -> Hauptbereich
+            // Tab-Reihenfolge : Hauptbereich -> Seitenleiste -> Ribbon (mit Inspector-Knopf) -> Fensterknöpfe -> Hauptbereich
             if (seite)
-                winMinBtn.forceActiveFocus()
+                enterRibbon(true)
             else if (sidebarUsable)
                 enterSidebar()
             else
-                winMinBtn.forceActiveFocus()
+                enterRibbon(true)
         } else if (ev.key === Qt.Key_Backtab) {
             if (seite)
                 enterMain()
@@ -6294,20 +6401,20 @@ QQC2.ApplicationWindow {
         } else if (ev.key === Qt.Key_Down) {
             seite ? sideMove(1) : moveMain(0, 1)
         } else if (ev.key === Qt.Key_Home || ev.key === Qt.Key_End) {
-            var ende = ev.key === Qt.Key_End
+            let ende = ev.key === Qt.Key_End
             if (seite) {
-                var rs = sideNavRows()
+                let rs = sideNavRows()
                 if (rs.length > 0)
                     sideSetSel(rs[ende ? rs.length - 1 : 0].selKey)
             } else {
-                var secs = navSections()
+                let secs = navSections()
                 if (secs.length > 0) {
-                    var sec = secs[ende ? secs.length - 1 : 0]
+                    let sec = secs[ende ? secs.length - 1 : 0]
                     selectedKey = sec.items[ende ? sec.items.length - 1 : 0].key
                 }
             }
         } else if (ev.key === Qt.Key_C && strg) {
-            var pfad = copyTargetPath()
+            let pfad = copyTargetPath()
             if (pfad !== "")
                 backend.copyPath(pfad)
         } else {
@@ -6382,7 +6489,7 @@ QQC2.ApplicationWindow {
                     Layout.fillWidth: true
                     elide: Text.ElideRight
                     HoverHandler { id: fsHover }
-                    QQC2.ToolTip.visible: fsHover.hovered && parent.truncated
+                    QQC2.ToolTip.visible: fsHover.hovered && truncated
                     QQC2.ToolTip.text: text
                 }
                 QQC2.Label { text: win.trad("Mount point:"); opacity: 0.75 }
@@ -6411,6 +6518,7 @@ QQC2.ApplicationWindow {
                 QQC2.Label {
                     visible: ((backend && backend.temps) ? backend.temps : ({}))[win.propsDisk.device || ""] !== undefined
                     text: visible ? ((backend && backend.temps) ? backend.temps : ({}))[win.propsDisk.device].c.toFixed(1).replace(".", trDecimal) + " °C" : ""
+                    font.features: { "tnum": 1 }
                     Layout.fillWidth: true
                 }
             }
@@ -6469,6 +6577,7 @@ QQC2.ApplicationWindow {
                     QQC2.Label {   // Prozentwert in der Mitte
                         anchors.centerIn: parent
                         text: Math.round(pie.shownFrac * 100) + " %"
+                        font.features: { "tnum": 1 }
                         font.pointSize: Kirigami.Theme.defaultFont.pointSize + 2
                         font.weight: Font.DemiBold
                     }
@@ -6571,7 +6680,7 @@ QQC2.ApplicationWindow {
         function onNetworksChanged() {
             if (!propsDialog.visible)
                 return
-            for (var k = 0; k < ((backend && backend.networks) ? backend.networks : []).length; k++) {
+            for (let k = 0; k < ((backend && backend.networks) ? backend.networks : []).length; k++) {
                 if (((backend && backend.networks) ? backend.networks : [])[k].mountpoint === win.propsDisk.mountpoint) {
                     win.propsDisk = ((backend && backend.networks) ? backend.networks : [])[k]
                     break
@@ -6581,7 +6690,7 @@ QQC2.ApplicationWindow {
         function onDisksChanged() {
             if (!propsDialog.visible)
                 return
-            for (var i = 0; i < ((backend && backend.disks) ? backend.disks : []).length; i++) {
+            for (let i = 0; i < ((backend && backend.disks) ? backend.disks : []).length; i++) {
                 if (((backend && backend.disks) ? backend.disks : [])[i].mountpoint === win.propsDisk.mountpoint) {
                     win.propsDisk = ((backend && backend.disks) ? backend.disks : [])[i]
                     break
@@ -6663,9 +6772,9 @@ QQC2.ApplicationWindow {
                     // Adresse collée : smb://utilisateur@serveur/partage
                     var m = /^ *smb:[/][/](?:([^@/]+)@)?([^/ ]+)(?:[/]([^/ ]+))?/i.exec(text)
                     if (m) {
-                        var u = m[1] ? m[1] : ""
+                        let u = m[1] ? m[1] : ""
                         try { u = decodeURIComponent(u) } catch (e) {}
-                        var s = m[3] ? m[3] : ""
+                        let s = m[3] ? m[3] : ""
                         try { s = decodeURIComponent(s) } catch (e) {}
                         netUser.text = u !== "" ? u : netUser.text
                         if (s !== "")
@@ -6808,7 +6917,7 @@ QQC2.ApplicationWindow {
                         }
                         QQC2.Label {
                             text: modelData.level + " %"
-                            font: win.badgeFont
+                            font: win.infoFontT
                             color: modelData.low ? win.gaugeRed : Kirigami.Theme.textColor
                             horizontalAlignment: Text.AlignRight
                             Layout.preferredWidth: 40
@@ -6882,6 +6991,7 @@ QQC2.ApplicationWindow {
                             Layout.fillWidth: true
                             Layout.preferredHeight: 40
                             radius: 6
+                            id: hwTab
                             readonly property bool sel: hwInfoDialog.tab === index
                             color: sel ? Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.22)
                                        : (tabMouse.containsMouse ? Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.07) : "transparent")
@@ -6901,7 +7011,7 @@ QQC2.ApplicationWindow {
                                     Layout.fillWidth: true
                                     text: modelData.title
                                     elide: Text.ElideRight
-                                    font.bold: parent.parent.sel
+                                    font.bold: hwTab.sel
                                 }
                             }
                             MouseArea {
@@ -7310,26 +7420,36 @@ QQC2.ApplicationWindow {
                     elide: Text.ElideRight
                     font: win.monoBadgeFont
                     opacity: 0.75
-                    text: st.cpu === undefined ? "" : "CPU " + st.cpu + " %   RAM " + win.taille(st.ramUsed) + "   \u25BC " + win.rateMini(st.down) + " \u25B2 " + win.rateMini(st.up)
+                    // passt der volle Text nicht, entfällt der Netzwerkteil (statt « … » mitten in einer Zahl)
+                    readonly property string kurz: st.cpu === undefined ? "" : "CPU " + st.cpu + " %   RAM " + win.taille(st.ramUsed)
+                    readonly property string voll: kurz === "" ? "" : kurz + "   \u25BC " + win.rateMini(st.down) + " \u25B2 " + win.rateMini(st.up)
+                    TextMetrics { id: miniVoll; font: win.monoBadgeFont; text: miniTele.voll }
+                    text: miniVoll.advanceWidth <= Layout.maximumWidth ? voll : kurz
                     Accessible.role: Accessible.StaticText
                     Accessible.name: text
                     HoverHandler { id: miniHover }
                     QQC2.ToolTip.visible: miniHover.hovered
                     QQC2.ToolTip.delay: 400
                     QQC2.ToolTip.text: (si.host || "") + (si.os ? " \u00B7 " + si.os : "") + (si.kernel ? " \u00B7 Kernel " + si.kernel : "")
-                                       + (st.cpuTemp != null ? "\nCPU " + st.cpuTemp + " \u00B0C" : "") + (st.gpuTemp != null ? "   GPU " + st.gpuTemp + " \u00B0C" : "")
+                                       + (st.cpuTemp != null ? "\\nCPU " + st.cpuTemp + " \u00B0C" : "") + (st.gpuTemp != null ? "   GPU " + st.gpuTemp + " \u00B0C" : "")
                 }
                 Item { Layout.fillWidth: true }
                 QQC2.ToolButton {   // Inspector ein-/ausblenden (Strg+I), nur bei breiten Fenstern
+                    id: inspToggle
                     visible: win.wideLayout
                     icon.name: win.inspectorWanted ? "sidebar-collapse-right" : "sidebar-expand-right"
                     flat: true
-                    focusPolicy: Qt.NoFocus
+                    focusPolicy: Qt.NoFocus   // Mausklick nimmt den Fokus nicht ; per Tab erreichbar über win.ribbonStops
                     onClicked: win.inspectorWanted = !win.inspectorWanted
+                    Keys.onTabPressed: win.ribbonMove(inspToggle, 1)
+                    Keys.onBacktabPressed: win.ribbonMove(inspToggle, -1)
+                    Keys.onReturnPressed: clicked()
+                    Keys.onEnterPressed: clicked()
+                    Keys.onEscapePressed: win.leaveWinButtons(true)
                     Accessible.name: win.trad("Toggle inspector")
-                    QQC2.ToolTip.visible: hovered
+                    QQC2.ToolTip.visible: hovered || visualFocus
                     QQC2.ToolTip.delay: 400
-                    QQC2.ToolTip.text: win.trad("Toggle inspector") + " (Ctrl+I)"
+                    QQC2.ToolTip.text: win.trad("Toggle inspector") + " (" + win.trad("Ctrl+I") + ")"
                 }
                 Item {   // Platz der Fensterknöpfe, solange der Inspector sie nicht in seiner Kopfleiste trägt
                     id: titleWinSlot
@@ -7395,6 +7515,7 @@ QQC2.ApplicationWindow {
                 // Ziehen), statt das Fenster breiter zu zwingen. Die Gruppen rechts davon erscheinen nur, wenn Platz ist.
                 Flickable {
                     id: ribbonFlick
+                    objectName: "ribbonFlick"
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     Layout.topMargin: Kirigami.Units.largeSpacing
@@ -7418,6 +7539,7 @@ QQC2.ApplicationWindow {
                     }
                 RowLayout {
                     id: ribbonRow
+                    objectName: "ribbonRow"
                     height: ribbonFlick.height
                     width: Math.max(ribbonFlick.width, implicitWidth + 10)
                     spacing: 0
@@ -7425,6 +7547,7 @@ QQC2.ApplicationWindow {
                     // Zentrierung (nur mit Inspector) : je ein dehnbarer Platzhalter links und rechts der vier Gruppen
                     Item {
                         id: ribLeadItem
+                        objectName: "ribLeadItem"
                         visible: win.inspectorShown
                         Layout.fillWidth: true
                         Layout.preferredWidth: 0
@@ -7509,6 +7632,11 @@ QQC2.ApplicationWindow {
                                         { t: win.trad("Quick access ({n})"), k: "quick" }
                                     ]
                                     delegate: QQC2.CheckBox {
+                                        id: showBox
+                                        readonly property bool ribbonStop: true
+                                        Keys.onTabPressed: win.ribbonMove(showBox, 1)
+                                        Keys.onBacktabPressed: win.ribbonMove(showBox, -1)
+                                        Keys.onEscapePressed: win.leaveWinButtons(true)
                                         topPadding: 0
                                         bottomPadding: 0
                                         font: win.badgeFont
@@ -7521,6 +7649,10 @@ QQC2.ApplicationWindow {
                                 // wie die anderen), dessen Häkchen-Feld durch ein ⚠ ersetzt ist ; Klick öffnet das Regler-Fenster
                                 QQC2.CheckBox {
                                     id: warnRow
+                                    readonly property bool ribbonStop: true
+                                    Keys.onTabPressed: win.ribbonMove(warnRow, 1)
+                                    Keys.onBacktabPressed: win.ribbonMove(warnRow, -1)
+                                    Keys.onEscapePressed: win.leaveWinButtons(true)
                                     topPadding: 0
                                     bottomPadding: 0
                                     checkable: false
@@ -7533,7 +7665,9 @@ QQC2.ApplicationWindow {
                                     background: Rectangle {
                                         radius: Kirigami.Units.smallSpacing
                                         color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
-                                                       Kirigami.Theme.highlightColor.b, (warnRow.hovered || warnPopup.visible) ? 0.15 : 0)
+                                                       Kirigami.Theme.highlightColor.b, (warnRow.hovered || warnPopup.visible || warnRow.visualFocus) ? 0.15 : 0)
+                                        border.width: warnRow.visualFocus ? 2 : 0   // eigener Hintergrund : Fokusrahmen selbst zeichnen
+                                        border.color: Kirigami.Theme.highlightColor
                                         Behavior on color { ColorAnimation { duration: 120 } }
                                     }
                                     contentItem: QQC2.Label {
@@ -7602,7 +7736,7 @@ QQC2.ApplicationWindow {
                                                 QQC2.Label {
                                                     Layout.preferredWidth: Kirigami.Units.gridUnit * 2
                                                     horizontalAlignment: Text.AlignRight
-                                                    font: win.badgeFont
+                                                    font: win.infoFontT
                                                     text: Math.round(warnSlider.value) + " %"
                                                 }
                                             }
@@ -8091,7 +8225,7 @@ QQC2.ApplicationWindow {
                             font: Qt.font({ family: win.uiFont, pointSize: Kirigami.Theme.defaultFont.pointSize, weight: Font.DemiBold })
                             text: {
                                 var m = ""
-                                for (var i = 0; i < foldersModel.length; i++)
+                                for (let i = 0; i < foldersModel.length; i++)
                                     if (foldersModel[i].label.length > m.length)
                                         m = foldersModel[i].label
                                 return m
@@ -8161,8 +8295,8 @@ QQC2.ApplicationWindow {
                                     sourceComponent: QQC2.Menu {
                                         id: folderMenu
                                         QQC2.MenuItem {
-                                            text: win.trad("Open")
-                                            icon.name: "folder-open"
+                                            text: win.openLabel(modelData.path)
+                                            icon.name: win.openIcon(modelData.path)
                                             onTriggered: backend.openFolder(modelData.path)
                                         }
                                         QQC2.MenuItem {
@@ -8252,13 +8386,13 @@ QQC2.ApplicationWindow {
                                 Layout.preferredWidth: win.cardWidth
                                 Layout.preferredHeight: 88
                                 property real frac: modelData.total > 0 ? modelData.used / modelData.total : 0
-                                id: navRoot
+                                id: diskRoot
                                 // Hover : seidenweiche Vergrößerung (±5 px bei 340 px Breite, die Lücke im Raster beträgt 8 px : keine Überlappung)
                                 scale: cardMouse.containsMouse ? 1.03 : 1.0
                                 z: cardMouse.containsMouse ? 2 : 0
                                 Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
                                 readonly property bool navSel: win.selectedKey === modelData.mountpoint
-                                onNavSelChanged: if (navSel) win.revealItem(navRoot)
+                                onNavSelChanged: if (navSel) win.revealItem(diskRoot)
                                 Accessible.role: Accessible.Button
                                 Accessible.name: modelData.label + ", " + modelData.freeText + (tempChip.t !== undefined ? ", " + win.trad("Temperature") + " " + Math.round(tempChip.t.c) + " °C" : "") + (modelData.healthText ? ", " + modelData.healthText : "")
 
@@ -8409,15 +8543,16 @@ QQC2.ApplicationWindow {
                                                 }
                                             }
                                             QQC2.Label {
-                                                text: modelData.freeText
+                                                // neben der Warn-Pille nur « 109,9 GB frei » : « … frei von 953,8 GB » passt in der 340-px-Karte nie daneben
+                                                text: warnPill.visible && modelData.freeShort ? modelData.freeShort : modelData.freeText
                                                 font: win.infoFontT
                                                 opacity: 0.75
                                                 elide: Text.ElideRight
                                                 Layout.fillWidth: true
                                                 HoverHandler { id: freeHover }
-                                                QQC2.ToolTip.visible: freeHover.hovered && truncated   // abgeschnitten : voller Text im Tooltip
+                                                QQC2.ToolTip.visible: freeHover.hovered && (truncated || text !== modelData.freeText)   // gekürzt : voller Text im Tooltip
                                                 QQC2.ToolTip.delay: 400
-                                                QQC2.ToolTip.text: text
+                                                QQC2.ToolTip.text: modelData.freeText
                                             }
                                             // fastVoll : Warn-Badge ab der einstellbaren Schwelle (win.alertFrac)
                                             Rectangle {
@@ -8478,7 +8613,7 @@ QQC2.ApplicationWindow {
                                             readonly property real peak: io ? Math.max(1048576, Math.max.apply(null, io.read.concat(io.write))) : 1048576
                                             function pts(serie) {
                                                 var n = serie.length, out = [], step = width / 59
-                                                for (var i = 0; i < n; i++)
+                                                for (let i = 0; i < n; i++)
                                                     out.push(Qt.point(width - (n - 1 - i) * step, height - 1 - (height - 3) * serie[i] / peak))
                                                 return out
                                             }
@@ -8604,8 +8739,8 @@ QQC2.ApplicationWindow {
                                     sourceComponent: QQC2.Menu {
                                         id: diskMenu
                                         QQC2.MenuItem {
-                                            text: win.trad("Open with {app}").replace("{app}", backend.fileManagerName)
-                                            icon.name: backend.fileManagerIcon
+                                            text: win.openLabel(modelData.mountpoint)
+                                            icon.name: win.openIcon(modelData.mountpoint)
                                             onTriggered: backend.openFolder(modelData.mountpoint)
                                         }
                                         QQC2.MenuItem {
@@ -8737,13 +8872,13 @@ QQC2.ApplicationWindow {
                                 Layout.preferredWidth: win.cardWidth
                                 Layout.preferredHeight: 88
                                 property real frac: modelData.total > 0 ? modelData.used / modelData.total : 0
-                                id: navRoot
+                                id: netRoot
                                 // Hover : seidenweiche Vergrößerung (±5 px bei 340 px Breite, die Lücke im Raster beträgt 8 px : keine Überlappung)
-                                scale: cardMouse.containsMouse ? 1.03 : 1.0
-                                z: cardMouse.containsMouse ? 2 : 0
+                                scale: netCardMouse.containsMouse ? 1.03 : 1.0
+                                z: netCardMouse.containsMouse ? 2 : 0
                                 Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
                                 readonly property bool navSel: win.selectedKey === modelData.mountpoint
-                                onNavSelChanged: if (navSel) win.revealItem(navRoot)
+                                onNavSelChanged: if (navSel) win.revealItem(netRoot)
                                 Accessible.role: Accessible.Button
                                 Accessible.name: modelData.label + ", " + (modelData.freeText || "")
                                 readonly property bool offline: modelData.available === false
@@ -8761,7 +8896,7 @@ QQC2.ApplicationWindow {
                                         Kirigami.Icon {
                                             anchors.centerIn: parent
                                             source: modelData.icon
-                                            scale: cardMouse.containsMouse ? 1.08 : 1.0
+                                            scale: netCardMouse.containsMouse ? 1.08 : 1.0
                                             Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
                                             width: 48
                                             height: 48
@@ -8806,16 +8941,16 @@ QQC2.ApplicationWindow {
                                             color: win.darkTheme ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(0, 0, 0, 0.08)
                                             radius: height / 2
                                             Rectangle {
-                                                id: gaugeFill
+                                                id: netGaugeFill
                                                 // Kritisch (Warnschwelle erreicht) : der Balken atmet sanft
                                                 readonly property bool crit: !(frac < win.alertFrac || modelData.isOptical === true)
                                                 SequentialAnimation on opacity {
-                                                    running: win.fensterAktiv && gaugeFill.crit
+                                                    running: win.fensterAktiv && netGaugeFill.crit
                                                     loops: Animation.Infinite
                                                     NumberAnimation { to: 0.55; duration: 900; easing.type: Easing.InOutQuad }
                                                     NumberAnimation { to: 1.0; duration: 900; easing.type: Easing.InOutQuad }
                                                 }
-                                                onCritChanged: if (!gaugeFill.crit) opacity = 1
+                                                onCritChanged: if (!netGaugeFill.crit) opacity = 1
                                                 property real shownFrac: 0
                                                 readonly property real target: frac
                                                 onTargetChanged: shownFrac = target
@@ -8825,11 +8960,11 @@ QQC2.ApplicationWindow {
                                                 height: parent.height
                                                 radius: height / 2
                                                 // Verlauf : kühles Blau/Cyan im Normalbereich, Bernstein ab der Warnschwelle, Korallenrot kurz vor voll
-                                                readonly property int tone: !gaugeFill.crit ? 0 : (frac >= (1 + win.alertFrac) / 2 ? 2 : 1)
+                                                readonly property int tone: !netGaugeFill.crit ? 0 : (frac >= (1 + win.alertFrac) / 2 ? 2 : 1)
                                                 gradient: Gradient {
                                                     orientation: Gradient.Horizontal
-                                                    GradientStop { position: 0.0; color: gaugeFill.tone === 0 ? win.gaugeBlue : (gaugeFill.tone === 1 ? "#ff9f0a" : "#ff5f57") }
-                                                    GradientStop { position: 1.0; color: gaugeFill.tone === 0 ? Qt.lighter(win.gaugeBlue, 1.45) : (gaugeFill.tone === 1 ? "#ffcf4d" : "#ff8f85") }
+                                                    GradientStop { position: 0.0; color: netGaugeFill.tone === 0 ? win.gaugeBlue : (netGaugeFill.tone === 1 ? "#ff9f0a" : "#ff5f57") }
+                                                    GradientStop { position: 1.0; color: netGaugeFill.tone === 0 ? Qt.lighter(win.gaugeBlue, 1.45) : (netGaugeFill.tone === 1 ? "#ffcf4d" : "#ff8f85") }
                                                 }
                                             }
                                         }
@@ -8838,25 +8973,29 @@ QQC2.ApplicationWindow {
                                             Layout.fillWidth: true
                                             spacing: Kirigami.Units.largeSpacing
                                             QQC2.Label {
-                                                text: modelData.freeText
+                                                text: netWarnPill.visible && modelData.freeShort ? modelData.freeShort : modelData.freeText
                                                 font: win.infoFontT
                                                 opacity: offline ? 0.6 : 0.75
                                                 elide: Text.ElideRight
                                                 Layout.fillWidth: true
+                                                HoverHandler { id: netFreeHover }
+                                                QQC2.ToolTip.visible: netFreeHover.hovered && (truncated || text !== modelData.freeText)
+                                                QQC2.ToolTip.delay: 400
+                                                QQC2.ToolTip.text: modelData.freeText
                                             }
                                             // fastVoll : Warn-Badge ab der einstellbaren Schwelle (win.alertFrac)
                                             Rectangle {
-                                                id: warnPill
+                                                id: netWarnPill
                                                 visible: modelData.total > 0 && modelData.isOptical !== true
                                                          && modelData.isUnmounted !== true && !offline && frac >= win.alertFrac
                                                 radius: height / 2
-                                                implicitHeight: pillText.implicitHeight + 2
-                                                implicitWidth: pillText.implicitWidth + 12
+                                                implicitHeight: netPillText.implicitHeight + 2
+                                                implicitWidth: netPillText.implicitWidth + 12
                                                 color: Qt.rgba(win.gaugeRed.r, win.gaugeRed.g, win.gaugeRed.b, 0.16)
                                                 border.width: 1
                                                 border.color: Qt.rgba(win.gaugeRed.r, win.gaugeRed.g, win.gaugeRed.b, 0.55)
                                                 QQC2.Label {
-                                                    id: pillText
+                                                    id: netPillText
                                                     anchors.centerIn: parent
                                                     text: "\u26A0 " + Math.round(frac * 100) + " %"
                                                     font.features: { "tnum": 1 }
@@ -8864,8 +9003,8 @@ QQC2.ApplicationWindow {
                                                     font.weight: Font.DemiBold
                                                     color: win.gaugeRed
                                                 }
-                                                HoverHandler { id: pillHover }
-                                                QQC2.ToolTip.visible: pillHover.hovered
+                                                HoverHandler { id: netPillHover }
+                                                QQC2.ToolTip.visible: netPillHover.hovered
                                                 QQC2.ToolTip.delay: 300
                                                 QQC2.ToolTip.text: win.trad("Almost full")
                                             }
@@ -8876,12 +9015,12 @@ QQC2.ApplicationWindow {
                                 GlassHover {
                                     anchors.fill: parent
                                     stripe: true
-                                    hovered: cardMouse.containsMouse
-                                    pressed: cardMouse.pressed
+                                    hovered: netCardMouse.containsMouse
+                                    pressed: netCardMouse.pressed
                                     selected: win.selectedKey === modelData.mountpoint
                                 }
                                 MouseArea {
-                                    id: cardMouse
+                                    id: netCardMouse
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     acceptedButtons: Qt.LeftButton | Qt.RightButton
@@ -8914,8 +9053,8 @@ QQC2.ApplicationWindow {
                                     sourceComponent: QQC2.Menu {
                                         id: netMenu
                                         QQC2.MenuItem {
-                                            text: win.trad("Open with {app}").replace("{app}", backend.fileManagerName)
-                                            icon.name: backend.fileManagerIcon
+                                            text: win.openLabel(modelData.mountpoint)
+                                            icon.name: win.openIcon(modelData.mountpoint)
                                             enabled: !offline
                                             onTriggered: backend.openFolder(modelData.mountpoint)
                                         }
@@ -9021,9 +9160,9 @@ QQC2.ApplicationWindow {
                                 Layout.preferredWidth: win.cardWidth
                                 Layout.preferredHeight: 72
                                 opacity: modelData.offline ? 0.5 : 1.0
-                                id: navRoot
+                                id: printerRoot
                                 readonly property bool navSel: win.selectedKey === modelData.key
-                                onNavSelChanged: if (navSel) win.revealItem(navRoot)
+                                onNavSelChanged: if (navSel) win.revealItem(printerRoot)
                                 Accessible.role: Accessible.Button
                                 Accessible.name: modelData.label + ", " + (modelData.statusText || "")
                                 readonly property string settingsMod: win.settingsModuleFor(modelData)
@@ -9119,8 +9258,8 @@ QQC2.ApplicationWindow {
                                         HoverHandler { id: inkHover }
                                         QQC2.ToolTip.visible: inkHover.hovered
                                         QQC2.ToolTip.delay: 300
-                                        QQC2.ToolTip.text: win.trad("Ink levels") + "\n" + inks.map(function(i) {
-                                            return i.name + ": " + i.level + " %" + (i.level < 15 ? "  \u26A0" : "") }).join("\n")
+                                        QQC2.ToolTip.text: win.trad("Ink levels") + "\\n" + inks.map(function(i) {
+                                            return i.name + ": " + i.level + " %" + (i.level < 15 ? "  \u26A0" : "") }).join("\\n")
                                         Accessible.role: Accessible.StaticText
                                         Accessible.name: win.trad("Ink levels") + ": " + inks.map(function(i) { return i.name + " " + i.level + " %" }).join(", ")
                                     }
@@ -9243,6 +9382,7 @@ QQC2.ApplicationWindow {
     // seitenleiste : Schnellzugriff (angeheftete Ordner) und Baum « Dieser PC » wie im Windows-Explorer
     Item {
         id: sidebar
+        objectName: "sidebar"
         visible: win.quickShown
         anchors.left: parent.left
         anchors.top: parent.top
@@ -9309,6 +9449,8 @@ QQC2.ApplicationWindow {
             }
             border.width: 1
             border.color: Qt.rgba(0.35, 0.85, 1.0, win.darkTheme ? 0.30 : 0.40)
+            Accessible.role: Accessible.StaticText
+            Accessible.name: win.title + " " + aboutInfo.version + ", " + win.itemCountText
             SpecEdge { r: 12 }
             // die Kopfkarte ersetzt oben links die Titelleiste : ziehen verschiebt das Fenster, Doppelklick maximiert
             DragHandler {
@@ -9392,7 +9534,7 @@ QQC2.ApplicationWindow {
             anchors.fill: parent
             keys: ["text/uri-list"]
             onDropped: function(drop) {
-                for (var i = 0; i < drop.urls.length; i++)
+                for (let i = 0; i < drop.urls.length; i++)
                     backend.pinPath(drop.urls[i].toString(), "", "")
             }
         }
@@ -9404,8 +9546,8 @@ QQC2.ApplicationWindow {
                 property var t: ({})
                 readonly property bool isPin: t.type === "pin"
                 QQC2.MenuItem {
-                    text: win.trad("Open")
-                    icon.name: "folder-open"
+                    text: win.openLabel(rowMenu.t.path)
+                    icon.name: win.openIcon(rowMenu.t.path)
                     onTriggered: backend.openFolder(rowMenu.t.path)
                 }
                 QQC2.MenuItem {
@@ -9479,6 +9621,10 @@ QQC2.ApplicationWindow {
                 readonly property bool selected: selKey !== "" && win.sideSelKey === selKey
                 readonly property bool zoneActive: win.navZone === "sidebar"   // die Pfeiltasten wirken gerade hier
                 width: ListView.view.width
+                Accessible.role: isHead ? Accessible.Heading : (r.type === "hint" ? Accessible.StaticText : Accessible.ListItem)
+                Accessible.name: r.type === "hint" ? win.trad("Drag folders here to pin them")
+                                 : (r.label || "") + (r.size ? ", " + r.size : "") + (r.unmounted === true ? ", " + win.trad("Not mounted") : "")
+                Accessible.selected: selected
                 height: isHead ? Kirigami.Units.iconSizes.medium + Kirigami.Units.largeSpacing
                                : (r.type === "hint" ? 54 : (r.drive === true && r.unmounted !== true ? Kirigami.Units.iconSizes.medium + 14 : Kirigami.Units.iconSizes.medium))
                 opacity: (isPinRow && r.exists === false) ? 0.5 : (r.unmounted === true ? 0.48 : 1.0)
@@ -9634,6 +9780,7 @@ QQC2.ApplicationWindow {
                         QQC2.ToolTip.visible: hovered
                         QQC2.ToolTip.delay: 400
                         QQC2.ToolTip.text: win.trad("Pin a folder…")
+                        Accessible.name: win.trad("Pin a folder…")
                         onClicked: pinDialog.open()
                     }
                     Kirigami.Icon {   // Pin-Symbol : angeheftet = sichtbar, sonst nur beim Überfahren ; Klick schaltet um
@@ -9643,6 +9790,9 @@ QQC2.ApplicationWindow {
                         opacity: (pinGlyphMouse.containsMouse || (row.pinned && rowHover.hovered)) ? 1.0
                                : (row.pinned ? 0.18 : (rowHover.hovered ? 0.55 : 0.0))   // angeheftet : im Ruhezustand dezent, beim Überfahren der Zeile voll
                         Behavior on opacity { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+                        Accessible.role: Accessible.Button
+                        Accessible.name: row.pinned ? win.trad("Unpin from Quick access") : win.trad("Pin to Quick access")
+                        Accessible.onPressAction: row.pinned ? backend.unpinPath(r.path) : backend.pinPath(r.path, r.label, r.icon)
                         MouseArea {
                             id: pinGlyphMouse
                             anchors.fill: parent
@@ -9704,6 +9854,7 @@ QQC2.ApplicationWindow {
     // Inspector : schwebendes Glas-Panel rechts. Ohne Auswahl Systemübersicht mit Live-Telemetrie, sonst Details zum gewählten Element
     Item {
         id: inspector
+        objectName: "inspector"
         visible: win.inspectorShown
         anchors.right: parent.right
         anchors.top: parent.top
@@ -9839,6 +9990,8 @@ QQC2.ApplicationWindow {
                                 delegate: RowLayout {
                                     Layout.fillWidth: true
                                     spacing: 8
+                                    Accessible.role: Accessible.StaticText
+                                    Accessible.name: modelData.k + ": " + modelData.v
                                     QQC2.Label { text: modelData.k; font: win.badgeFont; opacity: 0.65 }
                                     Item { Layout.fillWidth: true }
                                     QQC2.Label { text: modelData.v; font: win.monoBadgeFont; elide: Text.ElideLeft; Layout.maximumWidth: inspScroll.availableWidth * 0.6 }
@@ -9923,6 +10076,8 @@ QQC2.ApplicationWindow {
                                 delegate: RowLayout {
                                     Layout.fillWidth: true
                                     spacing: 8
+                                    Accessible.role: Accessible.StaticText
+                                    Accessible.name: modelData.k + ": " + modelData.v
                                     QQC2.Label { text: modelData.k; font: win.badgeFont; opacity: 0.65 }
                                     Item { Layout.fillWidth: true }
                                     QQC2.Label {
@@ -9943,6 +10098,7 @@ QQC2.ApplicationWindow {
                     }
                     GlassCard {
                         readonly property var inks: (parent.it !== null && parent.it.kind === "printer") ? (parent.it.d.inks || []) : []
+                        id: inkCard
                         visible: inks.length > 0
                         implicitHeight: inkCol.implicitHeight + 24
                         ColumnLayout {
@@ -9960,7 +10116,7 @@ QQC2.ApplicationWindow {
                                 opacity: 0.6
                             }
                             Repeater {
-                                model: parent.parent.inks
+                                model: inkCard.inks
                                 delegate: RowLayout {
                                     Layout.fillWidth: true
                                     spacing: 8
@@ -10075,7 +10231,7 @@ QQC2.ApplicationWindow {
 """
 
 
-APP_VERSION = '2.0.0'
+APP_VERSION = '2.0.1'
 APP_AUTEUR = """Original Copyright (C) 2026 naykkalak
 Modified and maintained by Christian (2026), with help from his son Leon"""
 APP_LICENCE = 'GPL-3.0-or-later'

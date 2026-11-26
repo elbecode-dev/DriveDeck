@@ -1,6 +1,7 @@
 # Audits – DriveDeck
 
-Summary of the quality audits run on DriveDeck during the 2.0.0 release-candidate phase (rc1 to rc4): what was tested,
+Summary of the quality audits run on DriveDeck during the 2.0.0 release-candidate phase (rc1 to rc4) and after the
+2.0.0 release (5e–5l): what was tested,
 what was found, what was changed, and what could **not** be verified. Line numbers refer to `drivedeck.py` at the time of
 the audit and move with every edit.
 
@@ -293,12 +294,78 @@ Two passes, the second one (design review with the *qt-ui-engineering* skill and
 
 ---
 
+## 5l. Full end-to-end audit (after 2.0.0)
+
+Scope: typography, contrast and spacing on the real desktop; every 2.0.0 feature (default file manager and terminal,
+inspector modes A and B, optical drives, pins, keyboard and screen reader); static analysis and a stress run.
+Severity: **Major** = wrong behaviour or a defect users meet; **Minor** = cosmetic or edge case.
+
+**Method.** (1) A layout harness loads the real QML with real fonts (Inter, JetBrains Mono), real drives and printers,
+sets the window to 2560, 2005, 1600, 1279 and 1024 px, inspector on/off (`Ctrl+I`) and modes A/B (drive and printer
+selected), and walks the whole item tree: every visible text item with `truncated == true` or an unplanned line break is
+reported, the ribbon spacers and group centre are measured against the middle column, and the Tab chain is recorded
+(40 × Tab, 12 × Shift+Tab). (2) Screenshots on the real Plasma desktop with `spectacle` (Vivid Violet Dark, Breeze Dark
+and Breeze Light, each with and without KWin blur), the colour scheme restored afterwards. (3) A function test with fake
+XDG trees and dummy programs on `PATH` (39 cases, nothing is launched). (4) `pyright`, `qmllint` 6.12.1, and a 60 s
+stress run.
+
+### Findings
+
+| # | Area | Severity | Status | Finding and fix |
+|---|------|----------|--------|-----------------|
+| 1 | qmllint | Major | ✅ | Qt 6.12.1 was installed on the audit day, and its `qmllint` rejects the 2.0.0 file: 11 duplicate ids (`navRoot`, `gaugeFill`, `warnPill`, `pillText`, `pillHover`, `cardMouse` in the drive, network and printer delegates), 44 block-scoped `var`, 3 string literals with real line breaks (`"\n"` in the Python source became a newline in the QML). Ids renamed per delegate, `var` → `let`/`const` (each checked: none is used after its block), the newlines escaped. |
+| 2 | qmllint | Major | ✅ | Three untyped lookups: `parent.truncated` on the file-system label of the Properties dialog asked the **GridLayout**, so that tooltip never appeared (real bug); `parent.parent.sel` / `parent.parent.inks` now use ids; `LazyMenu` and `revealItem` cast with `as QQC2.Menu` / `as Flickable`. |
+| 3 | Correction | – | ✅ | Earlier entries say "qmllint clean". On the 2.0.0 file, qmllint never ran its *unqualified access* check (blocked by the duplicate ids). Once the errors were gone it reported ~1000 such notes. A nested JavaScript function (first draft of `ribbonStops()`) switches the check off again for the whole file, so that function is written without one. |
+| 4 | qmllint | Minor | ⏳ | 1014 *unqualified access* notes remain. They come from the architecture, not from wrong names (all 42 names were checked to be declared): `backend` is a context property (≈320), `win` is used inside inline components (≈260), delegates use the implicit `modelData`/`index` (≈220). The fix is `pragma ComponentBehavior: Bound`, `required property` in every delegate and a typed backend singleton, a larger refactor that was left for later. qmllint exits with 0. |
+| 5 | Layout | Major | ✅ | Drive card next to the "⚠ 88 %" pill: "109,9 GB frei von …" was cut off (113 px of 155 px needed, at every width). Shows "109,9 GB frei" (new `freeShort` field) while the pill is visible; full text in the tooltip. |
+| 6 | Layout | Minor | ✅ | Compact telemetry at 1024 px was cut inside a number ("▲ 40,…", 237 px of 253 px). The network part is dropped when the full line does not fit (`TextMetrics`, no binding loop). |
+| 7 | Layout | Minor | ➖ | Ribbon width: at 2560 px (maximized on the test machine) the four groups are exactly centred (spacers 137/137 px, group centre 1280 = column centre 1280). With both panels the ribbon needs ~2200 px in English and ~2300 px in German; at 2005 and 1600 px it scrolls (291 / 696 px). Documented under *Known limitations*; a compact icon-only ribbon would be the fix. |
+| 8 | Typography | Minor | ✅ | Tabular figures were missing on five changing numbers: section counters, warning slider %, Properties pie %, ink % in the printer dialog, temperature in the Properties dialog. Everything else (temperatures, I/O, sizes, CPU/RAM, uptime, item count, inspector values) already used JetBrains Mono or `tnum`. Two-line ribbon labels ("Netzwerkadresse hinzufügen", "Speicher analysieren") wrap by design; no other text is cut off or wrapped at any tested width or mode. |
+| 9 | Locale | Minor | ✅ | `sizeShort()` (trash size) used `Qt.locale()`, all other sizes the interface language: "2,9 MB" next to "173.1 GB" when language and number format differ. Unified. Dates still follow the regional format on purpose. |
+| 10 | Screen reader | Major | ✅ | Window buttons were named in English on German systems ("Minimize"): `trad()` got a conditional expression, and the translation table only collects literals. Now one `trad("…")` per name; a scan of all `trad(` calls found no other case. |
+| 11 | Screen reader | Major | ✅ | No role/name on sidebar rows, the pin button, the "+" button, the sidebar header card and the inspector key/value rows (modes A and B). Added (`Heading`/`ListItem` with size, "not mounted" and `selected`; `Button` with press action; `StaticText` "key: value"). |
+| 12 | Keyboard | Major | ✅ | Tab never reached the ribbon or the inspector toggle (`NoFocus`). New chain: main → sidebar → 16 ribbon stops (enabled buttons and *Show* boxes, in visual order) → inspector toggle → minimize, maximize, close → main; Shift+Tab the reverse. Visible focus outline, Enter/Space trigger, hidden buttons scroll into view. Recorded with the harness. |
+| 13 | Inspector B | Minor | ✅ | Mounted internal drives had no *Unmount* action (only USB had *Safely remove*). Added with the same rule as the card menu (not for `/`, `/boot`, `/home`, `/var` …). |
+| 14 | Printers | Minor | ✅ | Ink warning differed between card/inspector (< 15 %) and dialog (printer threshold). Both rules now apply everywhere; CUPS ink names are translated. |
+| 15 | Terminal | Minor | ✅ | Only the user's `kdeglobals` was read; a distribution default in `/etc/xdg/kdeglobals` was ignored. Now a cascade (system first, user overrides). The file manager lookup skips DriveDeck itself. |
+| 16 | Tooltip | Minor | ✅ | The inspector toggle tooltip said "(Ctrl+I)" on German systems; now "(Strg+I)", and it also appears on keyboard focus. |
+| 17 | Context menus | Blocking | ✅ | **Regression from item 2, reported by the user before any commit:** right-click did nothing anywhere. The cast was written as a statement starting with `(`: `(item as QQC2.Menu).popup()`. JavaScript's automatic semicolon insertion joined it to the line above, giving `item[k] = props[k](item as QQC2.Menu).popup()`, so `popup()` was never called on its own. Now `const menu = item as QQC2.Menu` and `menu.popup()`; a scan found no other line in the QML that starts with `(`, `[` or a backtick. Checked by right-clicking folder, drive, USB drive, printer, sidebar row, sidebar drive and sidebar heading (all menus open, 0 messages); the stress harness now also right-clicks at random positions. The earlier stress run had no right-click, which is why it missed this. |
+
+### Feature checks (no defect found)
+
+- **Default file manager:** `mimeapps.list` chain incl. `kde-mimeapps.list`, uninstalled first choice skipped, localized name, `Exec` field codes (`%U %F %u %f`, `%i` dropped, quoting, `%%`); routing: local folder → default program, `smb://` → Dolphin, missing program → Dolphin → `xdg-open`. Menus show "Mit File Explorer öffnen" with its icon.
+- **Default terminal:** `xdg-terminal-exec` first, user and system `kdeglobals`, `TerminalService` alone, `$TERMINAL`, configured but missing → fallback, unknown terminal (`-e`), none at all; "In Kitty öffnen" starts `kitty --directory <dir>` with the folder as `cwd`; a missing folder shows a message and starts nothing.
+- **Inspector A:** on this machine "Ryzen 9 5900X · 54 °C", "RTX 4080 SUPER · 52 °C" (nvidia-smi), Kernel, Plasma, `scx_bpfland`, IP · Wayland, uptime, install date, all updating. Missing sensor file → value hidden, no exception; session types Wayland/X11/empty/other.
+- **Inspector B:** drive (file system, mount point, device, size, free, used %, temperature, read/write), printer (status, credential-free URI, four ink bars with %), actions as listed; a click in the inspector keeps the selection (unchanged since 5f).
+- **Optical drive:** empty drive → grey dot (code path `isOptical && total === 0`); **pins:** pin/unpin from sidebar and cards, saving debounced (unchanged since 5b).
+- **Themes:** Breeze Dark and Breeze Light, with and without blur, plus Vivid Violet Dark: cyan version badge, specular hover, hairlines and sub-labels readable in all of them; only disabled items (*Properties*/*Open* without selection, unmounted drives) are intentionally faint.
+
+**Checks:** `pyright` 0 errors; `qmllint` 6.12.1 exit 0 with 0 errors and 0 warnings outside the *unqualified* category (item 4);
+function test 39/39; layout harness without unexpected truncation at 2560/2005/1600/1279/1024 px; 60 s stress run
+(about 5400 random actions on the final code: drive/printer list changes, minimise, resize between 1024 and 2560 px, `Ctrl+I`, mode A/B switches,
+Tab/Shift+Tab/Space, arrow keys, temperatures) with **0 QML messages** (no binding loop, no `ReferenceError`), 0 exceptions,
+RSS between 185 and 199 MB without a trend (an earlier run of the same harness: 5566 actions, 0 messages). One stress run ended early because a random Tab reached *Close* and Space
+pressed it. That is correct behaviour; the harness now skips Space on window buttons.
+
+---
+
+**Release 2.0.1 check:** the "Open" entry of folder cards and sidebar rows now uses the same file-manager label as drive and
+network cards (`openLabel()`/`openIcon()`: local paths → "Mit File Explorer öffnen", `smb://` and other addresses → "Öffnen",
+because they open through Dolphin/KIO). `pyright` 0 errors, `qmllint` 0 errors and 0 warnings outside *unqualified*
+(1022 notes: the new helper reads `backend`, same category as item 4), right-click test on folder, drive, USB drive, printer
+and sidebar rows (all menus open, 0 messages). The user confirmed on the real desktop that right-click opens at the pointer
+and that File Explorer and Kitty start.
+
+---
+
 ## 6. Not verified
 
 These need a real desktop session and were **not** covered by the offscreen tests:
 - Contrast ratios were judged on real screenshots (dark scheme and Breeze Light), not measured with a contrast tool.
 - Real pointer behaviour: drag, resize at the window edge, hover and hit-testing, double click on the title bar buttons.
-- Screen readers (Orca) and the real Tab order.
+- Screen readers (Orca). Roles and names are checked in code and the Tab order with a scripted harness, but no screen
+  reader read them aloud.
+- Actually starting a terminal or file manager (the function test checks the command lines only).
 - GPU overdraw and GPU load.
 - Memory behaviour over many hours.
 - The context menus of the drive, network and printer cards were only exercised by right-click scans (no warnings), not inspected visually. The export menu could not be opened because its dialog was closed.
@@ -309,5 +376,7 @@ These need a real desktop session and were **not** covered by the offscreen test
 
 All harnesses set `QT_QPA_PLATFORM=offscreen`, `DRIVEDECK_NOBLUR=1`, `DRIVEDECK_MULTI=1`, patch `QApplication.exec`, capture QML
 warnings with `qInstallMessageHandler`, stub `lancer`, and wrap `subprocess.Popen` to block privileged and launching
-commands. Screenshots use `grabWindow().save()`. The exported QML (`python drivedeck.py --dump-qml`) maps to `drivedeck.py`
-as: file line = dumped line + 4347 (at the time of the audit).
+commands (since 5l an allowlist: only read-only tools such as `lsblk`, `lpstat`, `nvidia-smi` may run). Screenshots use
+`grabWindow().save()`; real-desktop screenshots run DriveDeck with a stubbed launcher, capture the active window with
+`spectacle -b -n -a` and end it with SIGKILL so that the saved window size is not touched. The exported QML
+(`python drivedeck.py --dump-qml`) maps to `drivedeck.py` as: file line = dumped line + 4878 (at the time of 5l).

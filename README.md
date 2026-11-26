@@ -12,7 +12,7 @@ locations, printers and devices in one clean window, and it follows your Plasma 
 
 <p align="center"><img src="preview.png" alt="DriveDeck main window"></p>
 
-**Version 2.0.0** – feedback and bug reports are very welcome.
+**Version 2.0.1** – feedback and bug reports are very welcome.
 
 ---
 
@@ -57,11 +57,14 @@ small **live graph** of their read and write speed, and warn you when they are a
 - **Cards float freely** and only show a faint glass surface on hover or keyboard selection; slim 4 px usage bars,
   a green or grey mount dot, and ink level pills on printer cards.
 - **Typography:** Inter for the interface and JetBrains Mono with tabular figures for live values, when installed
-  (see *Optional tools* below).
+  (see *Optional tools* below). On Arch/CachyOS: `sudo pacman -S inter-font ttf-jetbrains-mono`; on Debian/Ubuntu:
+  `sudo apt install fonts-inter fonts-jetbrains-mono`. Without them DriveDeck uses your system font.
 - **Floating inspector** on the right (from 1280 px width): a system overview with live CPU, RAM, storage I/O and
   network graphs when nothing is selected, or details and quick actions for the selected folder, drive, network
   location, printer or device.
-- **Screen readers:** cards, chips and buttons have names that Orca can read. The window buttons are reachable with Tab.
+- **Screen readers:** cards, chips, sidebar rows, inspector details and buttons have localized names that Orca can read.
+- **Keyboard:** Tab goes main area → sidebar → ribbon (buttons and *Show* boxes) → inspector toggle → window buttons →
+  main area (Shift+Tab backwards, Esc back to the main area); `Ctrl+I` shows or hides the inspector.
 - Works with light and dark Plasma colour schemes.
 
 ### It is much faster and smoother
@@ -243,6 +246,9 @@ To remove it again: `bash uninstall.sh` (keeps your settings) or `bash uninstall
   delete entries.
 - Drive temperature of USB enclosures needs administrator rights (see *Disk temperature* above), so those cards show no
   chip by default. The SMART dialog works for them.
+- With both side panels open, the ribbon needs about 2200 px of window width (English; about 2300 px in German). In
+  narrower windows it scrolls sideways (mouse wheel, drag, or Tab moves to hidden buttons); `Ctrl+I` hides the inspector
+  and gives the ribbon more room (in German it then fits from about 2000 px).
 - Tested on KDE Plasma 6 (CachyOS) with a Btrfs system disk and an NVIDIA GPU. Other setups should work, but have not been
   tested by the fork maintainer. This includes AMD/Intel graphics and Wi-Fi details in the *System information* window, and
   the package installation on Fedora and Debian/Ubuntu.

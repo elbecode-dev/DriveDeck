@@ -10,19 +10,35 @@ hidden and everything else works).
 
 ---
 
-## Unreleased
+## 2.0.1 – 2026-11-26
+
+Default file manager and terminal, an inspector toggle, full-height side panels, more system details, and the fixes from a full end-to-end audit (see `audits.md`, section 5l).
 
 ### Fixed
+- **Free space cut off next to the warning pill.** On a nearly full drive the card showed "109.9 GB free of …" beside "⚠ 88 %". The 340 px card never has room for both, so it now shows "109.9 GB free" (the pill already shows the fill level); the full text is in the tooltip and the screen-reader name. Same for network locations.
+- **Compact telemetry in narrow windows** was cut off in the middle of a number ("▲ 40,…"). If the full line does not fit, the network part is left out instead.
+- **Window buttons were read in English** by screen readers on a German system ("Minimize", "Close"), because the translation table only collects literal texts. Fixed.
+- **File system tooltip in the Properties dialog never appeared** (it asked the layout instead of the label whether the text was cut off).
+- **Numbers that still shifted while changing:** section counters, the warning-threshold slider, the percentage in the Properties pie chart, ink levels in the printer dialog and the temperature in the Properties dialog now use tabular figures as well.
+- **Trash size used a different decimal separator** ("2,9 MB" next to "173.1 GB" when the interface language and the number format differ); all sizes now follow the interface language.
+- **Ink warnings are consistent:** a cartridge is marked low below 15 % (as on the card and in the inspector) or at the printer's own threshold, whichever comes first. Common ink names from CUPS are translated ("Black ink" → "Schwarz").
+- **Terminal detection also reads the system-wide default** (`/etc/xdg/kdeglobals`), with your own `kdeglobals` taking priority, as in KDE. DriveDeck never picks itself as the folder handler.
+- **qmllint (Qt 6.12.1) errors:** duplicate ids in the drive, network and printer card delegates, block-scoped `var` declarations (44) and three multi-line string literals are fixed; the remaining notes are listed in `audits.md`.
 - **"Open in terminal" uses your terminal.** DriveDeck always preferred Konsole. It now uses `xdg-terminal-exec` if installed, otherwise the KDE default (`kdeglobals` → `TerminalApplication` / `TerminalService`), then `$TERMINAL`, then the first of Konsole, kitty, Alacritty, foot and WezTerm. The folder is passed with the terminal's own option (`--directory`, `--working-directory`, `--workdir`, `--cwd` …) and as the process working directory. Menus and the inspector say "Open in Kitty" (or the detected terminal) with its icon; the system monitor and storage analysis tools that need a terminal start in it as well.
 - **Folders open in your default file manager.** DriveDeck always started Dolphin, even when another file manager was set as the default for folders. It now reads the default for `inode/directory` from the XDG `mimeapps.list` files and starts that program for local folders; the menu entry says "Open with File Explorer" (or whichever program is set). Network addresses (smb://, sftp://) still go through Dolphin or `xdg-open`, which handle the login. Without any default, Dolphin is used as before, then `xdg-open`.
 
 ### Added
-- **Inspector toggle (`Ctrl+I`)** at the right of the title bar (wide windows): hides or shows the right inspector.
+- **Inspector toggle (`Ctrl+I`)** at the right of the title bar (wide windows): hides or shows the right inspector. The tooltip shows the shortcut in your language ("Strg+I").
+- **The ribbon is reachable with the keyboard.** Tab now goes main area → sidebar → ribbon buttons and *Show* boxes → inspector toggle → window buttons → main area (Shift+Tab backwards, Esc back to the main area). The focused button gets a clear outline, Enter or Space triggers it, and a button hidden in a scrolled ribbon slides into view.
+- **Unmount in the inspector** for mounted internal drives (not for the system itself), as in the card menu.
+- **More screen-reader names:** sidebar rows (heading or list item with size, "not mounted" and selection state), the pin button and the "+" button in the sidebar, the sidebar header card, and every key/value row of the inspector in both modes.
 
 ### Changed
 - **Full-height side panels (macOS-style):** the sidebar and the inspector run from the top to the bottom edge of the window; the title, the ribbon and the main area form the middle column between them, on one continuous glass surface with a hairline under the ribbon. The sidebar header card carries the app icon and moves the window when dragged (double-click maximizes); the inspector has a small header with the window buttons. Without the inspector (Ctrl+I or below 1280 px) the window buttons sit at the right of the title bar, and a compact CPU/RAM/network line appears at its left whenever neither the inspector nor the ribbon shows telemetry.
 - **Centred ribbon:** with the inspector visible, the four groups are centred in the middle column; "System center" is only as wide as its three buttons. The sidebar now has a fixed width (330 px at the default font size).
 
+- **One "Open with …" label in every context menu.** Folder cards and sidebar rows now say "Open with File Explorer" (or whichever file manager is set) with its icon, like drive and network cards. Network addresses that open through Dolphin/KIO keep a plain "Open".
+- **New preview** (`preview.png`, English, 2200 px wide, with the inspector). The IP address in it is a placeholder.
 - **More system details in the inspector header:** CPU and GPU model with live temperature (CPU from `k10temp`/`zenpower`/`coretemp`, GPU from `amdgpu`/`nouveau`/Intel sensors or `nvidia-smi`), the active CPU scheduler (`sched_ext` name such as `scx_bpfland`, otherwise EEVDF/CFS), the local IPv4 address with the session type (Wayland/X11), and a package update pill ("Up to date" in green or "3 updates" in amber) from `checkupdates`, checked 10 s after start and every 2 hours in the background. Every value is optional: without NVIDIA, `sched_ext`, a sensor or `checkupdates` the line or pill is simply missing.
 
 ---
