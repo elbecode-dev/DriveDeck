@@ -11,6 +11,7 @@ import gc
 import hashlib
 import json
 import re
+import shlex
 import shutil
 import signal
 import socket
@@ -142,6 +143,9 @@ EXTRA_DE = {
     "System & Drivers": "System & Treiber",
     "Network": "Netzwerk",
     "Storage": "Speicher",
+    "Open with {app}": "Mit {app} öffnen",
+    "file manager": "Dateimanager",
+    "Toggle inspector": "Inspektor umschalten",
     "Filter": "Filtern",
     "Clear filter": "Filter leeren",
     "Hide inspector": "Inspector ausblenden",
@@ -1503,6 +1507,87 @@ def lancer(cmd, cwd=None):
                          stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     threading.Thread(target=p.wait, daemon=True).start()   # die Shell endet sofort ; wait räumt sie ab
     return p
+
+
+def _xdg_dirs():
+    """(config-Ordner, data-Ordner) in XDG-Reihenfolge (eigene vor systemweiten)."""
+    home = os.path.expanduser("~")
+    cfg = [os.environ.get("XDG_CONFIG_HOME") or os.path.join(home, ".config")]
+    cfg += [d for d in (os.environ.get("XDG_CONFIG_DIRS") or "/etc/xdg").split(":") if d]
+    data = [os.environ.get("XDG_DATA_HOME") or os.path.join(home, ".local/share")]
+    data += [d for d in (os.environ.get("XDG_DATA_DIRS") or "/usr/local/share:/usr/share").split(":") if d]
+    data += [os.path.join(home, ".local/share/flatpak/exports/share"), "/var/lib/flatpak/exports/share"]
+    return cfg, data
+
+
+def _desktop_eintrag(datei):
+    """Name (in der Sprache der Oberfläche), Exec und Icon aus einer .desktop-Datei ; None, wenn nicht lesbar."""
+    text = _lire_texte(datei)
+    if text is None:
+        return None
+    sprache = (os.environ.get("LANGUAGE") or os.environ.get("LC_MESSAGES") or os.environ.get("LANG") or "").split(":")[0].split(".")[0]
+    werte, im_eintrag = {}, False
+    for zeile in text.splitlines():
+        zeile = zeile.strip()
+        if zeile.startswith("["):
+            im_eintrag = zeile == "[Desktop Entry]"
+            continue
+        if im_eintrag and "=" in zeile:
+            k, v = zeile.split("=", 1)
+            werte.setdefault(k.strip(), v.strip())
+    name = werte.get("Name[%s]" % sprache) or werte.get("Name[%s]" % sprache.split("_")[0]) or werte.get("Name", "")
+    return {"name": name, "exec": werte.get("Exec", ""), "icon": werte.get("Icon", "")} if werte.get("Exec") else None
+
+
+def standard_dateimanager():
+    """Standardprogramm für Ordner (inode/directory) aus den mimeapps.list-Dateien nach XDG, ohne Prozessstart :
+    {id, name, exec, icon} oder None. So öffnet DriveDeck Ordner mit dem eingestellten Dateimanager, nicht fest mit Dolphin."""
+    cfg, data = _xdg_dirs()
+    desk = (os.environ.get("XDG_CURRENT_DESKTOP", "").split(":")[0]).lower()
+    listen = []
+    for d in cfg:
+        if desk:
+            listen.append(os.path.join(d, desk + "-mimeapps.list"))
+        listen.append(os.path.join(d, "mimeapps.list"))
+    for d in data:
+        if desk:
+            listen.append(os.path.join(d, "applications", desk + "-mimeapps.list"))
+        listen.append(os.path.join(d, "applications", "mimeapps.list"))
+    for liste in listen:
+        abschnitt = ""
+        for zeile in (_lire_texte(liste) or "").splitlines():
+            zeile = zeile.strip()
+            if zeile.startswith("["):
+                abschnitt = zeile
+                continue
+            if abschnitt == "[Default Applications]" and zeile.startswith("inode/directory="):
+                for kennung in [k.strip() for k in zeile.split("=", 1)[1].split(";") if k.strip()]:
+                    for d in data:
+                        eintrag = _desktop_eintrag(os.path.join(d, "applications", kennung))
+                        if eintrag:
+                            return dict(eintrag, id=kennung)
+    return None
+
+
+def exec_argumente(exec_zeile, pfad):
+    """Exec-Zeile einer .desktop-Datei in eine Argumentliste mit dem Pfad : %u/%U/%f/%F werden zum Pfad, andere Feldcodes
+    entfallen ; ohne Feldcode wird der Pfad angehängt."""
+    try:
+        teile = shlex.split(exec_zeile)
+    except ValueError:
+        return []
+    argv, eingesetzt = [], False
+    for t in teile:
+        if t in ("%u", "%U", "%f", "%F"):
+            argv.append(pfad)
+            eingesetzt = True
+        elif re.fullmatch(r"%[a-zA-Z]", t):
+            continue
+        else:
+            argv.append(t.replace("%%", "%"))
+    if argv and not eingesetzt:
+        argv.append(pfad)
+    return argv
 
 
 def flatpak_installiert(app_id):
@@ -3216,6 +3301,11 @@ class Backend(QObject):
         self._spaeterTimer.timeout.connect(self.speichernJetzt)
         self.pinsUpdated.connect(self._setPinInfos)
         self._stats = {}
+        try:   # Standard-Dateimanager (inode/directory) : nur Dateien lesen, einmal beim Start
+            self._dateimanager = standard_dateimanager()
+        except Exception as e:
+            print("[drivedeck] Dateimanager :", e)
+            self._dateimanager = None
         self._tools = None
         self._privLaeuft = False
         self.statsUpdated.connect(self._setStats)
@@ -3316,6 +3406,17 @@ class Backend(QObject):
         ende = time.monotonic() + warte
         for t in self._schleifen:
             t.join(max(0.0, ende - time.monotonic()))
+
+    @pyqtProperty(str, constant=True)
+    def fileManagerName(self):
+        """Name des Dateimanagers für « Öffnen mit … » : der eingestellte Standard, sonst Dolphin (bzw. allgemein)."""
+        if self._dateimanager is not None and self._dateimanager["name"]:
+            return self._dateimanager["name"]
+        return "Dolphin" if shutil.which("dolphin") else tr("file manager")
+
+    @pyqtProperty(str, constant=True)
+    def fileManagerIcon(self):
+        return (self._dateimanager or {}).get("icon") or "folder-open"
 
     @pyqtSlot()
     def loadSpecs(self):
@@ -4631,6 +4732,17 @@ class Backend(QObject):
             threading.Thread(target=self._mountOpen, args=(path[10:], True), daemon=True).start()
             return
         path = chemin_affiche(path)
+        fm = self._dateimanager
+        # eingestellter Dateimanager (z. B. ein eigener) für lokale Ordner ; Netzwerkadressen (smb://, sftp://) weiter über Dolphin bzw.
+        # xdg-open, weil dort KIO die Anmeldung übernimmt und nicht jeder Dateimanager solche Adressen kennt
+        if fm is not None and "dolphin" not in fm["id"].lower() and path.startswith("/"):
+            argv = exec_argumente(fm["exec"], path)
+            try:
+                if argv:
+                    lancer(argv)
+                    return
+            except OSError:
+                pass
         try:
             lancer(["dolphin", "--new-window", path])
         except OSError:   # fehlt oder nicht startbar (auch PermissionError) : Rückfall auf xdg-open
@@ -5167,22 +5279,11 @@ QQC2.ApplicationWindow {
     readonly property bool wideLayout: width >= 1280
     property bool inspectorWanted: true   // Strg+I bzw. der Knopf rechts im Ribbon blendet den Inspector aus und ein
     readonly property bool inspectorShown: wideLayout && inspectorWanted
-    property var ribLead: null   // Platzhalter links im Ribbon (Zentrierung) : die Seitenleiste richtet sich ohne ihn aus
-    // ---- Live-Filter (Strg+F) : Ordner, Laufwerke, Netzwerkorte und Geräte nach Name bzw. Typ
-    property string filterText: ""
-    function matchFilter(o, extra) {
-        if (filterText === "")
-            return true
-        return ((o.label || "") + " " + (extra || "")).toLowerCase().indexOf(filterText.toLowerCase()) >= 0
-    }
-    readonly property var fFolders: filterText === "" ? foldersModel
-        : foldersModel.filter(function(f) { return matchFilter(f, f.path) })
-    readonly property var fDisks: ((backend && backend.disks) ? backend.disks : []).filter(function(d) {
-        return matchFilter(d, (d.fstype || "") + " " + (d.freeText || "") + (d.isUsb === true ? " usb" : "") + (d.isOptical === true ? " cd dvd" : "")) })
-    readonly property var fNets: ((backend && backend.networks) ? backend.networks : []).filter(function(d) {
-        return matchFilter(d, (d.mountpoint || "") + " " + (d.freeText || "")) })
-    readonly property var fPrinters: ((backend && backend.printers) ? backend.printers : []).filter(function(d) {
-        return matchFilter(d, d.statusText || "") })
+    // Listen des Hauptbereichs (eine Stelle für Ordner, Laufwerke, Netzwerkorte und Geräte)
+    readonly property var fFolders: foldersModel
+    readonly property var fDisks: (backend && backend.disks) ? backend.disks : []
+    readonly property var fNets: (backend && backend.networks) ? backend.networks : []
+    readonly property var fPrinters: (backend && backend.printers) ? backend.printers : []
     readonly property real inspectorW: Math.round(330 * fontGrow)
     readonly property real panelMinW: Math.round(170 * fontGrow)   // Telemetrie-Panel : wächst mit der Schrift, sonst werden « Storage » und « Network » abgeschnitten
     readonly property real ribbonBtnH: Math.round(84 * fontGrow)
@@ -5190,7 +5291,7 @@ QQC2.ApplicationWindow {
     readonly property real sepGap: Kirigami.Units.largeSpacing * 2   // Abstand links und rechts der Ribbon-Trennlinien (16 px)
     // systemZentrale : die letzte Ribbon-Gruppe füllt die ganze restliche Breite ; was hineinpasst, hängt vom Platz ab.
     // Die festen Gruppen davor bestimmen, ab wann das Ribbon waagerecht scrollt ; die Gruppe selbst hebt die Mindestbreite nicht an.
-    readonly property real sysAvail: ribbonRow.width - sysGrp.x - (wideLayout ? ribTools.width + sysGap : 0)   // Breite, die die « System-Zentrale » hat
+    readonly property real sysAvail: ribbonRow.width - sysGrp.x   // Breite, die die « System-Zentrale » hat
     readonly property real sysButtonsW: sysButtons.width               // die drei Schaltflächen bleiben immer sichtbar
     readonly property real infoW: Math.min(400, infoCard.implicitWidth)   // so breit wie der längste Text
     readonly property real sysGap: Kirigami.Units.largeSpacing * 2
@@ -5418,7 +5519,10 @@ QQC2.ApplicationWindow {
     // auch bei anderer Sprache oder Schriftgröße (die Gruppe « Standort » wird dann breiter oder schmaler)
     property var firstGrp: null
     property var firstSep: null
-    readonly property real sideWidth: (firstGrp && firstSep) ? Math.max(180, Math.round(ribbonFlick.x + ribbonRow.x + firstGrp.x - ((ribLead && ribLead.visible) ? ribLead.width : 0) + firstSep.x + 1)) : 240
+    // Breite der Seitenleiste : feste Spalte (sie läuft jetzt über die ganze Fensterhöhe, das Ribbon beginnt rechts davon)
+    readonly property real sideWidth: Math.round(330 * fontGrow)
+    readonly property real leftColW: quickShown ? sideWidth : 0
+    readonly property real rightColW: inspectorShown ? inspectorW : 0
     property string sideSelKey: ""   // zuletzt angeklickte Zeile der Seitenleiste (bleibt, bis eine andere angeklickt wird)
     property var treeOpen: ({})
     property var treeKids: ({})
@@ -6106,12 +6210,6 @@ QQC2.ApplicationWindow {
         sequence: "Ctrl+Q"
         context: Qt.ApplicationShortcut
         onActivated: win.close()
-    }
-    Shortcut {
-        sequence: "Ctrl+F"
-        context: Qt.ApplicationShortcut
-        enabled: win.wideLayout
-        onActivated: { filterField.forceActiveFocus(); filterField.selectAll() }
     }
     Shortcut {
         sequence: "Ctrl+I"
@@ -7023,8 +7121,19 @@ QQC2.ApplicationWindow {
         }
     }
 
+    // Fensterfläche : eine durchgehende Glasfläche für alle drei Spalten (die Seitenpanels laufen über die ganze Höhe)
+    Rectangle {
+        anchors.fill: parent
+        radius: win.cornerR
+        Kirigami.Theme.colorSet: Kirigami.Theme.View
+        Kirigami.Theme.inherit: false
+        color: Qt.alpha(Kirigami.Theme.backgroundColor, win.glassBody)
+    }
+    // Mittelspalte : Titel, Ribbon und Hauptbereich zwischen Seitenleiste und Inspector
     ColumnLayout {
         anchors.fill: parent
+        anchors.leftMargin: win.leftColW
+        anchors.rightMargin: win.rightColW
         spacing: 0
 
         // titelBalken : liegt in denselben Farben und derselben Durchsicht wie das Ribbon darunter, ohne Trennlinie :
@@ -7034,12 +7143,6 @@ QQC2.ApplicationWindow {
             Kirigami.Theme.inherit: false
             Layout.fillWidth: true
             Layout.preferredHeight: 48
-            RoundedBar {
-                anchors.fill: parent
-                roundTop: true
-                r: win.cornerR
-                fill: Qt.alpha(Kirigami.Theme.backgroundColor, win.glassHead)
-            }
             DragHandler {   // Ziehen verschiebt das Fenster (Compositor-Bewegung)
                 target: null
                 acceptedButtons: Qt.LeftButton
@@ -7080,37 +7183,47 @@ QQC2.ApplicationWindow {
                 anchors.leftMargin: 16
                 anchors.rightMargin: 24
                 spacing: 16
-                Kirigami.Icon {   // App-Symbol ganz links : 32 px, damit es gut zu erkennen ist
-                    visible: appIconUrl !== ""
+                Kirigami.Icon {   // App-Symbol ganz links (nur ohne Seitenleiste ; sonst steht es in deren Kopfkarte)
+                    visible: appIconUrl !== "" && !win.quickShown
                     source: appIconUrl
                     Layout.preferredWidth: 32
                     Layout.preferredHeight: 32
                 }
+                // Kompakte Telemetrie, solange weder Inspector noch Ribbon sie zeigen : sie verschwindet nie ganz
+                QQC2.Label {
+                    id: miniTele
+                    readonly property var st: (backend && backend.sysStats) ? backend.sysStats : ({})
+                    readonly property var si: (backend && backend.sysInfo) ? backend.sysInfo : ({})
+                    visible: !win.inspectorShown && !win.showPanel && st.cpu !== undefined
+                    Layout.maximumWidth: Math.max(0, parent.width / 2 - titleLabel.implicitWidth / 2 - 60)
+                    elide: Text.ElideRight
+                    font: win.monoBadgeFont
+                    opacity: 0.75
+                    text: st.cpu === undefined ? "" : "CPU " + st.cpu + " %   RAM " + win.taille(st.ramUsed) + "   \u25BC " + win.rateMini(st.down) + " \u25B2 " + win.rateMini(st.up)
+                    Accessible.role: Accessible.StaticText
+                    Accessible.name: text
+                    HoverHandler { id: miniHover }
+                    QQC2.ToolTip.visible: miniHover.hovered
+                    QQC2.ToolTip.delay: 400
+                    QQC2.ToolTip.text: (si.host || "") + (si.os ? " \u00B7 " + si.os : "") + (si.kernel ? " \u00B7 Kernel " + si.kernel : "")
+                                       + (st.cpuTemp != null ? "\nCPU " + st.cpuTemp + " \u00B0C" : "") + (st.gpuTemp != null ? "   GPU " + st.gpuTemp + " \u00B0C" : "")
+                }
                 Item { Layout.fillWidth: true }
-                RowLayout {
-                    spacing: Kirigami.Units.largeSpacing
-                    WinBtn {
-                        id: winMinBtn
-                        nextBtn: winMaxBtn
-                        tone: "#febc2e"
-                        glyph: "min"
-                        onClicked: win.showMinimized()
-                    }
-                    WinBtn {
-                        id: winMaxBtn
-                        prevBtn: winMinBtn
-                        nextBtn: winCloseBtn
-                        tone: "#28c840"
-                        glyph: win.visibility === 4 ? "restore" : "max"
-                        onClicked: win.toggleMax()
-                    }
-                    WinBtn {
-                        id: winCloseBtn
-                        prevBtn: winMaxBtn
-                        tone: "#ff5f57"
-                        glyph: "close"
-                        onClicked: win.close()
-                    }
+                QQC2.ToolButton {   // Inspector ein-/ausblenden (Strg+I), nur bei breiten Fenstern
+                    visible: win.wideLayout
+                    icon.name: win.inspectorWanted ? "sidebar-collapse-right" : "sidebar-expand-right"
+                    flat: true
+                    focusPolicy: Qt.NoFocus
+                    onClicked: win.inspectorWanted = !win.inspectorWanted
+                    Accessible.name: win.trad("Toggle inspector")
+                    QQC2.ToolTip.visible: hovered
+                    QQC2.ToolTip.delay: 400
+                    QQC2.ToolTip.text: win.trad("Toggle inspector") + " (Ctrl+I)"
+                }
+                Item {   // Platz der Fensterknöpfe, solange der Inspector sie nicht in seiner Kopfleiste trägt
+                    id: titleWinSlot
+                    Layout.preferredWidth: win.inspectorShown ? 0 : winBtnRow.implicitWidth
+                    Layout.preferredHeight: winBtnRow.implicitHeight
                 }
             }
         }
@@ -7151,9 +7264,14 @@ QQC2.ApplicationWindow {
                     backend.launchTool("analyze", (sel !== null && sel.isUnmounted !== true
                                                    && sel.mountpoint.charAt(0) === "/") ? sel.mountpoint : "")
             }
-            Rectangle {
-                anchors.fill: parent
-                color: Qt.alpha(Kirigami.Theme.backgroundColor, win.glassHead)
+            Rectangle {   // feine Haarlinie unter dem Ribbon : trennt Werkzeuge und Inhalt auf der gemeinsamen Glasfläche
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.leftMargin: Kirigami.Units.largeSpacing
+                anchors.rightMargin: Kirigami.Units.largeSpacing
+                height: 1
+                color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.10)
             }
 
             // ===== RUBAN ===== (seul mode de la barre)
@@ -7200,7 +7318,6 @@ QQC2.ApplicationWindow {
                         Layout.fillWidth: true
                         Layout.preferredWidth: 0
                         Layout.fillHeight: true
-                        Component.onCompleted: win.ribLead = ribLeadItem
                     }
 
                     // navigation : Eigenschaften, Öffnen, Aktualisieren, Netzwerkadresse hinzufügen
@@ -7733,72 +7850,6 @@ QQC2.ApplicationWindow {
                         Layout.preferredWidth: 0
                         Layout.fillHeight: true
                     }
-                    // Rechter Abschluss (breite Fenster) : Live-Filter und Inspector-Knopf
-                    RowLayout {
-                        id: ribTools
-                        visible: win.wideLayout
-                        Layout.alignment: Qt.AlignVCenter
-                        Layout.leftMargin: win.sysGap
-                        Layout.rightMargin: Kirigami.Units.smallSpacing
-                        spacing: Kirigami.Units.smallSpacing
-                        QQC2.TextField {
-                            id: filterField
-                            Layout.preferredWidth: Math.round(190 * win.fontGrow)
-                            font.family: win.uiFont
-                            placeholderText: win.trad("Filter") + " (Ctrl+F)"
-                            leftPadding: Kirigami.Units.iconSizes.small + 14
-                            rightPadding: text !== "" ? Kirigami.Units.iconSizes.small + 12 : 8
-                            text: win.filterText
-                            onTextEdited: win.filterText = text
-                            Accessible.name: win.trad("Filter")
-                            background: Rectangle {
-                                radius: 8
-                                color: win.darkTheme ? Qt.rgba(1, 1, 1, 0.06) : Qt.rgba(0, 0, 0, 0.05)
-                                border.width: 1
-                                border.color: filterField.activeFocus ? Kirigami.Theme.highlightColor
-                                              : (win.darkTheme ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(0, 0, 0, 0.14))
-                            }
-                            Kirigami.Icon {
-                                source: "search"
-                                width: Kirigami.Units.iconSizes.small
-                                height: width
-                                anchors.left: parent.left
-                                anchors.leftMargin: 8
-                                anchors.verticalCenter: parent.verticalCenter
-                                opacity: 0.6
-                            }
-                            QQC2.ToolButton {   // ×  : Filter leeren
-                                visible: filterField.text !== ""
-                                anchors.right: parent.right
-                                anchors.verticalCenter: parent.verticalCenter
-                                width: Kirigami.Units.iconSizes.small + 8
-                                height: width
-                                icon.name: "edit-clear"
-                                icon.width: Kirigami.Units.iconSizes.small
-                                icon.height: Kirigami.Units.iconSizes.small
-                                focusPolicy: Qt.NoFocus
-                                Accessible.name: win.trad("Clear filter")
-                                onClicked: win.filterText = ""
-                            }
-                            Keys.onEscapePressed: {
-                                win.filterText = ""
-                                keyHandler.forceActiveFocus()
-                            }
-                            Keys.onReturnPressed: { keyHandler.forceActiveFocus(); win.enterMain() }
-                            Keys.onEnterPressed: { keyHandler.forceActiveFocus(); win.enterMain() }
-                        }
-                        QQC2.ToolButton {
-                            icon.name: win.inspectorWanted ? "sidebar-collapse-right" : "sidebar-expand-right"
-                            checkable: true
-                            checked: win.inspectorWanted
-                            focusPolicy: Qt.NoFocus
-                            onClicked: win.inspectorWanted = !win.inspectorWanted
-                            Accessible.name: win.inspectorWanted ? win.trad("Hide inspector") : win.trad("Show inspector")
-                            QQC2.ToolTip.visible: hovered
-                            QQC2.ToolTip.delay: 400
-                            QQC2.ToolTip.text: (win.inspectorWanted ? win.trad("Hide inspector") : win.trad("Show inspector")) + " (Ctrl+I)"
-                        }
-                    }
                 }
                 }
                 // eigene Leiste unter dem Ribbon : sie liegt nicht über den Gruppentiteln
@@ -7851,755 +7902,19 @@ QQC2.ApplicationWindow {
             Kirigami.Theme.colorSet: Kirigami.Theme.View
             Kirigami.Theme.inherit: false
             color: "transparent"
-            RoundedBar {
-                anchors.fill: parent
-                z: -1
-                roundTop: false
-                r: win.cornerR
-                fill: Qt.alpha(Kirigami.Theme.backgroundColor, win.glassBody)
-            }
 
-            // seitenleiste : Schnellzugriff (angeheftete Ordner) und Baum « Dieser PC » wie im Windows-Explorer
-            Item {
-                id: sidebar
-                visible: win.quickShown
-                anchors.left: parent.left
-                anchors.top: parent.top
-                anchors.bottom: parent.bottom
-                width: visible ? win.sideWidth : 0
-
-                // Schwebendes Glas-Panel statt harter Trennlinie
-                Rectangle {
-                    id: sidePanel
-                    anchors.fill: parent
-                    anchors.leftMargin: 8
-                    anchors.topMargin: 8
-                    anchors.bottomMargin: 8
-                    anchors.rightMargin: 4
-                    radius: 14
-                    color: win.darkTheme ? Qt.rgba(1, 1, 1, 0.035) : Qt.rgba(0, 0, 0, 0.03)
-                    border.width: 1
-                    border.color: win.darkTheme ? Qt.rgba(1, 1, 1, 0.09) : Qt.rgba(0, 0, 0, 0.13)
-                    HoverHandler { id: panelHover }
-                    // Cursor-Spotlight : ein sehr zarter Lichtfleck folgt der Maus (nur bei sichtbarem Fenster)
-                    Shape {
-                        anchors.fill: parent
-                        visible: opacity > 0
-                        opacity: (win.fensterAktiv && panelHover.hovered) ? 1 : 0
-                        Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-                        preferredRendererType: Shape.CurveRenderer
-                        ShapePath {
-                            strokeColor: "transparent"
-                            fillGradient: RadialGradient {
-                                centerX: panelHover.point.position.x
-                                centerY: panelHover.point.position.y
-                                centerRadius: 150
-                                focalX: centerX
-                                focalY: centerY
-                                GradientStop { position: 0.0; color: win.darkTheme ? Qt.rgba(1, 1, 1, 0.04) : Qt.rgba(0, 0, 0, 0.03) }
-                                GradientStop { position: 1.0; color: win.darkTheme ? Qt.rgba(1, 1, 1, 0) : Qt.rgba(0, 0, 0, 0) }
-                            }
-                            PathSvg {
-                                path: "M14,0 H" + (sidePanel.width - 14) + " A14,14 0 0 1 " + sidePanel.width + ",14 V" + (sidePanel.height - 14)
-                                      + " A14,14 0 0 1 " + (sidePanel.width - 14) + "," + sidePanel.height + " H14 A14,14 0 0 1 0," + (sidePanel.height - 14)
-                                      + " V14 A14,14 0 0 1 14,0 Z"
-                            }
-                        }
-                    }
-                    SpecEdge { r: 14 }
-                }
-                // Kopfkarte : Symbol, Name mit Versions-Pille, Status mit Elementanzahl
-                Rectangle {
-                    id: heroCard
-                    anchors.top: sidePanel.top
-                    anchors.left: sidePanel.left
-                    anchors.right: sidePanel.right
-                    anchors.margins: 10
-                    height: 60
-                    radius: 12
-                    readonly property color accent: Kirigami.Theme.highlightColor
-                    // türkis-blauer Glasverlauf mit feiner Lichtkante oben
-                    gradient: Gradient {
-                        orientation: Gradient.Horizontal
-                        GradientStop { position: 0.0; color: Qt.rgba(0.0, 0.78, 0.86, win.darkTheme ? 0.26 : 0.18) }
-                        GradientStop { position: 1.0; color: Qt.rgba(0.22, 0.46, 1.0, win.darkTheme ? 0.16 : 0.10) }
-                    }
-                    border.width: 1
-                    border.color: Qt.rgba(0.35, 0.85, 1.0, win.darkTheme ? 0.30 : 0.40)
-                    SpecEdge { r: 12 }
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 12
-                        anchors.rightMargin: 12
-                        spacing: 10
-                        Image {
-                            Layout.preferredWidth: 36
-                            Layout.preferredHeight: 36
-                            Layout.alignment: Qt.AlignVCenter
-                            source: appIconUrl
-                            sourceSize.width: 72
-                            sourceSize.height: 72
-                            smooth: true
-                            mipmap: true
-                        }
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            Layout.alignment: Qt.AlignVCenter
-                            spacing: 3
-                            RowLayout {
-                                spacing: 6
-                                QQC2.Label {
-                                    text: win.title
-                                    font.family: win.uiFont
-                                    font.weight: Font.DemiBold
-                                    font.pointSize: Kirigami.Theme.defaultFont.pointSize * 1.05
-                                    Layout.fillWidth: true
-                                    elide: Text.ElideRight
-                                }
-                                Rectangle {
-                                    implicitHeight: verText.implicitHeight + 2
-                                    implicitWidth: verText.implicitWidth + 12
-                                    radius: 8
-                                    color: "#22d3ee"   // kontraststarke Versions-Plakette : Cyan mit dunkler Schrift
-                                    border.width: 0
-                                    QQC2.Label {
-                                        id: verText
-                                        anchors.centerIn: parent
-                                        text: aboutInfo.version
-                                        font.family: win.uiFont
-                                        font.weight: Font.DemiBold
-                                        font.pointSize: Kirigami.Theme.defaultFont.pointSize * 0.8
-                                        color: "#04262c"
-                                    }
-                                }
-                            }
-                            RowLayout {
-                                spacing: 6
-                                Item {
-                                    Layout.preferredWidth: 6
-                                    Layout.preferredHeight: 6
-                                    Layout.alignment: Qt.AlignVCenter
-                                    Rectangle { anchors.fill: parent; anchors.margins: -2; radius: width / 2; color: Qt.rgba(0.19, 0.82, 0.35, 0.22) }
-                                    Rectangle { anchors.fill: parent; radius: 3; color: win.darkTheme ? "#30d158" : "#1f9d45" }
-                                }
-                                QQC2.Label {
-                                    // steht « Dieser PC » schon im Titel (eigener Name), nicht doppelt zeigen
-                                    text: (win.title === win.trad("This PC") ? "" : win.trad("This PC") + " · ") + win.itemCountText
-                                    font: win.infoFontT
-                                    opacity: 0.75
-                                    Layout.fillWidth: true
-                                    elide: Text.ElideRight
-                                }
-                            }
-                        }
-                    }
-                }
-
-                DropArea {   // Ordner aus Dolphin hineinziehen heftet sie an
-                    anchors.fill: parent
-                    keys: ["text/uri-list"]
-                    onDropped: function(drop) {
-                        for (var i = 0; i < drop.urls.length; i++)
-                            backend.pinPath(drop.urls[i].toString(), "", "")
-                    }
-                }
-                // Ein gemeinsames Rechtsklick-Menü für alle Zeilen (wirkt auf rowMenu.t)
-                LazyMenu {
-                    id: rowMenuL
-                    sourceComponent: QQC2.Menu {
-                        id: rowMenu
-                        property var t: ({})
-                        readonly property bool isPin: t.type === "pin"
-                        QQC2.MenuItem {
-                            text: win.trad("Open")
-                            icon.name: "folder-open"
-                            onTriggered: backend.openFolder(rowMenu.t.path)
-                        }
-                        QQC2.MenuItem {
-                            text: win.trad("Open in terminal")
-                            icon.name: "utilities-terminal"
-                            onTriggered: backend.openTerminal(rowMenu.t.path)
-                        }
-                        QQC2.MenuItem {
-                            text: win.trad("Analyze storage")
-                            icon.name: "filelight"
-                            visible: ((backend && backend.tools) ? backend.tools : ({})).analyze
-                            height: visible ? implicitHeight : 0
-                            onTriggered: backend.launchTool("analyze", rowMenu.t.path)
-                        }
-                        QQC2.MenuItem {
-                            text: win.trad("Copy path")
-                            icon.name: "edit-copy"
-                            onTriggered: backend.copyPath(rowMenu.t.path)
-                        }
-                        QQC2.MenuSeparator {}
-                        QQC2.MenuItem {
-                            text: win.trad("Move up")
-                            icon.name: "go-up"
-                            visible: rowMenu.isPin
-                            height: visible ? implicitHeight : 0
-                            enabled: rowMenu.t.pinIndex > 0
-                            onTriggered: backend.movePin(rowMenu.t.path, -1)
-                        }
-                        QQC2.MenuItem {
-                            text: win.trad("Move down")
-                            icon.name: "go-down"
-                            visible: rowMenu.isPin
-                            height: visible ? implicitHeight : 0
-                            enabled: rowMenu.t.pinIndex < rowMenu.t.pinCount - 1
-                            onTriggered: backend.movePin(rowMenu.t.path, 1)
-                        }
-                        QQC2.MenuItem {
-                            text: win.isPinned(rowMenu.t.path || "") ? win.trad("Unpin from Quick access")
-                                                                     : win.trad("Pin to Quick access")
-                            icon.name: win.isPinned(rowMenu.t.path || "") ? "window-unpin" : "window-pin"
-                            onTriggered: win.isPinned(rowMenu.t.path) ? backend.unpinPath(rowMenu.t.path)
-                                                                      : backend.pinPath(rowMenu.t.path, rowMenu.t.label, rowMenu.t.icon)
-                        }
-                    }
-                }
-
-                ListView {
-                    id: sideList
-                    objectName: "sideList"
-                    anchors.top: heroCard.bottom
-                    anchors.topMargin: 6
-                    anchors.left: sidePanel.left
-                    anchors.right: sidePanel.right
-                    anchors.bottom: sidePanel.bottom
-                    anchors.bottomMargin: 6
-                    anchors.rightMargin: 1
-                    clip: true
-                    model: win.sidebarRows
-                    cacheBuffer: 0   // keine Vorab-Erzeugung außerhalb des Sichtbereichs : beim Beenden bleiben so keine halb erzeugten Zeilen zurück
-                    spacing: 1
-                    QQC2.ScrollBar.vertical: QQC2.ScrollBar {}
-                    displaced: Transition { NumberAnimation { properties: "y"; duration: 160; easing.type: Easing.OutCubic } }
-                    delegate: Item {
-                        id: row
-                        readonly property var r: modelData
-                        readonly property bool isHead: r.type === "head"
-                        readonly property bool isNode: r.type === "node"
-                        readonly property bool isPinRow: r.type === "pin"
-                        readonly property bool pinned: (isNode || isPinRow) && win.isPinned(r.path)
-                        readonly property string selKey: r.selKey || ""
-                        readonly property bool selected: selKey !== "" && win.sideSelKey === selKey
-                        readonly property bool zoneActive: win.navZone === "sidebar"   // die Pfeiltasten wirken gerade hier
-                        width: ListView.view.width
-                        height: isHead ? Kirigami.Units.iconSizes.medium + Kirigami.Units.largeSpacing
-                                       : (r.type === "hint" ? 54 : (r.drive === true && r.unmounted !== true ? Kirigami.Units.iconSizes.medium + 14 : Kirigami.Units.iconSizes.medium))
-                        opacity: (isPinRow && r.exists === false) ? 0.5 : (r.unmounted === true ? 0.48 : 1.0)
-
-                        // Hover über die GANZE Zeile : ein HoverHandler hängt nicht davon ab, welches Kind (Beschriftung, Symbol …) unter der
-                        // Maus liegt ; die Beschriftung fängt Hover-Ereignisse selbst ab, eine MouseArea darunter bekäme sie nicht.
-                        HoverHandler { id: rowHover }
-                        Rectangle {   // Hover und Auswahl
-                            anchors.fill: parent
-                            anchors.leftMargin: Kirigami.Units.smallSpacing
-                            anchors.rightMargin: Kirigami.Units.smallSpacing
-                            radius: 8
-                            visible: (!row.isHead || row.selected) && r.type !== "hint"
-                            opacity: ((rowHover.hovered && !row.isHead) || rowMouse.pressed || row.selected) ? 1 : 0
-                            Behavior on opacity { NumberAnimation { duration: 120 } }
-                            // Ist die Seitenleiste nicht die aktive Zone, bleibt die Markierung nur als blasse Spur sichtbar
-                            color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
-                                           Kirigami.Theme.highlightColor.b,
-                                           rowMouse.pressed ? 0.26 : (row.selected ? (row.zoneActive ? 0.24 : 0.16) : 0.14))
-                            border.width: row.selected ? 1 : 0
-                            border.color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
-                                           Kirigami.Theme.highlightColor.b, row.zoneActive ? 0.7 : 0.35)
-                            SpecEdge { r: 8 }
-                        }
-                        // Hierarchielinien : eine dünne senkrechte Linie je Ebene
-                        Repeater {
-                            model: row.isNode ? r.depth : 0
-                            delegate: Rectangle {
-                                x: Kirigami.Units.largeSpacing * 2 + Kirigami.Units.iconSizes.small / 2 + index * Kirigami.Units.largeSpacing * 2
-                                width: 1
-                                height: row.height + 1
-                                color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.14)
-                            }
-                        }
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.leftMargin: row.isNode ? Kirigami.Units.largeSpacing * 2 * (1 + r.depth) : Kirigami.Units.largeSpacing * 2
-                            anchors.rightMargin: Kirigami.Units.largeSpacing * 2
-                            spacing: Kirigami.Units.largeSpacing
-                            visible: r.type !== "hint"
-                            Item {   // Auf-/Zuklapper (wie [+]/[−] im klassischen Baum)
-                                visible: row.isHead || row.isNode
-                                Layout.preferredWidth: Kirigami.Units.iconSizes.small; Layout.preferredHeight: Kirigami.Units.iconSizes.small
-                                Kirigami.Icon {
-                                    anchors.fill: parent
-                                    visible: row.isHead || (row.isNode && r.expandable)
-                                    source: (row.isHead ? r.collapsed : !r.open) ? "arrow-right" : "arrow-down"
-                                    opacity: 0.85
-                                    rotation: 0
-                                }
-                                QQC2.BusyIndicator {
-                                    anchors.fill: parent
-                                    running: row.isNode && r.loading
-                                    visible: running
-                                }
-                            }
-                            Kirigami.Icon {
-                                visible: !row.isHead   // Überschriften ohne Symbol : ruhige Gruppen wie im Finder
-                                source: r.icon || "folder"
-                                Layout.preferredWidth: row.isHead ? Kirigami.Units.iconSizes.small : Kirigami.Units.iconSizes.smallMedium
-                                Layout.preferredHeight: row.isHead ? Kirigami.Units.iconSizes.small : Kirigami.Units.iconSizes.smallMedium
-                                color: (row.isHead && r.key === "quick") ? Kirigami.Theme.highlightColor : "transparent"
-                                isMask: row.isHead && r.key === "quick"
-                            }
-                            ColumnLayout {
-                                Layout.fillWidth: !(row.isHead && r.key === "pc")
-                                Layout.maximumWidth: row.isHead ? Kirigami.Units.gridUnit * 14 : 100000   // Laufwerkszeilen : volle Breite, Größe und Balken überlappen nicht
-                                Layout.alignment: Qt.AlignVCenter
-                                spacing: 2
-                                QQC2.Label {
-                                    Layout.fillWidth: true
-                                    text: row.isHead ? (r.label || "").toUpperCase() : (r.label || "")
-                                    font.weight: row.isHead ? Font.DemiBold : Font.Normal
-                                    font.pointSize: row.isHead ? Kirigami.Theme.defaultFont.pointSize * 0.85 : Kirigami.Theme.defaultFont.pointSize
-                                    font.letterSpacing: row.isHead ? 0.6 : win.uiTracking
-                                    opacity: row.isHead ? 0.65 : 1.0
-                                    elide: Text.ElideRight
-                                }
-                                // Laufwerke : schlanker Kapazitätsbalken, Größe in Messschrift, beim Überfahren ein Auswerfen-Knopf (Wechselmedien)
-                                RowLayout {
-                                    visible: r.drive === true && r.unmounted !== true
-                                    Layout.fillWidth: true
-                                    spacing: 6
-                                    Rectangle {
-                                        Layout.fillWidth: true
-                                        Layout.preferredHeight: 3
-                                        Layout.alignment: Qt.AlignVCenter
-                                        radius: 1.5
-                                        color: win.darkTheme ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(0, 0, 0, 0.10)
-                                        Rectangle {
-                                            width: parent.width * Math.min(1, r.frac || 0)
-                                            height: parent.height
-                                            radius: 1.5
-                                            color: (r.frac || 0) >= win.alertFrac ? "#ff9f0a" : win.gaugeBlue
-                                        }
-                                    }
-                                    QQC2.Label {
-                                        text: r.size || ""
-                                        Layout.minimumWidth: implicitWidth
-                                        Layout.rightMargin: 2
-                                        Layout.alignment: Qt.AlignVCenter
-                                        font.family: win.monoFont
-                                        font.features: { "tnum": 1 }
-                                        font.pointSize: Kirigami.Theme.defaultFont.pointSize * 0.85
-                                        opacity: 0.65
-                                    }
-                                    Kirigami.Icon {
-                                        id: ejectIcon
-                                        visible: r.removable === true && rowHover.hovered
-                                        source: "media-eject"
-                                        Layout.preferredWidth: 14
-                                        Layout.preferredHeight: 14
-                                        Layout.alignment: Qt.AlignVCenter
-                                        opacity: ejectMouse.containsMouse ? 1.0 : 0.65
-                                        Accessible.role: Accessible.Button
-                                        Accessible.name: win.trad("Safely remove")
-                                        Accessible.onPressAction: backend.ejectDevice(r.device, r.label)
-                                        MouseArea {
-                                            id: ejectMouse
-                                            anchors.fill: parent
-                                            anchors.margins: -4
-                                            hoverEnabled: true
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: backend.ejectDevice(r.device, r.label)
-                                        }
-                                        QQC2.ToolTip.visible: ejectMouse.containsMouse
-                                        QQC2.ToolTip.delay: 400
-                                        QQC2.ToolTip.text: win.trad("Safely remove")
-                                    }
-                                }
-                            }
-                            EditPencil {   // nur an der Überschrift der Laufwerksliste ; der Zeilen-Tooltip erklärt ihn
-                                visible: row.isHead && r.key === "pc" && opacity > 0
-                                shown: rowHover.hovered
-                                withTip: false
-                                onClicked: renameDialog.open()
-                            }
-                            Item { visible: row.isHead && r.key === "pc"; Layout.fillWidth: true }
-                            QQC2.ToolButton {   // « + » : Ordner per Dialog anheften
-                                visible: row.isHead && r.canAdd === true
-                                icon.name: "list-add"
-                                icon.width: Kirigami.Units.iconSizes.small; icon.height: Kirigami.Units.iconSizes.small
-                                implicitWidth: Kirigami.Units.iconSizes.medium; implicitHeight: Kirigami.Units.iconSizes.medium
-                                opacity: hovered || rowHover.hovered ? 1.0 : 0.55
-                                Rectangle {   // Hover-Pille (der Stil zeichnet das Symbol im eigenen Hintergrund : diesen nicht ersetzen)
-                                    anchors.fill: parent
-                                    z: -2
-                                    radius: 6
-                                    color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.10)
-                                    opacity: parent.hovered ? 1 : 0
-                                    Behavior on opacity { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
-                                }
-                                QQC2.ToolTip.visible: hovered
-                                QQC2.ToolTip.delay: 400
-                                QQC2.ToolTip.text: win.trad("Pin a folder…")
-                                onClicked: pinDialog.open()
-                            }
-                            Kirigami.Icon {   // Pin-Symbol : angeheftet = sichtbar, sonst nur beim Überfahren ; Klick schaltet um
-                                visible: (row.isNode && r.unmounted !== true) || row.isPinRow
-                                source: (row.pinned !== pinGlyphMouse.containsMouse) ? "window-pin" : "window-unpin"   // zeigt beim Überfahren das Ergebnis des Klicks
-                                Layout.preferredWidth: Kirigami.Units.iconSizes.small; Layout.preferredHeight: Kirigami.Units.iconSizes.small
-                                opacity: (pinGlyphMouse.containsMouse || (row.pinned && rowHover.hovered)) ? 1.0
-                                       : (row.pinned ? 0.18 : (rowHover.hovered ? 0.55 : 0.0))   // angeheftet : im Ruhezustand dezent, beim Überfahren der Zeile voll
-                                Behavior on opacity { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
-                                MouseArea {
-                                    id: pinGlyphMouse
-                                    anchors.fill: parent
-                                    anchors.margins: -Kirigami.Units.largeSpacing   // Klickfläche 32 × 32
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: row.pinned ? backend.unpinPath(r.path) : backend.pinPath(r.path, r.label, r.icon)
-                                }
-                            }
-                        }
-                        QQC2.Label {   // leere Schnellzugriff-Liste : Hinweis
-                            anchors.centerIn: parent
-                            width: parent.width - 40
-                            visible: r.type === "hint"
-                            text: win.trad("Drag folders here to pin them")
-                            opacity: 0.7
-                            wrapMode: Text.Wrap
-                            horizontalAlignment: Text.AlignHCenter
-                        }
-                        MouseArea {
-                            id: rowMouse
-                            anchors.fill: parent
-                            z: -1
-                            hoverEnabled: true
-                            acceptedButtons: Qt.LeftButton | Qt.RightButton
-                            onPressed: {
-                                if (row.selKey !== "")
-                                    win.sideSelKey = row.selKey
-                                win.navZone = "sidebar"
-                                keyHandler.forceActiveFocus()
-                            }
-                            onClicked: function(mouse) {
-                                if (row.isHead && mouse.button === Qt.RightButton && r.key === "pc") {
-                                    nameMenuL.openMenu()
-                                } else if (row.isHead) {
-                                    if (r.key === "quick") win.quickCollapsed = !win.quickCollapsed
-                                    else win.pcCollapsed = !win.pcCollapsed
-                                } else if (mouse.button === Qt.RightButton && r.path) {
-                                    rowMenuL.openMenu({"t": r})
-                                } else if (row.isNode) {
-                                    win.toggleNode(r.path)   // Klick klappt auf/zu
-                                } else if (row.isPinRow) {
-                                    backend.openFolder(r.path)
-                                }
-                            }
-                            onDoubleClicked: function(mouse) {
-                                if (row.isNode && mouse.button === Qt.LeftButton)
-                                    backend.openFolder(r.path)   // Doppelklick öffnet in Dolphin
-                            }
-                        }
-                        QQC2.ToolTip.visible: rowHover.hovered && (!!r.path || (isHead && r.key === "pc"))
-                        QQC2.ToolTip.delay: 700
-                        QQC2.ToolTip.text: (isHead && r.key === "pc") ? win.trad("Customize the application name (e.g. This PC, CyberDeck)")
-                                         : ((isPinRow && r.exists === false) ? win.trad("Folder not found") : (r.path || ""))
-                    }
-                }
-            }
             FolderDialog {
                 id: pinDialog
                 title: win.trad("Pin a folder…")
                 onAccepted: backend.pinPath(selectedFolder.toString(), "", "")
             }
 
-            // Inspector : schwebendes Glas-Panel rechts. Ohne Auswahl Systemübersicht mit Live-Telemetrie, sonst Details zum gewählten Element
-            Item {
-                id: inspector
-                visible: win.inspectorShown
-                anchors.right: parent.right
-                anchors.top: parent.top
-                anchors.bottom: parent.bottom
-                width: visible ? win.inspectorW : 0
-                Rectangle {
-                    id: inspPanel
-                    anchors.fill: parent
-                    anchors.leftMargin: 4
-                    anchors.rightMargin: 8
-                    anchors.topMargin: 8
-                    anchors.bottomMargin: 8
-                    radius: 14
-                    color: win.darkTheme ? Qt.rgba(1, 1, 1, 0.035) : Qt.rgba(0, 0, 0, 0.03)
-                    border.width: 1
-                    border.color: win.darkTheme ? Qt.rgba(1, 1, 1, 0.09) : Qt.rgba(0, 0, 0, 0.13)
-                    SpecEdge { r: 14 }
-                    QQC2.ScrollView {
-                        id: inspScroll
-                        anchors.fill: parent
-                        anchors.margins: 10
-                        contentWidth: availableWidth
-                        clip: true
-                        ColumnLayout {
-                            width: inspScroll.availableWidth
-                            spacing: 10
-                            readonly property var it: win.inspectorItem
-
-                            // ---- Systemübersicht (nichts gewählt)
-                            GlassCard {
-                                visible: parent.it === null
-                                implicitHeight: heroCol.implicitHeight + 24
-                                gradient: Gradient {
-                                    orientation: Gradient.Horizontal
-                                    GradientStop { position: 0.0; color: Qt.rgba(0.0, 0.78, 0.86, win.darkTheme ? 0.20 : 0.14) }
-                                    GradientStop { position: 1.0; color: Qt.rgba(0.22, 0.46, 1.0, win.darkTheme ? 0.12 : 0.08) }
-                                }
-                                Accessible.role: Accessible.StaticText
-                                Accessible.name: win.trad("System overview")
-                                ColumnLayout {
-                                    id: heroCol
-                                    anchors.left: parent.left
-                                    anchors.right: parent.right
-                                    anchors.top: parent.top
-                                    anchors.margins: 12
-                                    spacing: 8
-                                    readonly property var si: (backend && backend.sysInfo) ? backend.sysInfo : ({})
-                                    RowLayout {
-                                        spacing: 10
-                                        DistroLogo {
-                                            logo: heroCol.si.logoFile ? ("file://" + heroCol.si.logoFile) : (heroCol.si.logoName || "")
-                                            Layout.alignment: Qt.AlignVCenter
-                                        }
-                                        ColumnLayout {
-                                            Layout.fillWidth: true
-                                            spacing: 2
-                                            QQC2.Label {
-                                                Layout.fillWidth: true
-                                                text: heroCol.si.host || ""
-                                                font.weight: Font.DemiBold
-                                                font.pointSize: Kirigami.Theme.defaultFont.pointSize * 1.1
-                                                elide: Text.ElideRight
-                                            }
-                                            QQC2.Label {
-                                                Layout.fillWidth: true
-                                                text: (heroCol.si.os || "") + (heroCol.si.osVersion ? " " + heroCol.si.osVersion : "")
-                                                font: win.infoFont
-                                                opacity: 0.7
-                                                elide: Text.ElideRight
-                                            }
-                                        }
-                                        // Update-Status (checkupdates) : grün « Aktuell » oder dezent bernstein « 3 Updates »
-                                        Rectangle {
-                                            readonly property var u: (backend && backend.pkgUpdates) ? backend.pkgUpdates : ({})
-                                            readonly property bool neu: u.state === "updates"
-                                            readonly property color tone: neu ? "#ff9f0a" : (win.darkTheme ? "#30d158" : "#1f9d45")
-                                            visible: u.state === "ok" || neu
-                                            Layout.alignment: Qt.AlignTop
-                                            implicitHeight: updText.implicitHeight + 4
-                                            implicitWidth: updText.implicitWidth + 14
-                                            radius: height / 2
-                                            color: Qt.rgba(tone.r, tone.g, tone.b, 0.16)
-                                            border.width: 1
-                                            border.color: Qt.rgba(tone.r, tone.g, tone.b, 0.5)
-                                            Accessible.role: Accessible.StaticText
-                                            Accessible.name: updText.text
-                                            QQC2.Label {
-                                                id: updText
-                                                anchors.centerIn: parent
-                                                text: !parent.neu ? win.trad("Up to date")
-                                                      : (parent.u.count === 1 ? win.trad("1 update") : win.trad("{n} updates").replace("{n}", parent.u.count))
-                                                font.pointSize: Kirigami.Theme.defaultFont.pointSize * 0.85
-                                                font.weight: Font.DemiBold
-                                                font.features: { "tnum": 1 }
-                                                color: parent.neu ? (win.darkTheme ? "#ffb340" : "#a35a00") : (win.darkTheme ? "#30d158" : "#16753a")
-                                            }
-                                        }
-                                    }
-                                    Repeater {
-                                        model: win.sysRows
-                                        delegate: RowLayout {
-                                            Layout.fillWidth: true
-                                            spacing: 8
-                                            QQC2.Label { text: modelData.k; font: win.badgeFont; opacity: 0.65 }
-                                            Item { Layout.fillWidth: true }
-                                            QQC2.Label { text: modelData.v; font: win.monoBadgeFont; elide: Text.ElideLeft; Layout.maximumWidth: inspScroll.availableWidth * 0.6 }
-                                        }
-                                    }
-                                }
-                            }
-                            Repeater {
-                                model: parent.it === null ? 4 : 0
-                                delegate: LiveCard { idx: index }
-                            }
-
-                            // ---- Details zum gewählten Element
-                            GlassCard {
-                                visible: parent.it !== null
-                                implicitHeight: detHead.implicitHeight + 24
-                                RowLayout {
-                                    id: detHead
-                                    anchors.left: parent.left
-                                    anchors.right: parent.right
-                                    anchors.top: parent.top
-                                    anchors.margins: 12
-                                    spacing: 12
-                                    readonly property var it: win.inspectorItem
-                                    Kirigami.Icon {
-                                        source: detHead.it ? (detHead.it.d.icon || "folder") : ""
-                                        Layout.preferredWidth: 56
-                                        Layout.preferredHeight: 56
-                                    }
-                                    ColumnLayout {
-                                        Layout.fillWidth: true
-                                        spacing: 6
-                                        QQC2.Label {
-                                            Layout.fillWidth: true
-                                            text: detHead.it ? (detHead.it.d.label || "") : ""
-                                            font.weight: Font.DemiBold
-                                            font.pointSize: Kirigami.Theme.defaultFont.pointSize * 1.1
-                                            wrapMode: Text.Wrap
-                                            maximumLineCount: 2
-                                            elide: Text.ElideRight
-                                        }
-                                        Rectangle {
-                                            visible: statText.text !== ""
-                                            implicitHeight: statText.implicitHeight + 4
-                                            implicitWidth: Math.min(statText.implicitWidth + 16, inspScroll.availableWidth - 100)
-                                            radius: height / 2
-                                            color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.18)
-                                            border.width: 1
-                                            border.color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.45)
-                                            QQC2.Label {
-                                                id: statText
-                                                anchors.centerIn: parent
-                                                width: Math.min(implicitWidth, parent.width - 12)
-                                                text: win.inspStatus(detHead.it)
-                                                font: win.badgeFont
-                                                elide: Text.ElideRight
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            GlassCard {
-                                visible: parent.it !== null && kvRep.count > 0
-                                implicitHeight: kvCol.implicitHeight + 24
-                                ColumnLayout {
-                                    id: kvCol
-                                    anchors.left: parent.left
-                                    anchors.right: parent.right
-                                    anchors.top: parent.top
-                                    anchors.margins: 12
-                                    spacing: 6
-                                    QQC2.Label {
-                                        text: win.trad("Details").toUpperCase()
-                                        font.weight: Font.DemiBold
-                                        font.pointSize: Kirigami.Theme.defaultFont.pointSize * 0.85
-                                        font.letterSpacing: 0.6
-                                        opacity: 0.6
-                                    }
-                                    Repeater {
-                                        id: kvRep
-                                        model: win.inspRows(win.inspectorItem)
-                                        delegate: RowLayout {
-                                            Layout.fillWidth: true
-                                            spacing: 8
-                                            QQC2.Label { text: modelData.k; font: win.badgeFont; opacity: 0.65 }
-                                            Item { Layout.fillWidth: true }
-                                            QQC2.Label {
-                                                id: kvVal
-                                                text: modelData.v
-                                                font: modelData.m ? win.monoBadgeFont : win.badgeFont
-                                                elide: Text.ElideMiddle
-                                                horizontalAlignment: Text.AlignRight
-                                                Layout.maximumWidth: inspScroll.availableWidth * 0.62
-                                                HoverHandler { id: kvHover }
-                                                QQC2.ToolTip.visible: kvHover.hovered && kvVal.truncated
-                                                QQC2.ToolTip.delay: 400
-                                                QQC2.ToolTip.text: modelData.v
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            GlassCard {
-                                readonly property var inks: (parent.it !== null && parent.it.kind === "printer") ? (parent.it.d.inks || []) : []
-                                visible: inks.length > 0
-                                implicitHeight: inkCol.implicitHeight + 24
-                                ColumnLayout {
-                                    id: inkCol
-                                    anchors.left: parent.left
-                                    anchors.right: parent.right
-                                    anchors.top: parent.top
-                                    anchors.margins: 12
-                                    spacing: 8
-                                    QQC2.Label {
-                                        text: win.trad("Ink levels").toUpperCase()
-                                        font.weight: Font.DemiBold
-                                        font.pointSize: Kirigami.Theme.defaultFont.pointSize * 0.85
-                                        font.letterSpacing: 0.6
-                                        opacity: 0.6
-                                    }
-                                    Repeater {
-                                        model: parent.parent.inks
-                                        delegate: RowLayout {
-                                            Layout.fillWidth: true
-                                            spacing: 8
-                                            Accessible.role: Accessible.StaticText
-                                            Accessible.name: modelData.name + " " + modelData.level + " %"
-                                            QQC2.Label { text: modelData.name; font: win.badgeFont; Layout.preferredWidth: inspScroll.availableWidth * 0.38; elide: Text.ElideRight }
-                                            Rectangle {
-                                                Layout.fillWidth: true
-                                                Layout.preferredHeight: 6
-                                                Layout.alignment: Qt.AlignVCenter
-                                                radius: 3
-                                                color: win.darkTheme ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(0, 0, 0, 0.10)
-                                                border.width: modelData.level < 15 ? 1 : 0
-                                                border.color: win.gaugeRed
-                                                Rectangle {
-                                                    width: Math.max(height, parent.width * modelData.level / 100)
-                                                    height: parent.height
-                                                    radius: 3
-                                                    visible: modelData.level > 0
-                                                    color: Qt.colorEqual(modelData.color, "#000000")
-                                                           ? Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.85)
-                                                           : modelData.color
-                                                }
-                                            }
-                                            QQC2.Label {
-                                                text: modelData.level + " %"
-                                                font: win.monoBadgeFont
-                                                color: modelData.level < 15 ? win.gaugeRed : Kirigami.Theme.textColor
-                                                horizontalAlignment: Text.AlignRight
-                                                Layout.preferredWidth: 44
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            Flow {
-                                visible: parent.it !== null
-                                Layout.fillWidth: true
-                                spacing: 6
-                                Repeater {
-                                    model: win.inspActions(win.inspectorItem)
-                                    delegate: QQC2.Button {
-                                        text: modelData.t
-                                        icon.name: modelData.i
-                                        focusPolicy: Qt.NoFocus   // die Pfeiltasten bleiben bei der Tastatursteuerung des Hauptbereichs
-                                        onClicked: win.inspRun(modelData.a, win.inspectorItem)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
 
             QQC2.ScrollView {
                 id: scroll
                 objectName: "mainScroll"
-                anchors.left: sidebar.right
-                anchors.right: inspector.left
+                anchors.left: parent.left
+                anchors.right: parent.right
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
                 contentWidth: availableWidth
@@ -9178,8 +8493,8 @@ QQC2.ApplicationWindow {
                                     sourceComponent: QQC2.Menu {
                                         id: diskMenu
                                         QQC2.MenuItem {
-                                            text: win.trad("Open with Dolphin")
-                                            icon.name: "folder-open"
+                                            text: win.trad("Open with {app}").replace("{app}", backend.fileManagerName)
+                                            icon.name: backend.fileManagerIcon
                                             onTriggered: backend.openFolder(modelData.mountpoint)
                                         }
                                         QQC2.MenuItem {
@@ -9488,8 +8803,8 @@ QQC2.ApplicationWindow {
                                     sourceComponent: QQC2.Menu {
                                         id: netMenu
                                         QQC2.MenuItem {
-                                            text: win.trad("Open with Dolphin")
-                                            icon.name: "folder-open"
+                                            text: win.trad("Open with {app}").replace("{app}", backend.fileManagerName)
+                                            icon.name: backend.fileManagerIcon
                                             enabled: !offline
                                             onTriggered: backend.openFolder(modelData.mountpoint)
                                         }
@@ -9805,17 +9120,818 @@ QQC2.ApplicationWindow {
                 z: 10
                 anchors.fill: parent
                 onPressed: function(mouse) {
-                    if (inspector.visible && mouse.x >= inspector.x) {   // Inspector : Auswahl bleibt (seine Knöpfe wirken auf sie)
-                        mouse.accepted = false
-                        return
-                    }
                     win.selectedKey = ""
-                    // Klick links in die Seitenleiste : Pfeiltasten wirken dort ; sonst im Hauptfenster
-                    win.navZone = (sidebar.visible && mouse.x < sidebar.width) ? "sidebar" : "main"
+                    win.navZone = "main"
                     keyHandler.forceActiveFocus()
                     mouse.accepted = false
                 }
             }
+        }
+    }
+
+    // seitenleiste : Schnellzugriff (angeheftete Ordner) und Baum « Dieser PC » wie im Windows-Explorer
+    Item {
+        id: sidebar
+        visible: win.quickShown
+        anchors.left: parent.left
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        width: visible ? win.sideWidth : 0
+        Kirigami.Theme.colorSet: Kirigami.Theme.View
+        Kirigami.Theme.inherit: false
+
+        // Schwebendes Glas-Panel statt harter Trennlinie
+        Rectangle {
+            id: sidePanel
+            anchors.fill: parent
+            anchors.leftMargin: 8
+            anchors.topMargin: 8
+            anchors.bottomMargin: 8
+            anchors.rightMargin: 4
+            radius: 14
+            color: win.darkTheme ? Qt.rgba(1, 1, 1, 0.035) : Qt.rgba(0, 0, 0, 0.03)
+            border.width: 1
+            border.color: win.darkTheme ? Qt.rgba(1, 1, 1, 0.09) : Qt.rgba(0, 0, 0, 0.13)
+            HoverHandler { id: panelHover }
+            // Cursor-Spotlight : ein sehr zarter Lichtfleck folgt der Maus (nur bei sichtbarem Fenster)
+            Shape {
+                anchors.fill: parent
+                visible: opacity > 0
+                opacity: (win.fensterAktiv && panelHover.hovered) ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                preferredRendererType: Shape.CurveRenderer
+                ShapePath {
+                    strokeColor: "transparent"
+                    fillGradient: RadialGradient {
+                        centerX: panelHover.point.position.x
+                        centerY: panelHover.point.position.y
+                        centerRadius: 150
+                        focalX: centerX
+                        focalY: centerY
+                        GradientStop { position: 0.0; color: win.darkTheme ? Qt.rgba(1, 1, 1, 0.04) : Qt.rgba(0, 0, 0, 0.03) }
+                        GradientStop { position: 1.0; color: win.darkTheme ? Qt.rgba(1, 1, 1, 0) : Qt.rgba(0, 0, 0, 0) }
+                    }
+                    PathSvg {
+                        path: "M14,0 H" + (sidePanel.width - 14) + " A14,14 0 0 1 " + sidePanel.width + ",14 V" + (sidePanel.height - 14)
+                              + " A14,14 0 0 1 " + (sidePanel.width - 14) + "," + sidePanel.height + " H14 A14,14 0 0 1 0," + (sidePanel.height - 14)
+                              + " V14 A14,14 0 0 1 14,0 Z"
+                    }
+                }
+            }
+            SpecEdge { r: 14 }
+        }
+        // Kopfkarte : Symbol, Name mit Versions-Pille, Status mit Elementanzahl
+        Rectangle {
+            id: heroCard
+            anchors.top: sidePanel.top
+            anchors.left: sidePanel.left
+            anchors.right: sidePanel.right
+            anchors.margins: 10
+            height: 60
+            radius: 12
+            readonly property color accent: Kirigami.Theme.highlightColor
+            // türkis-blauer Glasverlauf mit feiner Lichtkante oben
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0.0; color: Qt.rgba(0.0, 0.78, 0.86, win.darkTheme ? 0.26 : 0.18) }
+                GradientStop { position: 1.0; color: Qt.rgba(0.22, 0.46, 1.0, win.darkTheme ? 0.16 : 0.10) }
+            }
+            border.width: 1
+            border.color: Qt.rgba(0.35, 0.85, 1.0, win.darkTheme ? 0.30 : 0.40)
+            SpecEdge { r: 12 }
+            // die Kopfkarte ersetzt oben links die Titelleiste : ziehen verschiebt das Fenster, Doppelklick maximiert
+            DragHandler {
+                target: null
+                acceptedButtons: Qt.LeftButton
+                onActiveChanged: if (active) win.startSystemMove()
+            }
+            TapHandler {
+                acceptedButtons: Qt.LeftButton
+                onDoubleTapped: win.toggleMax()
+            }
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 12
+                anchors.rightMargin: 12
+                spacing: 10
+                Image {
+                    Layout.preferredWidth: 36
+                    Layout.preferredHeight: 36
+                    Layout.alignment: Qt.AlignVCenter
+                    source: appIconUrl
+                    sourceSize.width: 72
+                    sourceSize.height: 72
+                    smooth: true
+                    mipmap: true
+                }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignVCenter
+                    spacing: 3
+                    RowLayout {
+                        spacing: 6
+                        QQC2.Label {
+                            text: win.title
+                            font.family: win.uiFont
+                            font.weight: Font.DemiBold
+                            font.pointSize: Kirigami.Theme.defaultFont.pointSize * 1.05
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
+                        }
+                        Rectangle {
+                            implicitHeight: verText.implicitHeight + 2
+                            implicitWidth: verText.implicitWidth + 12
+                            radius: 8
+                            color: "#22d3ee"   // kontraststarke Versions-Plakette : Cyan mit dunkler Schrift
+                            border.width: 0
+                            QQC2.Label {
+                                id: verText
+                                anchors.centerIn: parent
+                                text: aboutInfo.version
+                                font.family: win.uiFont
+                                font.weight: Font.DemiBold
+                                font.pointSize: Kirigami.Theme.defaultFont.pointSize * 0.8
+                                color: "#04262c"
+                            }
+                        }
+                    }
+                    RowLayout {
+                        spacing: 6
+                        Item {
+                            Layout.preferredWidth: 6
+                            Layout.preferredHeight: 6
+                            Layout.alignment: Qt.AlignVCenter
+                            Rectangle { anchors.fill: parent; anchors.margins: -2; radius: width / 2; color: Qt.rgba(0.19, 0.82, 0.35, 0.22) }
+                            Rectangle { anchors.fill: parent; radius: 3; color: win.darkTheme ? "#30d158" : "#1f9d45" }
+                        }
+                        QQC2.Label {
+                            // steht « Dieser PC » schon im Titel (eigener Name), nicht doppelt zeigen
+                            text: (win.title === win.trad("This PC") ? "" : win.trad("This PC") + " · ") + win.itemCountText
+                            font: win.infoFontT
+                            opacity: 0.75
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
+                        }
+                    }
+                }
+            }
+        }
+
+        DropArea {   // Ordner aus Dolphin hineinziehen heftet sie an
+            anchors.fill: parent
+            keys: ["text/uri-list"]
+            onDropped: function(drop) {
+                for (var i = 0; i < drop.urls.length; i++)
+                    backend.pinPath(drop.urls[i].toString(), "", "")
+            }
+        }
+        // Ein gemeinsames Rechtsklick-Menü für alle Zeilen (wirkt auf rowMenu.t)
+        LazyMenu {
+            id: rowMenuL
+            sourceComponent: QQC2.Menu {
+                id: rowMenu
+                property var t: ({})
+                readonly property bool isPin: t.type === "pin"
+                QQC2.MenuItem {
+                    text: win.trad("Open")
+                    icon.name: "folder-open"
+                    onTriggered: backend.openFolder(rowMenu.t.path)
+                }
+                QQC2.MenuItem {
+                    text: win.trad("Open in terminal")
+                    icon.name: "utilities-terminal"
+                    onTriggered: backend.openTerminal(rowMenu.t.path)
+                }
+                QQC2.MenuItem {
+                    text: win.trad("Analyze storage")
+                    icon.name: "filelight"
+                    visible: ((backend && backend.tools) ? backend.tools : ({})).analyze
+                    height: visible ? implicitHeight : 0
+                    onTriggered: backend.launchTool("analyze", rowMenu.t.path)
+                }
+                QQC2.MenuItem {
+                    text: win.trad("Copy path")
+                    icon.name: "edit-copy"
+                    onTriggered: backend.copyPath(rowMenu.t.path)
+                }
+                QQC2.MenuSeparator {}
+                QQC2.MenuItem {
+                    text: win.trad("Move up")
+                    icon.name: "go-up"
+                    visible: rowMenu.isPin
+                    height: visible ? implicitHeight : 0
+                    enabled: rowMenu.t.pinIndex > 0
+                    onTriggered: backend.movePin(rowMenu.t.path, -1)
+                }
+                QQC2.MenuItem {
+                    text: win.trad("Move down")
+                    icon.name: "go-down"
+                    visible: rowMenu.isPin
+                    height: visible ? implicitHeight : 0
+                    enabled: rowMenu.t.pinIndex < rowMenu.t.pinCount - 1
+                    onTriggered: backend.movePin(rowMenu.t.path, 1)
+                }
+                QQC2.MenuItem {
+                    text: win.isPinned(rowMenu.t.path || "") ? win.trad("Unpin from Quick access")
+                                                             : win.trad("Pin to Quick access")
+                    icon.name: win.isPinned(rowMenu.t.path || "") ? "window-unpin" : "window-pin"
+                    onTriggered: win.isPinned(rowMenu.t.path) ? backend.unpinPath(rowMenu.t.path)
+                                                              : backend.pinPath(rowMenu.t.path, rowMenu.t.label, rowMenu.t.icon)
+                }
+            }
+        }
+
+        ListView {
+            id: sideList
+            objectName: "sideList"
+            anchors.top: heroCard.bottom
+            anchors.topMargin: 6
+            anchors.left: sidePanel.left
+            anchors.right: sidePanel.right
+            anchors.bottom: sidePanel.bottom
+            anchors.bottomMargin: 6
+            anchors.rightMargin: 1
+            clip: true
+            model: win.sidebarRows
+            cacheBuffer: 0   // keine Vorab-Erzeugung außerhalb des Sichtbereichs : beim Beenden bleiben so keine halb erzeugten Zeilen zurück
+            spacing: 1
+            QQC2.ScrollBar.vertical: QQC2.ScrollBar {}
+            displaced: Transition { NumberAnimation { properties: "y"; duration: 160; easing.type: Easing.OutCubic } }
+            delegate: Item {
+                id: row
+                readonly property var r: modelData
+                readonly property bool isHead: r.type === "head"
+                readonly property bool isNode: r.type === "node"
+                readonly property bool isPinRow: r.type === "pin"
+                readonly property bool pinned: (isNode || isPinRow) && win.isPinned(r.path)
+                readonly property string selKey: r.selKey || ""
+                readonly property bool selected: selKey !== "" && win.sideSelKey === selKey
+                readonly property bool zoneActive: win.navZone === "sidebar"   // die Pfeiltasten wirken gerade hier
+                width: ListView.view.width
+                height: isHead ? Kirigami.Units.iconSizes.medium + Kirigami.Units.largeSpacing
+                               : (r.type === "hint" ? 54 : (r.drive === true && r.unmounted !== true ? Kirigami.Units.iconSizes.medium + 14 : Kirigami.Units.iconSizes.medium))
+                opacity: (isPinRow && r.exists === false) ? 0.5 : (r.unmounted === true ? 0.48 : 1.0)
+
+                // Hover über die GANZE Zeile : ein HoverHandler hängt nicht davon ab, welches Kind (Beschriftung, Symbol …) unter der
+                // Maus liegt ; die Beschriftung fängt Hover-Ereignisse selbst ab, eine MouseArea darunter bekäme sie nicht.
+                HoverHandler { id: rowHover }
+                Rectangle {   // Hover und Auswahl
+                    anchors.fill: parent
+                    anchors.leftMargin: Kirigami.Units.smallSpacing
+                    anchors.rightMargin: Kirigami.Units.smallSpacing
+                    radius: 8
+                    visible: (!row.isHead || row.selected) && r.type !== "hint"
+                    opacity: ((rowHover.hovered && !row.isHead) || rowMouse.pressed || row.selected) ? 1 : 0
+                    Behavior on opacity { NumberAnimation { duration: 120 } }
+                    // Ist die Seitenleiste nicht die aktive Zone, bleibt die Markierung nur als blasse Spur sichtbar
+                    color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
+                                   Kirigami.Theme.highlightColor.b,
+                                   rowMouse.pressed ? 0.26 : (row.selected ? (row.zoneActive ? 0.24 : 0.16) : 0.14))
+                    border.width: row.selected ? 1 : 0
+                    border.color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g,
+                                   Kirigami.Theme.highlightColor.b, row.zoneActive ? 0.7 : 0.35)
+                    SpecEdge { r: 8 }
+                }
+                // Hierarchielinien : eine dünne senkrechte Linie je Ebene
+                Repeater {
+                    model: row.isNode ? r.depth : 0
+                    delegate: Rectangle {
+                        x: Kirigami.Units.largeSpacing * 2 + Kirigami.Units.iconSizes.small / 2 + index * Kirigami.Units.largeSpacing * 2
+                        width: 1
+                        height: row.height + 1
+                        color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.14)
+                    }
+                }
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: row.isNode ? Kirigami.Units.largeSpacing * 2 * (1 + r.depth) : Kirigami.Units.largeSpacing * 2
+                    anchors.rightMargin: Kirigami.Units.largeSpacing * 2
+                    spacing: Kirigami.Units.largeSpacing
+                    visible: r.type !== "hint"
+                    Item {   // Auf-/Zuklapper (wie [+]/[−] im klassischen Baum)
+                        visible: row.isHead || row.isNode
+                        Layout.preferredWidth: Kirigami.Units.iconSizes.small; Layout.preferredHeight: Kirigami.Units.iconSizes.small
+                        Kirigami.Icon {
+                            anchors.fill: parent
+                            visible: row.isHead || (row.isNode && r.expandable)
+                            source: (row.isHead ? r.collapsed : !r.open) ? "arrow-right" : "arrow-down"
+                            opacity: 0.85
+                            rotation: 0
+                        }
+                        QQC2.BusyIndicator {
+                            anchors.fill: parent
+                            running: row.isNode && r.loading
+                            visible: running
+                        }
+                    }
+                    Kirigami.Icon {
+                        visible: !row.isHead   // Überschriften ohne Symbol : ruhige Gruppen wie im Finder
+                        source: r.icon || "folder"
+                        Layout.preferredWidth: row.isHead ? Kirigami.Units.iconSizes.small : Kirigami.Units.iconSizes.smallMedium
+                        Layout.preferredHeight: row.isHead ? Kirigami.Units.iconSizes.small : Kirigami.Units.iconSizes.smallMedium
+                        color: (row.isHead && r.key === "quick") ? Kirigami.Theme.highlightColor : "transparent"
+                        isMask: row.isHead && r.key === "quick"
+                    }
+                    ColumnLayout {
+                        Layout.fillWidth: !(row.isHead && r.key === "pc")
+                        Layout.maximumWidth: row.isHead ? Kirigami.Units.gridUnit * 14 : 100000   // Laufwerkszeilen : volle Breite, Größe und Balken überlappen nicht
+                        Layout.alignment: Qt.AlignVCenter
+                        spacing: 2
+                        QQC2.Label {
+                            Layout.fillWidth: true
+                            text: row.isHead ? (r.label || "").toUpperCase() : (r.label || "")
+                            font.weight: row.isHead ? Font.DemiBold : Font.Normal
+                            font.pointSize: row.isHead ? Kirigami.Theme.defaultFont.pointSize * 0.85 : Kirigami.Theme.defaultFont.pointSize
+                            font.letterSpacing: row.isHead ? 0.6 : win.uiTracking
+                            opacity: row.isHead ? 0.65 : 1.0
+                            elide: Text.ElideRight
+                        }
+                        // Laufwerke : schlanker Kapazitätsbalken, Größe in Messschrift, beim Überfahren ein Auswerfen-Knopf (Wechselmedien)
+                        RowLayout {
+                            visible: r.drive === true && r.unmounted !== true
+                            Layout.fillWidth: true
+                            spacing: 6
+                            Rectangle {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 3
+                                Layout.alignment: Qt.AlignVCenter
+                                radius: 1.5
+                                color: win.darkTheme ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(0, 0, 0, 0.10)
+                                Rectangle {
+                                    width: parent.width * Math.min(1, r.frac || 0)
+                                    height: parent.height
+                                    radius: 1.5
+                                    color: (r.frac || 0) >= win.alertFrac ? "#ff9f0a" : win.gaugeBlue
+                                }
+                            }
+                            QQC2.Label {
+                                text: r.size || ""
+                                Layout.minimumWidth: implicitWidth
+                                Layout.rightMargin: 2
+                                Layout.alignment: Qt.AlignVCenter
+                                font.family: win.monoFont
+                                font.features: { "tnum": 1 }
+                                font.pointSize: Kirigami.Theme.defaultFont.pointSize * 0.85
+                                opacity: 0.65
+                            }
+                            Kirigami.Icon {
+                                id: ejectIcon
+                                visible: r.removable === true && rowHover.hovered
+                                source: "media-eject"
+                                Layout.preferredWidth: 14
+                                Layout.preferredHeight: 14
+                                Layout.alignment: Qt.AlignVCenter
+                                opacity: ejectMouse.containsMouse ? 1.0 : 0.65
+                                Accessible.role: Accessible.Button
+                                Accessible.name: win.trad("Safely remove")
+                                Accessible.onPressAction: backend.ejectDevice(r.device, r.label)
+                                MouseArea {
+                                    id: ejectMouse
+                                    anchors.fill: parent
+                                    anchors.margins: -4
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: backend.ejectDevice(r.device, r.label)
+                                }
+                                QQC2.ToolTip.visible: ejectMouse.containsMouse
+                                QQC2.ToolTip.delay: 400
+                                QQC2.ToolTip.text: win.trad("Safely remove")
+                            }
+                        }
+                    }
+                    EditPencil {   // nur an der Überschrift der Laufwerksliste ; der Zeilen-Tooltip erklärt ihn
+                        visible: row.isHead && r.key === "pc" && opacity > 0
+                        shown: rowHover.hovered
+                        withTip: false
+                        onClicked: renameDialog.open()
+                    }
+                    Item { visible: row.isHead && r.key === "pc"; Layout.fillWidth: true }
+                    QQC2.ToolButton {   // « + » : Ordner per Dialog anheften
+                        visible: row.isHead && r.canAdd === true
+                        icon.name: "list-add"
+                        icon.width: Kirigami.Units.iconSizes.small; icon.height: Kirigami.Units.iconSizes.small
+                        implicitWidth: Kirigami.Units.iconSizes.medium; implicitHeight: Kirigami.Units.iconSizes.medium
+                        opacity: hovered || rowHover.hovered ? 1.0 : 0.55
+                        Rectangle {   // Hover-Pille (der Stil zeichnet das Symbol im eigenen Hintergrund : diesen nicht ersetzen)
+                            anchors.fill: parent
+                            z: -2
+                            radius: 6
+                            color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.10)
+                            opacity: parent.hovered ? 1 : 0
+                            Behavior on opacity { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+                        }
+                        QQC2.ToolTip.visible: hovered
+                        QQC2.ToolTip.delay: 400
+                        QQC2.ToolTip.text: win.trad("Pin a folder…")
+                        onClicked: pinDialog.open()
+                    }
+                    Kirigami.Icon {   // Pin-Symbol : angeheftet = sichtbar, sonst nur beim Überfahren ; Klick schaltet um
+                        visible: (row.isNode && r.unmounted !== true) || row.isPinRow
+                        source: (row.pinned !== pinGlyphMouse.containsMouse) ? "window-pin" : "window-unpin"   // zeigt beim Überfahren das Ergebnis des Klicks
+                        Layout.preferredWidth: Kirigami.Units.iconSizes.small; Layout.preferredHeight: Kirigami.Units.iconSizes.small
+                        opacity: (pinGlyphMouse.containsMouse || (row.pinned && rowHover.hovered)) ? 1.0
+                               : (row.pinned ? 0.18 : (rowHover.hovered ? 0.55 : 0.0))   // angeheftet : im Ruhezustand dezent, beim Überfahren der Zeile voll
+                        Behavior on opacity { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+                        MouseArea {
+                            id: pinGlyphMouse
+                            anchors.fill: parent
+                            anchors.margins: -Kirigami.Units.largeSpacing   // Klickfläche 32 × 32
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: row.pinned ? backend.unpinPath(r.path) : backend.pinPath(r.path, r.label, r.icon)
+                        }
+                    }
+                }
+                QQC2.Label {   // leere Schnellzugriff-Liste : Hinweis
+                    anchors.centerIn: parent
+                    width: parent.width - 40
+                    visible: r.type === "hint"
+                    text: win.trad("Drag folders here to pin them")
+                    opacity: 0.7
+                    wrapMode: Text.Wrap
+                    horizontalAlignment: Text.AlignHCenter
+                }
+                MouseArea {
+                    id: rowMouse
+                    anchors.fill: parent
+                    z: -1
+                    hoverEnabled: true
+                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    onPressed: {
+                        if (row.selKey !== "")
+                            win.sideSelKey = row.selKey
+                        win.navZone = "sidebar"
+                        keyHandler.forceActiveFocus()
+                    }
+                    onClicked: function(mouse) {
+                        if (row.isHead && mouse.button === Qt.RightButton && r.key === "pc") {
+                            nameMenuL.openMenu()
+                        } else if (row.isHead) {
+                            if (r.key === "quick") win.quickCollapsed = !win.quickCollapsed
+                            else win.pcCollapsed = !win.pcCollapsed
+                        } else if (mouse.button === Qt.RightButton && r.path) {
+                            rowMenuL.openMenu({"t": r})
+                        } else if (row.isNode) {
+                            win.toggleNode(r.path)   // Klick klappt auf/zu
+                        } else if (row.isPinRow) {
+                            backend.openFolder(r.path)
+                        }
+                    }
+                    onDoubleClicked: function(mouse) {
+                        if (row.isNode && mouse.button === Qt.LeftButton)
+                            backend.openFolder(r.path)   // Doppelklick öffnet in Dolphin
+                    }
+                }
+                QQC2.ToolTip.visible: rowHover.hovered && (!!r.path || (isHead && r.key === "pc"))
+                QQC2.ToolTip.delay: 700
+                QQC2.ToolTip.text: (isHead && r.key === "pc") ? win.trad("Customize the application name (e.g. This PC, CyberDeck)")
+                                 : ((isPinRow && r.exists === false) ? win.trad("Folder not found") : (r.path || ""))
+            }
+        }
+    }
+
+    // Inspector : schwebendes Glas-Panel rechts. Ohne Auswahl Systemübersicht mit Live-Telemetrie, sonst Details zum gewählten Element
+    Item {
+        id: inspector
+        visible: win.inspectorShown
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        width: visible ? win.inspectorW : 0
+        Kirigami.Theme.colorSet: Kirigami.Theme.View
+        Kirigami.Theme.inherit: false
+        Rectangle {
+            id: inspPanel
+            anchors.fill: parent
+            anchors.leftMargin: 4
+            anchors.rightMargin: 8
+            anchors.topMargin: 8
+            anchors.bottomMargin: 8
+            radius: 14
+            color: win.darkTheme ? Qt.rgba(1, 1, 1, 0.035) : Qt.rgba(0, 0, 0, 0.03)
+            border.width: 1
+            border.color: win.darkTheme ? Qt.rgba(1, 1, 1, 0.09) : Qt.rgba(0, 0, 0, 0.13)
+            SpecEdge { r: 14 }
+            // Kopfleiste des Panels : Fensterknöpfe oben rechts ; ziehen verschiebt das Fenster, Doppelklick maximiert
+            Item {
+                id: inspHead
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                height: 36
+                DragHandler {
+                    target: null
+                    acceptedButtons: Qt.LeftButton
+                    onActiveChanged: if (active) win.startSystemMove()
+                }
+                TapHandler {
+                    acceptedButtons: Qt.LeftButton
+                    onDoubleTapped: win.toggleMax()
+                }
+                Item {
+                    id: inspWinSlot
+                    anchors.right: parent.right
+                    anchors.rightMargin: 14
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: winBtnRow.implicitWidth
+                    height: winBtnRow.implicitHeight
+                }
+            }
+            QQC2.ScrollView {
+                id: inspScroll
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: inspHead.bottom
+                anchors.bottom: parent.bottom
+                anchors.leftMargin: 10
+                anchors.rightMargin: 10
+                anchors.bottomMargin: 10
+                contentWidth: availableWidth
+                clip: true
+                ColumnLayout {
+                    width: inspScroll.availableWidth
+                    spacing: 10
+                    readonly property var it: win.inspectorItem
+
+                    // ---- Systemübersicht (nichts gewählt)
+                    GlassCard {
+                        visible: parent.it === null
+                        implicitHeight: heroCol.implicitHeight + 24
+                        gradient: Gradient {
+                            orientation: Gradient.Horizontal
+                            GradientStop { position: 0.0; color: Qt.rgba(0.0, 0.78, 0.86, win.darkTheme ? 0.20 : 0.14) }
+                            GradientStop { position: 1.0; color: Qt.rgba(0.22, 0.46, 1.0, win.darkTheme ? 0.12 : 0.08) }
+                        }
+                        Accessible.role: Accessible.StaticText
+                        Accessible.name: win.trad("System overview")
+                        ColumnLayout {
+                            id: heroCol
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.margins: 12
+                            spacing: 8
+                            readonly property var si: (backend && backend.sysInfo) ? backend.sysInfo : ({})
+                            RowLayout {
+                                spacing: 10
+                                DistroLogo {
+                                    logo: heroCol.si.logoFile ? ("file://" + heroCol.si.logoFile) : (heroCol.si.logoName || "")
+                                    Layout.alignment: Qt.AlignVCenter
+                                }
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 2
+                                    QQC2.Label {
+                                        Layout.fillWidth: true
+                                        text: heroCol.si.host || ""
+                                        font.weight: Font.DemiBold
+                                        font.pointSize: Kirigami.Theme.defaultFont.pointSize * 1.1
+                                        elide: Text.ElideRight
+                                    }
+                                    QQC2.Label {
+                                        Layout.fillWidth: true
+                                        text: (heroCol.si.os || "") + (heroCol.si.osVersion ? " " + heroCol.si.osVersion : "")
+                                        font: win.infoFont
+                                        opacity: 0.7
+                                        elide: Text.ElideRight
+                                    }
+                                }
+                                // Update-Status (checkupdates) : grün « Aktuell » oder dezent bernstein « 3 Updates »
+                                Rectangle {
+                                    readonly property var u: (backend && backend.pkgUpdates) ? backend.pkgUpdates : ({})
+                                    readonly property bool neu: u.state === "updates"
+                                    readonly property color tone: neu ? "#ff9f0a" : (win.darkTheme ? "#30d158" : "#1f9d45")
+                                    visible: u.state === "ok" || neu
+                                    Layout.alignment: Qt.AlignTop
+                                    implicitHeight: updText.implicitHeight + 4
+                                    implicitWidth: updText.implicitWidth + 14
+                                    radius: height / 2
+                                    color: Qt.rgba(tone.r, tone.g, tone.b, 0.16)
+                                    border.width: 1
+                                    border.color: Qt.rgba(tone.r, tone.g, tone.b, 0.5)
+                                    Accessible.role: Accessible.StaticText
+                                    Accessible.name: updText.text
+                                    QQC2.Label {
+                                        id: updText
+                                        anchors.centerIn: parent
+                                        text: !parent.neu ? win.trad("Up to date")
+                                              : (parent.u.count === 1 ? win.trad("1 update") : win.trad("{n} updates").replace("{n}", parent.u.count))
+                                        font.pointSize: Kirigami.Theme.defaultFont.pointSize * 0.85
+                                        font.weight: Font.DemiBold
+                                        font.features: { "tnum": 1 }
+                                        color: parent.neu ? (win.darkTheme ? "#ffb340" : "#a35a00") : (win.darkTheme ? "#30d158" : "#16753a")
+                                    }
+                                }
+                            }
+                            Repeater {
+                                model: win.sysRows
+                                delegate: RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 8
+                                    QQC2.Label { text: modelData.k; font: win.badgeFont; opacity: 0.65 }
+                                    Item { Layout.fillWidth: true }
+                                    QQC2.Label { text: modelData.v; font: win.monoBadgeFont; elide: Text.ElideLeft; Layout.maximumWidth: inspScroll.availableWidth * 0.6 }
+                                }
+                            }
+                        }
+                    }
+                    Repeater {
+                        model: parent.it === null ? 4 : 0
+                        delegate: LiveCard { idx: index }
+                    }
+
+                    // ---- Details zum gewählten Element
+                    GlassCard {
+                        visible: parent.it !== null
+                        implicitHeight: detHead.implicitHeight + 24
+                        RowLayout {
+                            id: detHead
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.margins: 12
+                            spacing: 12
+                            readonly property var it: win.inspectorItem
+                            Kirigami.Icon {
+                                source: detHead.it ? (detHead.it.d.icon || "folder") : ""
+                                Layout.preferredWidth: 56
+                                Layout.preferredHeight: 56
+                            }
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 6
+                                QQC2.Label {
+                                    Layout.fillWidth: true
+                                    text: detHead.it ? (detHead.it.d.label || "") : ""
+                                    font.weight: Font.DemiBold
+                                    font.pointSize: Kirigami.Theme.defaultFont.pointSize * 1.1
+                                    wrapMode: Text.Wrap
+                                    maximumLineCount: 2
+                                    elide: Text.ElideRight
+                                }
+                                Rectangle {
+                                    visible: statText.text !== ""
+                                    implicitHeight: statText.implicitHeight + 4
+                                    implicitWidth: Math.min(statText.implicitWidth + 16, inspScroll.availableWidth - 100)
+                                    radius: height / 2
+                                    color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.18)
+                                    border.width: 1
+                                    border.color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.45)
+                                    QQC2.Label {
+                                        id: statText
+                                        anchors.centerIn: parent
+                                        width: Math.min(implicitWidth, parent.width - 12)
+                                        text: win.inspStatus(detHead.it)
+                                        font: win.badgeFont
+                                        elide: Text.ElideRight
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    GlassCard {
+                        visible: parent.it !== null && kvRep.count > 0
+                        implicitHeight: kvCol.implicitHeight + 24
+                        ColumnLayout {
+                            id: kvCol
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.margins: 12
+                            spacing: 6
+                            QQC2.Label {
+                                text: win.trad("Details").toUpperCase()
+                                font.weight: Font.DemiBold
+                                font.pointSize: Kirigami.Theme.defaultFont.pointSize * 0.85
+                                font.letterSpacing: 0.6
+                                opacity: 0.6
+                            }
+                            Repeater {
+                                id: kvRep
+                                model: win.inspRows(win.inspectorItem)
+                                delegate: RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 8
+                                    QQC2.Label { text: modelData.k; font: win.badgeFont; opacity: 0.65 }
+                                    Item { Layout.fillWidth: true }
+                                    QQC2.Label {
+                                        id: kvVal
+                                        text: modelData.v
+                                        font: modelData.m ? win.monoBadgeFont : win.badgeFont
+                                        elide: Text.ElideMiddle
+                                        horizontalAlignment: Text.AlignRight
+                                        Layout.maximumWidth: inspScroll.availableWidth * 0.62
+                                        HoverHandler { id: kvHover }
+                                        QQC2.ToolTip.visible: kvHover.hovered && kvVal.truncated
+                                        QQC2.ToolTip.delay: 400
+                                        QQC2.ToolTip.text: modelData.v
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    GlassCard {
+                        readonly property var inks: (parent.it !== null && parent.it.kind === "printer") ? (parent.it.d.inks || []) : []
+                        visible: inks.length > 0
+                        implicitHeight: inkCol.implicitHeight + 24
+                        ColumnLayout {
+                            id: inkCol
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.margins: 12
+                            spacing: 8
+                            QQC2.Label {
+                                text: win.trad("Ink levels").toUpperCase()
+                                font.weight: Font.DemiBold
+                                font.pointSize: Kirigami.Theme.defaultFont.pointSize * 0.85
+                                font.letterSpacing: 0.6
+                                opacity: 0.6
+                            }
+                            Repeater {
+                                model: parent.parent.inks
+                                delegate: RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 8
+                                    Accessible.role: Accessible.StaticText
+                                    Accessible.name: modelData.name + " " + modelData.level + " %"
+                                    QQC2.Label { text: modelData.name; font: win.badgeFont; Layout.preferredWidth: inspScroll.availableWidth * 0.38; elide: Text.ElideRight }
+                                    Rectangle {
+                                        Layout.fillWidth: true
+                                        Layout.preferredHeight: 6
+                                        Layout.alignment: Qt.AlignVCenter
+                                        radius: 3
+                                        color: win.darkTheme ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(0, 0, 0, 0.10)
+                                        border.width: modelData.level < 15 ? 1 : 0
+                                        border.color: win.gaugeRed
+                                        Rectangle {
+                                            width: Math.max(height, parent.width * modelData.level / 100)
+                                            height: parent.height
+                                            radius: 3
+                                            visible: modelData.level > 0
+                                            color: Qt.colorEqual(modelData.color, "#000000")
+                                                   ? Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.85)
+                                                   : modelData.color
+                                        }
+                                    }
+                                    QQC2.Label {
+                                        text: modelData.level + " %"
+                                        font: win.monoBadgeFont
+                                        color: modelData.level < 15 ? win.gaugeRed : Kirigami.Theme.textColor
+                                        horizontalAlignment: Text.AlignRight
+                                        Layout.preferredWidth: 44
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Flow {
+                        visible: parent.it !== null
+                        Layout.fillWidth: true
+                        spacing: 6
+                        Repeater {
+                            model: win.inspActions(win.inspectorItem)
+                            delegate: QQC2.Button {
+                                text: modelData.t
+                                icon.name: modelData.i
+                                focusPolicy: Qt.NoFocus   // die Pfeiltasten bleiben bei der Tastatursteuerung des Hauptbereichs
+                                onClicked: win.inspRun(modelData.a, win.inspectorItem)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Fensterknöpfe : sitzen oben rechts im Inspector, ohne Inspector rechts in der Titelleiste der Mittelspalte
+    RowLayout {
+        id: winBtnRow
+        parent: win.inspectorShown ? inspWinSlot : titleWinSlot
+        anchors.right: parent ? parent.right : undefined
+        anchors.verticalCenter: parent ? parent.verticalCenter : undefined
+        spacing: Kirigami.Units.largeSpacing
+        WinBtn {
+            id: winMinBtn
+            nextBtn: winMaxBtn
+            tone: "#febc2e"
+            glyph: "min"
+            onClicked: win.showMinimized()
+        }
+        WinBtn {
+            id: winMaxBtn
+            prevBtn: winMinBtn
+            nextBtn: winCloseBtn
+            tone: "#28c840"
+            glyph: win.visibility === 4 ? "restore" : "max"
+            onClicked: win.toggleMax()
+        }
+        WinBtn {
+            id: winCloseBtn
+            prevBtn: winMaxBtn
+            tone: "#ff5f57"
+            glyph: "close"
+            onClicked: win.close()
         }
     }
 

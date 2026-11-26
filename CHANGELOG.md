@@ -12,12 +12,15 @@ hidden and everything else works).
 
 ## Unreleased
 
+### Fixed
+- **Folders open in your default file manager.** DriveDeck always started Dolphin, even when another file manager was set as the default for folders. It now reads the default for `inode/directory` from the XDG `mimeapps.list` files and starts that program for local folders; the menu entry says "Open with File Explorer" (or whichever program is set). Network addresses (smb://, sftp://) still go through Dolphin or `xdg-open`, which handle the login. Without any default, Dolphin is used as before, then `xdg-open`.
+
 ### Added
-- **Live filter (`Ctrl+F`)** at the right end of the ribbon (from 1280 px): a rounded glass field that filters folders, drives, network locations, printers and devices by name or type (e.g. "usb", "ext4", "scanner"). Section counts, the item count in the sidebar card and arrow-key navigation follow the filter; `Esc` clears it, `Enter` returns to the cards.
-- **Inspector toggle (`Ctrl+I`)** next to the filter: hides or shows the right inspector on wide windows.
+- **Inspector toggle (`Ctrl+I`)** at the right of the title bar (wide windows): hides or shows the right inspector.
 
 ### Changed
-- **Balanced ribbon with the inspector visible:** the four groups are centred between the left edge and the new filter/toggle area, and "System center" is only as wide as its three buttons, so its title sits centred below them. The sidebar keeps its width (it no longer follows the first separator when the groups move).
+- **Full-height side panels (macOS-style):** the sidebar and the inspector run from the top to the bottom edge of the window; the title, the ribbon and the main area form the middle column between them, on one continuous glass surface with a hairline under the ribbon. The sidebar header card carries the app icon and moves the window when dragged (double-click maximizes); the inspector has a small header with the window buttons. Without the inspector (Ctrl+I or below 1280 px) the window buttons sit at the right of the title bar, and a compact CPU/RAM/network line appears at its left whenever neither the inspector nor the ribbon shows telemetry.
+- **Centred ribbon:** with the inspector visible, the four groups are centred in the middle column; "System center" is only as wide as its three buttons. The sidebar now has a fixed width (330 px at the default font size).
 
 - **More system details in the inspector header:** CPU and GPU model with live temperature (CPU from `k10temp`/`zenpower`/`coretemp`, GPU from `amdgpu`/`nouveau`/Intel sensors or `nvidia-smi`), the active CPU scheduler (`sched_ext` name such as `scx_bpfland`, otherwise EEVDF/CFS), the local IPv4 address with the session type (Wayland/X11), and a package update pill ("Up to date" in green or "3 updates" in amber) from `checkupdates`, checked 10 s after start and every 2 hours in the background. Every value is optional: without NVIDIA, `sched_ext`, a sensor or `checkupdates` the line or pill is simply missing.
 

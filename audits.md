@@ -269,6 +269,30 @@ Two passes, the second one (design review with the *qt-ui-engineering* skill and
 
 ---
 
+## 5j. Full-height side panels (after 2.0.0)
+
+| Item | Status | Notes |
+|------|--------|-------|
+| Layout | ✅ | The root `ColumnLayout` (title, ribbon, content) now has left/right margins `leftColW`/`rightColW`; sidebar and inspector moved out of the content area to window level and run top to bottom. One window background (`radius: win.cornerR`, View colours) replaces the separate title, ribbon and content fills, so there is no double alpha in the middle. |
+| Window buttons | ✅ | One `winBtnRow` whose `parent` switches between the inspector header and the title bar; ids and the Tab cycle (main → sidebar → buttons → main) unchanged and re-tested. |
+| Window move | ✅ | Drag/double-click on the title bar as before, plus on the sidebar header card and the inspector header. |
+| Filter removed | ✅ | Filter field, `Ctrl+F` and the filter logic are gone; the main area lists (`fFolders` … `fPrinters`) are plain lists again. |
+| Telemetry never disappears | ✅ | Without the inspector and without room for the ribbon telemetry, a compact mono line (CPU, RAM, network) with a system tooltip sits at the left of the title bar. |
+| Trade-off | ➖ | The middle column is narrower than the old full-width ribbon: at 1600 px with both panels the ribbon scrolls (it fits from roughly 2300 px). The sidebar width is fixed (330 px × font growth) instead of following the first ribbon separator. |
+
+**Checks:** `pyright` 0 errors, `qmllint` clean, scripted layout test at 1600 px (inspector on and off via Ctrl+I) and 1024 px, Tab cycle test, 60 s stress test with 0 messages and no crash.
+
+---
+
+## 5k. Default file manager (after 2.0.0)
+
+| Item | Status | Notes |
+|------|--------|-------|
+| Hard-coded Dolphin | ✅ | Reported by the user: "Open with Dolphin" ignored the default file manager (here a custom "File Explorer"). `standard_dateimanager()` reads `inode/directory` from the XDG `mimeapps.list` chain (desktop-specific and general files, config before data dirs, Flatpak exports included) without starting a process; `exec_argumente()` turns the `Exec` line into arguments (`%u/%U/%f/%F` → path, other field codes dropped). Local folders open with that program; network URLs keep the Dolphin/`xdg-open` path. Menu label and icon come from the `.desktop` file. Checked: user's config → "File Explorer" with `/home/…/file-explorer %U`; without user config → system default Dolphin. |
+| Not changed | ➖ | "Open in terminal" still prefers Konsole, then `xdg-terminal-exec` / `x-terminal-emulator`. |
+
+---
+
 ## 6. Not verified
 
 These need a real desktop session and were **not** covered by the offscreen tests:
