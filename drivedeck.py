@@ -142,6 +142,9 @@ EXTRA_DE = {
     "System & Drivers": "System & Treiber",
     "Network": "Netzwerk",
     "Storage": "Speicher",
+    "Up to date": "Aktuell",
+    "1 update": "1 Update",
+    "{n} updates": "{n} Updates",
     "Flatbed": "Flachbett",
     "ADF duplex": "ADF beidseitig",
     "Sheet feeder": "Einzug",
@@ -1575,6 +1578,138 @@ def _logo_datei(namen):
                 if os.path.isfile(f):
                     return f
     return ""
+
+
+# ---- Kopfkachel des Inspectors : CPU/GPU mit Temperatur, Scheduler, IP, Sitzung. Alles nur Dateien bzw. kurze Aufrufe,
+# jede Abfrage einzeln abgesichert : ohne NVIDIA, ohne sched_ext oder ohne Sensor fehlt der Wert einfach.
+def cpu_kurzname():
+    """« AMD Ryzen 9 5900X 12-Core Processor » -> « Ryzen 9 5900X », « 12th Gen Intel(R) Core(TM) i7-12700K » -> « Core i7-12700K »."""
+    try:
+        for zeile in (_lire_texte("/proc/cpuinfo") or "").splitlines():
+            if zeile.startswith("model name"):
+                n = zeile.split(":", 1)[1]
+                n = re.sub(r"\((R|TM|tm|r)\)", "", n)
+                n = re.sub(r"\s+(CPU\s+)?@.*$", "", n)
+                n = re.sub(r"\s+\d+-Core Processor\s*$", "", n)
+                n = re.sub(r"\s+(Processor|CPU)\s*$", "", n)
+                n = re.sub(r"^\s*\d+(st|nd|rd|th) Gen\s+", "", n)
+                n = re.sub(r"^\s*(AMD|Intel)\s+", "", n)
+                return re.sub(r"\s+", " ", n).strip()
+    except (OSError, IndexError):
+        pass
+    return ""
+
+
+def _gpu_kuerzen(n):
+    n = n.split("[", 1)[1].split("]", 1)[0] if "[" in n and "]" in n else n
+    for weg in ("NVIDIA ", "GeForce ", "Advanced Micro Devices, Inc. ", "AMD/ATI ", "AMD ", "Intel Corporation ", "Intel "):
+        n = n.replace(weg, "")
+    return re.sub(r"\s+", " ", n).strip()
+
+
+def gpu_kurzname():
+    """Name der (dedizierten) Grafikkarte, gekürzt : « RTX 4080 SUPER ». NVIDIA über nvidia-smi, sonst lspci ; leer, wenn unbekannt."""
+    try:
+        if shutil.which("nvidia-smi"):
+            out = subprocess.run(["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
+                                 capture_output=True, text=True, timeout=3).stdout.strip().splitlines()
+            if out and out[0].strip():
+                return _gpu_kuerzen(out[0])
+    except (OSError, subprocess.SubprocessError):
+        pass
+    try:
+        if shutil.which("lspci"):
+            out = subprocess.run(["lspci", "-mm"], capture_output=True, text=True, timeout=3).stdout
+            karten = []
+            for zeile in out.splitlines():
+                felder = re.findall(r'"([^"]*)"', zeile)
+                if len(felder) >= 3 and felder[0] in ("VGA compatible controller", "3D controller", "Display controller"):
+                    karten.append((felder[1], felder[2]))
+            karten.sort(key=lambda k: "Intel" in k[0])   # dedizierte Karte vor der integrierten
+            if karten:
+                return _gpu_kuerzen(karten[0][1])
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return ""
+
+
+_HWMON_PFADE: dict[str, str] = {}
+
+
+def _hwmon_pfad(art):
+    """Pfad der passenden temp*_input-Datei (einmal gesucht) : art « cpu » (k10temp Tctl, zenpower, coretemp Package) oder « gpu »
+    (amdgpu edge, nouveau, xe/i915). Leer, wenn es keinen Sensor gibt."""
+    if art in _HWMON_PFADE:
+        return _HWMON_PFADE[art]
+    namen = ("k10temp", "zenpower", "coretemp", "cpu_thermal") if art == "cpu" else ("amdgpu", "nouveau", "xe", "i915", "radeon")
+    gefunden = ""
+    for h in sorted(glob.glob("/sys/class/hwmon/hwmon*")):
+        if (_lire_texte(h + "/name") or "").strip() not in namen:
+            continue
+        eingaben = sorted(glob.glob(h + "/temp*_input"))
+        for e in eingaben:
+            label = (_lire_texte(e.replace("_input", "_label")) or "").strip()
+            if label in ("Tctl", "Tdie", "edge") or label.startswith("Package"):
+                gefunden = e
+                break
+        if not gefunden and eingaben:
+            gefunden = eingaben[0]
+        if gefunden:
+            break
+    _HWMON_PFADE[art] = gefunden
+    return gefunden
+
+
+def _hwmon_wert(art):
+    pfad = _hwmon_pfad(art)
+    if not pfad:
+        return None
+    try:
+        return int((_lire_texte(pfad) or "").strip()) / 1000.0
+    except ValueError:
+        return None
+
+
+def nvidia_temperatur():
+    try:
+        out = subprocess.run(["nvidia-smi", "--query-gpu=temperature.gpu", "--format=csv,noheader,nounits"],
+                             capture_output=True, text=True, timeout=2).stdout.split()
+        return float(out[0]) if out else None
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return None
+
+
+def scheduler_name():
+    """Aktiver CPU-Scheduler : sched_ext-Name (« scx_bpfland ») oder der Standard des Kernels (EEVDF ab 6.6, davor CFS)."""
+    try:
+        if (_lire_texte("/sys/kernel/sched_ext/state") or "").strip() == "enabled":
+            ops = (_lire_texte("/sys/kernel/sched_ext/root/ops") or "").strip()
+            if ops:
+                name = ops.split("_", 1)[0]
+                return name if name.startswith("scx_") else "scx_" + name
+    except (OSError, IndexError):
+        pass
+    try:
+        haupt, neben = (int(x) for x in os.uname().release.split(".")[:2])
+        return "EEVDF" if (haupt, neben) >= (6, 6) else "CFS"
+    except ValueError:
+        return "EEVDF"
+
+
+def lokale_ip():
+    """Primäre lokale IPv4-Adresse (die Route ins Netz) ; UDP-« connect » sendet nichts. Leer ohne Netz."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("192.0.2.1", 9))   # TEST-NET-1 : nur zur Wahl der Schnittstelle
+            ip = s.getsockname()[0]
+        return "" if ip.startswith("127.") else ip
+    except OSError:
+        return ""
+
+
+def sitzungstyp():
+    t = os.environ.get("XDG_SESSION_TYPE", "").lower()
+    return {"wayland": "Wayland", "x11": "X11", "tty": "TTY"}.get(t, t.capitalize())
 
 
 def system_info():
@@ -3055,6 +3190,7 @@ class Backend(QObject):
     raiseRequested = pyqtSignal()   # ein zweiter Start soll das vorhandene Fenster nach vorn holen
     pinsUpdated = pyqtSignal(int, list)
     statsChanged = pyqtSignal()
+    updatesChanged = pyqtSignal()
     statsUpdated = pyqtSignal(dict)
     specsReady = pyqtSignal(list)
     reportReady = pyqtSignal("QVariantMap")   # nicht « dict » : das käme in QML als undurchsichtiges Python-Objekt an
@@ -3126,9 +3262,19 @@ class Backend(QObject):
             try:
                 self._sysInfo = dict(self._sysInfo, **system_info_spaeter())
                 self.sysInfoChanged.emit()
+                hw = {"cpuName": "", "gpuName": "", "session": ""}
+                for schluessel, funktion in (("cpuName", cpu_kurzname), ("gpuName", gpu_kurzname), ("session", sitzungstyp)):
+                    try:
+                        hw[schluessel] = funktion()
+                    except Exception as e:   # ein exotisches System darf nur diesen Wert kosten
+                        print("[drivedeck] %s :" % schluessel, e)
+                self._sysInfo = dict(self._sysInfo, **hw)
+                self.sysInfoChanged.emit()
             except Exception as e:
                 print("[drivedeck] Systeminfo :", e)
         threading.Thread(target=nachladen, daemon=True).start()
+        self._updates = {}
+        self._starten(self._updateLoop)
         self._trash = {"count": 0, "bytes": 0, "complete": True}
         self._trashWake = threading.Event()
         self._starten(self._trashLoop)
@@ -3295,11 +3441,32 @@ class Backend(QObject):
         # Einmal pro Sekunde : /proc/stat, /proc/meminfo, /proc/net/dev (drei kleine Dateien, kein Prozessstart).
         # CPU und Netz sind Zähler : die Rate ist die Differenz zweier Messungen geteilt durch die Zeit dazwischen.
         vor = None
+        # Zusatzwerte der Inspector-Kopfkachel : Sensoren jede Sekunde (eine kleine Datei), Scheduler alle 5 s, nvidia-smi alle 15 s, IP alle 30 s
+        takt, extra = 0, {"cpuTemp": None, "gpuTemp": None, "sched": "", "ip": ""}
+        nvidia = shutil.which("nvidia-smi") is not None
         while not _ENDE.is_set():
             if self._bereit():
                 vor = None   # nach der Pause nicht über die Lücke mitteln
                 if _ENDE.is_set():
                     break
+            try:
+                # auf ganze Grad gerundet : der Wert (und damit die Oberfläche) ändert sich nur, wenn man es auch sieht
+                c = _hwmon_wert("cpu")
+                extra["cpuTemp"] = None if c is None else round(c)
+                gpu = _hwmon_wert("gpu")
+                if gpu is not None:
+                    extra["gpuTemp"] = round(gpu)
+                elif nvidia and takt % 15 == 0:   # nvidia-smi ist ein Prozessstart : nur alle 15 s
+                    g = nvidia_temperatur()
+                    extra["gpuTemp"] = None if g is None else round(g)
+                if takt % 5 == 0:
+                    extra["sched"] = scheduler_name()
+                if takt % 30 == 0:
+                    extra["ip"] = lokale_ip()
+            except Exception as e:   # Zusatzwerte dürfen die Telemetrie nie anhalten
+                if not _ENDE.is_set():
+                    print("[drivedeck] Systemwerte :", e)
+            takt += 1
             try:
                 t = time.monotonic()
                 cpu, netz, (ram_gesamt, ram_frei) = lire_cpu(), lire_netz(), lire_ram()
@@ -3311,11 +3478,34 @@ class Backend(QObject):
                         "cpu": max(0, min(100, round(100 * (1 - d_idle / d_ges)))) if d_ges > 0 else 0,   # d_ges <= 0 : Standby/Zählersprung
                         "ramUsed": ram_gesamt - ram_frei, "ramTotal": ram_gesamt,
                         "down": max(netz[0] - vor[2][0], 0) / dt, "up": max(netz[1] - vor[2][1], 0) / dt,
-                        "diskUsed": belegt, "diskTotal": gesamt, "uptime": laufzeit()})
+                        "diskUsed": belegt, "diskTotal": gesamt, "uptime": laufzeit(), **extra})
                 vor = (t, cpu, netz)
             except (OSError, ValueError, IndexError, KeyError):
                 vor = None
             _ENDE.wait(1)
+
+    def _updateLoop(self):
+        # Paket-Updates : 10 s nach dem Start, danach alle 2 Stunden ; nur mit « checkupdates » (pacman-contrib), sonst nichts
+        if _ENDE.wait(10) or not shutil.which("checkupdates"):
+            return
+        while not _ENDE.is_set():
+            try:
+                r = subprocess.run(["checkupdates"], capture_output=True, text=True, timeout=180)
+                if r.returncode in (0, 2):   # 0 : Liste der Updates, 2 : keine
+                    n = len([z for z in r.stdout.splitlines() if z.strip()]) if r.returncode == 0 else 0
+                    neu = {"state": "updates" if n else "ok", "count": n}
+                    if neu != self._updates:
+                        self._updates = neu
+                        self.updatesChanged.emit()
+            except (OSError, subprocess.SubprocessError) as e:
+                if not _ENDE.is_set():
+                    print("[drivedeck] checkupdates :", e)
+            _ENDE.wait(7200)
+
+    @pyqtProperty("QVariantMap", notify=updatesChanged)
+    def pkgUpdates(self):
+        """{state: "ok" | "updates", count} nach der ersten Prüfung ; leer, solange keine Antwort da ist."""
+        return self._updates
 
     def _trashLoop(self):
         # papierkorbGroesse : alle 60 s (und nach dem Öffnen) im Hintergrund ; nur lstat, mit Zeitgrenze
@@ -5326,8 +5516,15 @@ QQC2.ApplicationWindow {
         var si = (backend && backend.sysInfo) ? backend.sysInfo : ({})
         var st = (backend && backend.sysStats) ? backend.sysStats : ({})
         var r = []
+        if (si.cpuName || st.cpuTemp != null)
+            r.push({ k: "CPU", v: (si.cpuName || "") + (st.cpuTemp != null ? (si.cpuName ? " \u00B7 " : "") + Math.round(st.cpuTemp) + " \u00B0C" : "") })
+        if (si.gpuName || st.gpuTemp != null)
+            r.push({ k: "GPU", v: (si.gpuName || "") + (st.gpuTemp != null ? (si.gpuName ? " \u00B7 " : "") + Math.round(st.gpuTemp) + " \u00B0C" : "") })
         if (si.kernel) r.push({ k: "Kernel", v: si.kernel })
         if (si.plasma) r.push({ k: "Plasma", v: si.plasma })
+        if (st.sched) r.push({ k: "Scheduler", v: st.sched })
+        if (st.ip || si.session)
+            r.push({ k: trad("Network"), v: (st.ip || "") + (st.ip && si.session ? " \u00B7 " : "") + (si.session || "") })
         r.push({ k: trad("Uptime"), v: uptimeText(st.uptime || 0) })
         if (si.installed > 0) {
             var tage = Math.floor((Date.now() / 1000 - si.installed) / 86400)
@@ -8072,6 +8269,32 @@ QQC2.ApplicationWindow {
                                                 font: win.infoFont
                                                 opacity: 0.7
                                                 elide: Text.ElideRight
+                                            }
+                                        }
+                                        // Update-Status (checkupdates) : grün « Aktuell » oder dezent bernstein « 3 Updates »
+                                        Rectangle {
+                                            readonly property var u: (backend && backend.pkgUpdates) ? backend.pkgUpdates : ({})
+                                            readonly property bool neu: u.state === "updates"
+                                            readonly property color tone: neu ? "#ff9f0a" : (win.darkTheme ? "#30d158" : "#1f9d45")
+                                            visible: u.state === "ok" || neu
+                                            Layout.alignment: Qt.AlignTop
+                                            implicitHeight: updText.implicitHeight + 4
+                                            implicitWidth: updText.implicitWidth + 14
+                                            radius: height / 2
+                                            color: Qt.rgba(tone.r, tone.g, tone.b, 0.16)
+                                            border.width: 1
+                                            border.color: Qt.rgba(tone.r, tone.g, tone.b, 0.5)
+                                            Accessible.role: Accessible.StaticText
+                                            Accessible.name: updText.text
+                                            QQC2.Label {
+                                                id: updText
+                                                anchors.centerIn: parent
+                                                text: !parent.neu ? win.trad("Up to date")
+                                                      : (parent.u.count === 1 ? win.trad("1 update") : win.trad("{n} updates").replace("{n}", parent.u.count))
+                                                font.pointSize: Kirigami.Theme.defaultFont.pointSize * 0.85
+                                                font.weight: Font.DemiBold
+                                                font.features: { "tnum": 1 }
+                                                color: parent.neu ? (win.darkTheme ? "#ffb340" : "#a35a00") : (win.darkTheme ? "#30d158" : "#16753a")
                                             }
                                         }
                                     }

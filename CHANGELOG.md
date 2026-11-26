@@ -10,6 +10,13 @@ hidden and everything else works).
 
 ---
 
+## Unreleased
+
+### Added
+- **More system details in the inspector header:** CPU and GPU model with live temperature (CPU from `k10temp`/`zenpower`/`coretemp`, GPU from `amdgpu`/`nouveau`/Intel sensors or `nvidia-smi`), the active CPU scheduler (`sched_ext` name such as `scx_bpfland`, otherwise EEVDF/CFS), the local IPv4 address with the session type (Wayland/X11), and a package update pill ("Up to date" in green or "3 updates" in amber) from `checkupdates`, checked 10 s after start and every 2 hours in the background. Every value is optional: without NVIDIA, `sched_ext`, a sensor or `checkupdates` the line or pill is simply missing.
+
+---
+
 ## 2.0.0 – 2026-11-26
 
 First stable release of DriveDeck. On top of rc5 it adds a calmer "liquid glass" look and closes the last open accessibility gap.

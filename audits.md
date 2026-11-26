@@ -241,6 +241,21 @@ Two passes, the second one (design review with the *qt-ui-engineering* skill and
 
 ---
 
+## 5h. System details in the inspector header (after 2.0.0)
+
+| Item | Status | Notes |
+|------|--------|-------|
+| CPU/GPU names | ✅ | Read once in the background thread that also reads the Plasma version: `/proc/cpuinfo` (shortened to e.g. "Ryzen 9 5900X"), GPU via `nvidia-smi` or `lspci -mm` (dedicated card first, shortened to e.g. "RTX 4080 SUPER"). |
+| Temperatures | ✅ | CPU sensor path found once in `/sys/class/hwmon` (Tctl/Tdie/Package label preferred) and read every second in the existing stats loop; GPU from an `amdgpu`/`nouveau`/Intel hwmon sensor, otherwise `nvidia-smi` every 15 s. Rounded to whole degrees so the UI only updates when the shown value changes. |
+| Scheduler, IP, session | ✅ | `/sys/kernel/sched_ext/state` + `root/ops` every 5 s ("bpfland_1.1.4_…" → `scx_bpfland`), otherwise EEVDF (kernel ≥ 6.6) or CFS; IPv4 via a UDP socket "connect" to TEST-NET (sends nothing) every 30 s; `XDG_SESSION_TYPE` once. |
+| Updates | ✅ | Own background thread: 10 s after start, then every 2 h; `checkupdates` exit code 0 = list, 2 = none, anything else ignored; skipped silently if the tool is missing. |
+| Robustness | ✅ | Each read is wrapped; an error only drops that value and never stops the telemetry loop. |
+| Idle CPU | ✅ | Offscreen, 60 s after the first update check, compared with the previous commit: DriveDeck itself 1.33 % → 1.60 %, helper processes 0.31 % → 0.37 %. A first version (unrounded temperatures, `nvidia-smi` every 5 s) cost 1.78 % + 0.62 % and was tuned down. |
+
+**Checks:** `pyright` 0 errors, `qmllint` clean, 60 s and 45 s stress tests with 0 messages and no crash, real-data screenshot of the header card (Ryzen 9 5900X · 43 °C, RTX 4080 SUPER · 42 °C, scx_bpfland, IP · Wayland, "3 Updates").
+
+---
+
 ## 6. Not verified
 
 These need a real desktop session and were **not** covered by the offscreen tests:
