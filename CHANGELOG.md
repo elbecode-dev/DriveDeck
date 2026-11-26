@@ -10,6 +10,28 @@ hidden and everything else works).
 
 ---
 
+## 2.0.0 – 2026-11-26
+
+First stable release of DriveDeck. On top of rc5 it adds a calmer "liquid glass" look and closes the last open accessibility gap.
+
+### Added
+- **Specular hover.** Folders, drives, network locations and printers float freely on the background. Only on hover or keyboard selection a faint glass surface fades in (150 ms), with a hairline light edge along the top only.
+- **Mount status dot.** Drives show a small green dot when mounted and a muted grey one when not; the details of unmounted drives are slightly dimmed.
+- **Ink level pills.** Four vertical glass pills (8 × 40 px) with a dark track; below 15 % the outline turns red and pulses softly (only while the window is visible). The tooltip lists every colour with its exact percentage; printers that report no individual levels show a dash with an explanatory tooltip.
+- **Screen-reader support.** Drive, network and printer cards, folder cards, temperature chips, the live chips, the ink bars and the ribbon buttons carry roles and localized names (name, free space, temperature, status), so Orca can read them.
+
+### Changed
+- **Floating glass sidebar.** The sidebar is now a rounded glass panel (14 px) that floats with a margin to the window edge instead of a hard divider, with a hairline glass outline and a very faint cursor spotlight (paused while the window is minimized). The status bar at the bottom is gone; the item count lives in the new header card at the top of the sidebar (icon, name with version pill, "This PC · 17 items").
+- **New preview.** `preview.png` shows the 2.0.0 interface.
+- **Sidebar entries.** Section headings are quiet capitals with a chevron and no big icons; hover and selection pills have a hairline light edge; pin icons rest at 18 % and fade in on row hover. Drives show a slim 3 px capacity bar with their size in the measurement font and an eject button on hover for removable media; unmounted drives are listed dimmed (48 %) and cannot be opened or pinned.
+- **Typography.** If installed, DriveDeck uses **Inter** for the interface and **JetBrains Mono** for live measurements (both OFL, nothing is bundled; otherwise the system font is used). Window title and section headers are DemiBold with fine tracking, card titles DemiBold, details regular in the system size. Inter is set a touch tighter (−0.12 px) and without hinting for smooth, macOS-like outlines. Temperatures, I/O rates, live CPU/RAM/storage/network values and uptime/kernel info use JetBrains Mono with tabular figures. A free-space text that is cut off on a crowded card now shows its full text as a tooltip.
+- **Slim 4 px usage bars** with a fine track and a soft gradient: cool blue/cyan normally, amber from the warning threshold, coral shortly before full.
+- **Tabular figures** (`tnum`) for temperatures, I/O rates, capacity text and live values, so digits never shift when they update.
+- **Calmer toolbar.** Ribbon icons rest slightly muted and light up on hover; disabled actions stay clearly recognisable (42 %). The ribbon and title bar are more opaque with KWin blur, and the main area is slightly denser (86 % to 93 %), so windows behind it no longer show through small labels.
+- **Sidebar.** Pin icons of pinned entries rest at 22 % and fade in on row hover; the selection pill has rounded corners (6 px) with a soft accent tint, also while the focus is in the main area.
+
+---
+
 ## 2.0.0-rc5 – 2026-11-18 (Release candidate 5)
 
 ### Fixed

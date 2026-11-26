@@ -12,7 +12,7 @@ locations, printers and devices in one clean window, and it follows your Plasma 
 
 <p align="center"><img src="preview.png" alt="DriveDeck main window"></p>
 
-**Version 2.0.0-rc5** – feedback and bug reports are very welcome.
+**Version 2.0.0** – feedback and bug reports are very welcome.
 
 ---
 
@@ -49,6 +49,16 @@ small **live graph** of their read and write speed, and warn you when they are a
 | User names containing a `%` sign could break the network login. | They are now rejected with a clear message. |
 | Opening folders left **invisible leftover processes** running in the background until the program was closed. | They are cleaned up automatically. |
 | If the scanner tool was not installed, the program kept **searching for scanners** for nothing. | It stops when the tool is missing. |
+
+### A calmer look (2.0.0)
+
+- **Floating glass sidebar** with a header card (icon, name, version, item count), quiet section headings and a slim
+  capacity bar plus an eject button for each drive; unmounted drives are listed dimmed.
+- **Cards float freely** and only show a faint glass surface on hover or keyboard selection; slim 4 px usage bars,
+  a green or grey mount dot, and ink level pills on printer cards.
+- **Typography:** Inter for the interface and JetBrains Mono with tabular figures for live values, when installed
+  (see *Optional tools* below).
+- **Screen readers:** cards, chips and buttons have names that Orca can read.
 
 ### It is much faster and smoother
 
@@ -191,6 +201,7 @@ Optional tools switch on extra features:
 | `lspci`, `lscpu`, `nvidia-smi`, `glxinfo`, `vulkaninfo`, `pactl` | Details in *System information* |
 | `dmidecode` + `pkexec` | RAM slots and CPU socket in *System information* |
 | NumPy (`python-numpy`) | Live read/write graph on the drive cards |
+| `inter-font` + `ttf-jetbrains-mono` (Arch/CachyOS), `fonts-inter` + `fonts-jetbrains-mono` (Debian/Ubuntu) | Optimal typography: Inter for the interface, JetBrains Mono for live values (both under the SIL Open Font License; nothing is bundled, without them the system font is used) |
 
 ---
 
