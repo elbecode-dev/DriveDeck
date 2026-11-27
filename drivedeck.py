@@ -104,188 +104,10 @@ except Exception:
     _TRAD = gettext.NullTranslations()
 
 
-# Neue Texte dieses Forks, die in den gettext-Dateien (.mo) nicht vorkommen : deutsche Übersetzung als Rückfall
-EXTRA_DE = {
-    "Activity": "Auslastung",
-    # 2.1.0 : SMART über udisks2, kompakte Symbolleiste
-    "SMART health": "SMART-Zustand", "Good": "Gut", "Warning": "Warnung", "Critical": "Kritisch",
-    "Reading SMART data\u2026": "SMART-Daten werden gelesen\u2026", "Note": "Hinweis", "Wear": "Verschleiß",
-    "Spare": "Reserve", "limit {n} %": "Grenze {n} %", "Power-on time": "Betriebszeit", "Power cycles": "Einschaltvorgänge",
-    "Unsafe shutdowns": "Unsaubere Abschaltungen", "Data written": "Geschrieben", "Data read": "Gelesen",
-    "Media errors": "Medienfehler", "Reallocated sectors": "Neu zugewiesene Sektoren", "Pending sectors": "Schwebende Sektoren",
-    "Uncorrectable sectors": "Nicht korrigierbare Sektoren", "Self-test": "Selbsttest", "Passed": "Bestanden",
-    "Running": "Läuft", "Failed": "Fehlgeschlagen", "The drive reports a critical error": "Das Laufwerk meldet einen kritischen Fehler",
-    "Spare capacity below the limit": "Reserve unter der Grenze", "Temperature warning": "Temperaturwarnung",
-    "Bad sectors": "Defekte Sektoren", "Nearly worn out": "Fast verschlissen", "Self-test failed": "Selbsttest fehlgeschlagen",
-    "No SMART data without an administrator password (e.g. a disk in a USB enclosure). The button below shows the full report.":
-        "Ohne Administratorpasswort keine SMART-Daten (z. B. Platte im USB-Gehäuse). Der Knopf darunter zeigt den vollen Bericht.",
-    "Show and options": "Anzeigen und Optionen", "Media errors reported": "Medienfehler gemeldet",
-    "This drive needs smartctl with the administrator password (e.g. a disk in a USB enclosure).":
-        "Dieses Laufwerk braucht smartctl mit dem Administratorpasswort (z. B. Platte im USB-Gehäuse).",
-    "Read SMART\u2026": "SMART lesen\u2026", "Read with smartctl at {time}": "Mit smartctl gelesen um {time}", "Always use the compact toolbar": "Immer kompakte Symbolleiste",
-    # Tintennamen (tinte_name : per Teilstring aus marker-names, z. B. « Photo Black ink » -> « Photo black »)
-    "Photo black": "Fotoschwarz", "Matte black": "Mattschwarz", "Light cyan": "Hell-Cyan", "Light magenta": "Hell-Magenta",
-    "Light gray": "Hellgrau", "Black": "Schwarz", "Cyan": "Cyan", "Magenta": "Magenta", "Yellow": "Gelb", "Gray": "Grau",
-    "{ink} (toner)": "{ink} (Toner)",
-    "Ctrl+I": "Strg+I",
-    "{free} free": "{free} frei",
-    "Mount": "Einbinden",
-    "Open in terminal": "Im Terminal öffnen",
-    "Copy path": "Pfad kopieren",
-    "Disconnect": "Trennen",
-    "Not mounted": "Nicht eingebunden",
-    "Cannot mount": "Einbinden nicht möglich",
-    "Cannot disconnect": "Trennen nicht möglich",
-    "Cannot open terminal": "Terminal kann nicht geöffnet werden",
-    "No terminal program found": "Kein Terminalprogramm gefunden",
-    "Folder not found": "Ordner nicht gefunden",
-    "Almost full": "Fast voll",
-    "Open settings": "Einstellungen öffnen",
-    "Quick access": "Schnellzugriff",
-    "About DriveDeck": "Über DriveDeck",
-    "A community fork of Fenestra “This PC” by naykkalak: your folders, drives, network locations, printers and devices in one window for KDE Plasma.":
-        "Ein Community-Fork von Fenestra „This PC“ von naykkalak: deine Ordner, Laufwerke, Netzwerkorte, Drucker und Geräte in einem Fenster für KDE Plasma.",
-    "Note: the external USB enclosure or bridge controller does not support SMART pass-through.":
-        "Hinweis: Das externe USB-Gehäuse bzw. der Bridge-Controller unterstützt kein SMART-Passthrough.",
-    "Temperature": "Temperatur",
-    "Temperature:": "Temperatur:",
-    "No subfolders": "Keine Unterordner",
-    "Quick access ({n})": "Schnellzugriff ({n})",
-    "Pin to Quick access": "An Schnellzugriff anheften",
-    "Unpin from Quick access": "Von Schnellzugriff lösen",
-    "Pin a folder…": "Ordner anheften…",
-    "Move up": "Nach oben",
-    "Move down": "Nach unten",
-    "Drag folders here to pin them": "Ordner hierher ziehen, um sie anzuheften",
-    "Tools": "Werkzeuge",
-    "Unmount": "Aushängen",
-    "System specs": "Systemdaten",
-    "Overview": "Übersicht",
-    "CPU & Board": "CPU & Mainboard",
-    "GPU & Display": "Grafik & Anzeige",
-    "System & Drivers": "System & Treiber",
-    "Network": "Netzwerk",
-    "Storage": "Speicher",
-    "Open in {app} terminal": "In {app} öffnen",
-    "Open with {app}": "Mit {app} öffnen",
-    "file manager": "Dateimanager",
-    "Toggle inspector": "Inspektor umschalten",
-    "Filter": "Filtern",
-    "Clear filter": "Filter leeren",
-    "Hide inspector": "Inspector ausblenden",
-    "Show inspector": "Inspector einblenden",
-    "Up to date": "Aktuell",
-    "1 update": "1 Update",
-    "{n} updates": "{n} Updates",
-    "Flatbed": "Flachbett",
-    "ADF duplex": "ADF beidseitig",
-    "Sheet feeder": "Einzug",
-    "Film": "Film",
-    "Storage I/O": "Speicher-I/O",
-    "File system": "Dateisystem",
-    "Mount point": "Einhängepunkt",
-    "Device": "Gerät",
-    "Size": "Größe",
-    "Free": "Frei",
-    "Used": "Belegt",
-    "Read": "Lesen",
-    "Write": "Schreiben",
-    "Health": "Zustand",
-    "Path": "Pfad",
-    "Address": "Adresse",
-    "Status": "Status",
-    "Connection": "Verbindung",
-    "Details": "Details",
-    "Mounted": "Eingehängt",
-    "Connected": "Verbunden",
-    "Folder": "Ordner",
-    "Settings": "Einstellungen",
-    "System overview": "Systemübersicht",
-    "day": "Tag",
-    "1 item": "1 Element",
-    "{n} items": "{n} Elemente",
-    "Eject": "Auswerfen",
-    "days": "Tage",
-    "Ink levels": "Tintenstand",
-    "This printer does not report ink levels": "Dieser Drucker meldet keine Tintenstände",
-    "Minimize": "Minimieren",
-    "Maximize": "Maximieren",
-    "Restore": "Wiederherstellen",
-    "Close": "Schließen",
-    "Export full report…": "Vollständigen Bericht exportieren…",
-    "Text report": "Textbericht",
-    "JSON report": "JSON-Bericht",
-    "Read slot details (administrator)": "Speicherbänke lesen (Administrator)",
-    "needs administrator rights": "braucht Administratorrechte",
-    "needs administrator rights – use the button below": "braucht Administratorrechte – Schaltfläche unten benutzen",
-    "Report saved": "Bericht gespeichert",
-    "Cannot save report": "Bericht lässt sich nicht speichern",
-    "Cannot read hardware details": "Hardware-Details lassen sich nicht lesen",
-    "Copy specs": "Daten kopieren",
-    "Copied to clipboard": "In die Zwischenablage kopiert",
-    "Reading hardware…": "Hardware wird gelesen…",
-    "Processor": "Prozessor",
-    "Graphics": "Grafik",
-    "Mainboard": "Hauptplatine",
-    "Memory": "Arbeitsspeicher",
-    "Sound": "Sound",
-    "{cores} cores / {threads} threads": "{cores} Kerne / {threads} Threads",
-    "{used} in use ({pct} %)": "{used} belegt ({pct} %)",
-    "driver {name}": "Treiber {name}",
-    "Cannot unmount": "Aushängen nicht möglich",
-    "System summary": "Systemübersicht",
-    "Terminal": "Terminal",
-    "System monitor": "Systemmonitor",
-    "Analyze storage": "Speicher analysieren",
-    "Cannot start tool": "Programm lässt sich nicht starten",
-    "Graphics adapter": "Grafikadapter",
-    "Warning threshold…": "Warnschwelle…",
-    "Warning threshold for free space": "Warnschwelle für freien Speicherplatz",
-    "Red gauge and ⚠ symbol from this much free space or less.":
-        "Rote Anzeige und ⚠-Symbol ab diesem Rest-Speicherplatz.",
-    "Trash": "Papierkorb",
-    "Actions & tools": "Aktionen & Werkzeuge",
-    "System center": "System-Zentrale",
-    "Empty": "Leer",
-    "Quick actions": "Schnellaktionen",
-    "SSD optimization": "SSD-Optimierung",
-    "SSD optimization failed": "SSD-Optimierung fehlgeschlagen",
-    "The operation took too long and was stopped.": "Der Vorgang dauerte zu lange und wurde abgebrochen.",
-    "running…": "läuft …",
-    "System info": "Systeminfo",
-    "Installed": "Installiert",
-    "Uptime": "Laufzeit",
-    "Continue?": "Fortfahren?",
-    "Cannot open trash": "Papierkorb lässt sich nicht öffnen",
-    "The fstrim and pkexec programs are required.": "Die Programme fstrim und pkexec werden benötigt.",
-    "DriveDeck runs “fstrim” on all mounted drives that support it. This needs administrator rights and can take a while.":
-        "DriveDeck führt „fstrim“ auf allen eingebundenen Laufwerken aus, die es unterstützen. Das braucht Administratorrechte und kann etwas dauern.",
-    "Scan…": "Scannen …",
-    "Rename…": "Umbenennen …",
-    "Customize the application name (e.g. This PC, CyberDeck)": "Anwendungsnamen anpassen (z. B. Dieser PC, CyberDeck)",
-    "Application name:": "Anwendungsname:",
-    "Change name…": "Name ändern …",
-    "Reset": "Zurücksetzen",
-    "Rename DriveDeck": "DriveDeck umbenennen",
-    "Name shown in the title bar and as the heading of the drive list. Leave empty for the default names.":
-        "Name in der Titelleiste und als Überschrift der Laufwerksliste. Leer lassen für die Standardnamen.",
-    "Reset name": "Namen zurücksetzen",
-    "Copy name": "Namen kopieren",
-    "Set as default printer": "Als Standarddrucker festlegen",
-    "Print test page": "Testseite drucken",
-    "Cannot set default printer": "Standarddrucker lässt sich nicht festlegen",
-    "Cannot print test page": "Testseite lässt sich nicht drucken",
-    "No scanning program was found on this computer. Please install “skanpage” or “simple-scan”.":
-        "Auf diesem Computer wurde kein Scan-Programm gefunden. Bitte installiere „skanpage“ oder „simple-scan“.",
-}
-
-
 def tr(texte: str) -> str:
-    """Texte traduit dans la langue du système ; le texte anglais si la langue n'est pas connue."""
-    t = _TRAD.gettext(texte)
-    if t == texte and LANGUES and LANGUES[0].split("_")[0] == "de":
-        return EXTRA_DE.get(texte, texte)
-    return t
+    """Texte traduit dans la langue du système ; le texte anglais si la langue n'est pas connue.
+    Alle Übersetzungen (auch die neuen Texte des Forks) stehen in locale/<Sprache>/LC_MESSAGES/drivedeck.po."""
+    return _TRAD.gettext(texte)
 
 
 def point_decimal():
@@ -5948,12 +5770,24 @@ QQC2.ApplicationWindow {
         Keys.onEnterPressed: if (qb.usable) qb.activated()
         Keys.onSpacePressed: if (qb.usable) qb.activated()
         Keys.onEscapePressed: win.leaveWinButtons(true)
-        width: Math.max(minW, qbWord.width + 2 * Kirigami.Units.largeSpacing)
+        // Breite : so schmal, dass der Titel genau in zwei Zeilen passt (beste Aufteilung der Wörter), mindestens minW.
+        // Nur das längste Wort zu messen reicht nicht : « Ajouter un emplacement réseau » bräuchte sonst drei Zeilen.
+        width: Math.max(minW, Math.ceil(zweiZeilenW) + 2 * Kirigami.Units.largeSpacing)
         height: win.ribbonBtnH
-        TextMetrics {
-            id: qbWord
+        FontMetrics {
+            id: qbFm
             font: win.badgeFont
-            text: qb.title.split(" ").reduce(function(a, w) { return w.length > a.length ? w : a }, "")
+        }
+        readonly property real zweiZeilenW: {
+            const w = qb.title.split(" ")
+            if (qb.sub !== "" || w.length < 2)   // mit Untertext ist der Titel einzeilig
+                return qbFm.advanceWidth(qb.title)
+            let best = Number.MAX_VALUE
+            for (let k = 1; k < w.length; k++)
+                best = Math.min(best, Math.max(qbFm.advanceWidth(w.slice(0, k).join(" ")), qbFm.advanceWidth(w.slice(k).join(" "))))
+            // kurze Titel (« О программе », « À propos ») bleiben einzeilig, wenn das kaum breiter ist
+            const ganz = qbFm.advanceWidth(qb.title)
+            return ganz <= best * 1.35 ? ganz : best
         }
         readonly property real labelY: Kirigami.Units.largeSpacing + Kirigami.Units.iconSizes.medium + Kirigami.Units.smallSpacing
         Rectangle {   // Hover neutral, weich eingeblendet ; Tastaturfokus als Ring außen

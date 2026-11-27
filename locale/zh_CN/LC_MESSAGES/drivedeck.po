@@ -4,14 +4,50 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Language: zh_CN\n"
 
+msgid "1 item"
+msgstr "1 个项目"
+
+msgid "1 update"
+msgstr "1 个更新"
+
 msgid "192.168.1.10, nas-name or smb://..."
 msgstr "192.168.1.10、NAS 名称或 smb://..."
+
+msgid "A community fork of Fenestra “This PC” by naykkalak: your folders, drives, network locations, printers and devices in one window for KDE Plasma."
+msgstr "由 naykkalak 开发的 Fenestra“此电脑”的社区分支：在 KDE Plasma 的一个窗口中查看你的文件夹、驱动器、网络位置、打印机和设备。"
+
+msgid "ADF duplex"
+msgstr "ADF 双面"
 
 msgid "About"
 msgstr "关于"
 
+msgid "About DriveDeck"
+msgstr "关于 DriveDeck"
+
+msgid "Actions & tools"
+msgstr "操作和工具"
+
+msgid "Activity"
+msgstr "活动"
+
 msgid "Add a network location"
 msgstr "添加网络位置"
+
+msgid "Address"
+msgstr "地址"
+
+msgid "Almost full"
+msgstr "即将用满"
+
+msgid "Always use the compact toolbar"
+msgstr "始终使用紧凑工具栏"
+
+msgid "Analyze storage"
+msgstr "分析存储空间"
+
+msgid "Application name:"
+msgstr "应用程序名称:"
 
 msgid "Author: {author}"
 msgstr "作者: {author}"
@@ -19,20 +55,47 @@ msgstr "作者: {author}"
 msgid "Available"
 msgstr "可用"
 
+msgid "Bad sectors"
+msgstr "坏扇区"
+
+msgid "Black"
+msgstr "黑色"
+
 msgid "Built-in"
 msgstr "内置"
 
 msgid "CD/DVD Drive"
 msgstr "CD/DVD 驱动器"
 
+msgid "CPU & Board"
+msgstr "CPU 和主板"
+
 msgid "Cannot add"
 msgstr "无法添加"
+
+msgid "Cannot disconnect"
+msgstr "无法断开连接"
 
 msgid "Cannot eject"
 msgstr "无法弹出"
 
+msgid "Cannot mount"
+msgstr "无法挂载"
+
 msgid "Cannot open"
 msgstr "无法打开"
+
+msgid "Cannot open terminal"
+msgstr "无法打开终端"
+
+msgid "Cannot open trash"
+msgstr "无法打开回收站"
+
+msgid "Cannot print test page"
+msgstr "无法打印测试页"
+
+msgid "Cannot read hardware details"
+msgstr "无法读取硬件详细信息"
 
 msgid "Cannot remove"
 msgstr "无法删除"
@@ -40,8 +103,23 @@ msgstr "无法删除"
 msgid "Cannot rename"
 msgstr "无法重命名"
 
+msgid "Cannot save report"
+msgstr "无法保存报告"
+
+msgid "Cannot set default printer"
+msgstr "无法设置默认打印机"
+
+msgid "Cannot start tool"
+msgstr "无法启动工具"
+
+msgid "Cannot unmount"
+msgstr "无法卸载"
+
 msgid "Capacity: {size}"
 msgstr "容量: {size}"
+
+msgid "Change name…"
+msgstr "更改名称…"
 
 msgid "Check for a new version once a week"
 msgstr "每周检查一次新版本"
@@ -49,11 +127,35 @@ msgstr "每周检查一次新版本"
 msgid "Choose a share…"
 msgstr "选择共享…"
 
+msgid "Close"
+msgstr "关闭"
+
 msgid "Command bar icons: Fluent UI System Icons, © Microsoft Corporation, MIT license."
 msgstr "命令栏图标: Fluent UI System Icons,© Microsoft Corporation,MIT 许可证。"
 
+msgid "Connected"
+msgstr "已连接"
+
 msgid "Connected via USB"
 msgstr "已通过 USB 连接"
+
+msgid "Connection"
+msgstr "连接"
+
+msgid "Continue?"
+msgstr "是否继续?"
+
+msgid "Copied to clipboard"
+msgstr "已复制到剪贴板"
+
+msgid "Copy name"
+msgstr "复制名称"
+
+msgid "Copy path"
+msgstr "复制路径"
+
+msgid "Copy specs"
+msgstr "复制规格"
 
 msgid "Could not save the list:\n{error}"
 msgstr "无法保存列表:\n{error}"
@@ -64,20 +166,47 @@ msgstr "无法卸载磁盘:\n{detail}\n\n请关闭使用此驱动器的窗口和
 msgid "Could not unmount {label}:\n{detail}\n\nCheck that no file is still open on this drive."
 msgstr "无法卸载 {label}:\n{detail}\n\n请检查此驱动器上是否仍有打开的文件。"
 
+msgid "Critical"
+msgstr "严重"
+
+msgid "Ctrl+I"
+msgstr "Ctrl+I"
+
+msgid "Customize the application name (e.g. This PC, CyberDeck)"
+msgstr "自定义应用程序名称(例如 此电脑、CyberDeck)"
+
+msgid "Cyan"
+msgstr "青色"
+
+msgid "Data read"
+msgstr "已读取数据"
+
+msgid "Data written"
+msgstr "已写入数据"
+
 msgid "Default"
 msgstr "默认"
 
 msgid "Desktop"
 msgstr "桌面"
 
+msgid "Details"
+msgstr "详细信息"
+
 msgid "Detected automatically on the network"
 msgstr "已在网络上自动检测到"
+
+msgid "Device"
+msgstr "设备"
 
 msgid "Device:"
 msgstr "设备:"
 
 msgid "Devices and drives ({n})"
 msgstr "设备和驱动器({n})"
+
+msgid "Disconnect"
+msgstr "断开连接"
 
 msgid "Disk failing – back up your files"
 msgstr "磁盘故障 – 请备份文件"
@@ -91,14 +220,47 @@ msgstr "文档"
 msgid "Downloads"
 msgstr "下载"
 
+msgid "Drag folders here to pin them"
+msgstr "将文件夹拖到此处以固定"
+
+msgid "DriveDeck runs “fstrim” on all mounted drives that support it. This needs administrator rights and can take a while."
+msgstr "DriveDeck 会在所有支持的已挂载驱动器上运行“fstrim”。这需要管理员权限,可能需要一些时间。"
+
 msgid "Eject"
 msgstr "弹出"
+
+msgid "Empty"
+msgstr "空"
+
+msgid "Export full report…"
+msgstr "导出完整报告…"
+
+msgid "Failed"
+msgstr "失败"
+
+msgid "File system"
+msgstr "文件系统"
 
 msgid "File system:"
 msgstr "文件系统:"
 
+msgid "Film"
+msgstr "胶片"
+
+msgid "Flatbed"
+msgstr "平板"
+
+msgid "Folder"
+msgstr "文件夹"
+
+msgid "Folder not found"
+msgstr "找不到文件夹"
+
 msgid "Folders ({n})"
 msgstr "文件夹({n})"
+
+msgid "Free"
+msgstr "可用"
 
 msgid "Free: {size}"
 msgstr "可用: {size}"
@@ -112,11 +274,29 @@ msgstr "仅 GPL-3.0"
 msgid "GPL-3.0 or later"
 msgstr "GPL-3.0 或更高版本"
 
+msgid "GPU & Display"
+msgstr "显卡和显示器"
+
 msgid "Game controller"
 msgstr "游戏控制器"
 
+msgid "Good"
+msgstr "良好"
+
+msgid "Graphics"
+msgstr "图形"
+
+msgid "Graphics adapter"
+msgstr "显示适配器"
+
 msgid "Graphics tablet"
 msgstr "数位板"
+
+msgid "Gray"
+msgstr "灰色"
+
+msgid "Health"
+msgstr "健康状况"
 
 msgid "Incorrect username or password."
 msgstr "用户名或密码不正确。"
@@ -124,8 +304,14 @@ msgstr "用户名或密码不正确。"
 msgid "Ink levels"
 msgstr "墨水量"
 
+msgid "Installed"
+msgstr "安装时间"
+
 msgid "Insufficient rights"
 msgstr "权限不足"
+
+msgid "JSON report"
+msgstr "JSON 报告"
 
 msgid "KWallet could not save the password: the gauge will not be shown."
 msgstr "KWallet 无法保存密码:将不显示空间条。"
@@ -136,29 +322,83 @@ msgstr "键盘"
 msgid "License: {license}"
 msgstr "许可证: {license}"
 
+msgid "Light cyan"
+msgstr "浅青色"
+
+msgid "Light gray"
+msgstr "浅灰色"
+
+msgid "Light magenta"
+msgstr "浅品红色"
+
 msgid "List"
 msgstr "列出"
 
 msgid "Local Disk"
 msgstr "本地磁盘"
 
-msgid "Location"
-msgstr "位置"
-
 msgid "Location unavailable"
 msgstr "位置不可用"
+
+msgid "Magenta"
+msgstr "品红色"
+
+msgid "Mainboard"
+msgstr "主板"
+
+msgid "Matte black"
+msgstr "哑光黑"
+
+msgid "Maximize"
+msgstr "最大化"
+
+msgid "Media errors"
+msgstr "介质错误"
+
+msgid "Media errors reported"
+msgstr "已报告介质错误"
+
+msgid "Memory"
+msgstr "内存"
+
+msgid "Minimize"
+msgstr "最小化"
+
+msgid "Mount"
+msgstr "挂载"
+
+msgid "Mount point"
+msgstr "挂载点"
 
 msgid "Mount point:"
 msgstr "挂载点:"
 
+msgid "Mounted"
+msgstr "已挂载"
+
 msgid "Mouse"
 msgstr "鼠标"
+
+msgid "Move down"
+msgstr "下移"
+
+msgid "Move up"
+msgstr "上移"
 
 msgid "Music"
 msgstr "音乐"
 
 msgid "My NAS"
 msgstr "我的 NAS"
+
+msgid "Name shown in the title bar and as the heading of the drive list. Leave empty for the default names."
+msgstr "显示在标题栏和驱动器列表标题中的名称。留空则使用默认名称。"
+
+msgid "Navigation"
+msgstr "导航"
+
+msgid "Nearly worn out"
+msgstr "即将耗尽"
 
 msgid "Network"
 msgstr "网络"
@@ -169,17 +409,35 @@ msgstr "网络位置"
 msgid "Network locations ({n})"
 msgstr "网络位置({n})"
 
+msgid "No SMART data without an administrator password (e.g. a disk in a USB enclosure). The button below shows the full report."
+msgstr "没有管理员密码就无法获取 SMART 数据(例如 USB 硬盘盒中的磁盘)。下方按钮可显示完整报告。"
+
 msgid "No disc"
 msgstr "无光盘"
 
 msgid "No information available."
 msgstr "没有可用的信息。"
 
+msgid "No scanning program was found on this computer. Please install “skanpage” or “simple-scan”."
+msgstr "此电脑上未找到扫描程序。请安装“skanpage”或“simple-scan”。"
+
 msgid "No share visible with these credentials."
 msgstr "使用这些凭据看不到任何共享。"
 
+msgid "No terminal program found"
+msgstr "未找到终端程序"
+
 msgid "Not connected"
 msgstr "未连接"
+
+msgid "Not mounted"
+msgstr "未挂载"
+
+msgid "Note"
+msgstr "注意"
+
+msgid "Note: the external USB enclosure or bridge controller does not support SMART pass-through."
+msgstr "注意:外置 USB 硬盘盒或桥接控制器不支持 SMART 直通。"
 
 msgid "Offline"
 msgstr "脱机"
@@ -187,11 +445,26 @@ msgstr "脱机"
 msgid "Open"
 msgstr "打开"
 
-msgid "Open with Dolphin"
-msgstr "用 Dolphin 打开"
+msgid "Open in terminal"
+msgstr "在终端中打开"
+
+msgid "Open in {app} terminal"
+msgstr "在 {app} 终端中打开"
+
+msgid "Open settings"
+msgstr "打开设置"
+
+msgid "Open with {app}"
+msgstr "使用 {app} 打开"
+
+msgid "Overview"
+msgstr "概览"
 
 msgid "Partial eject"
 msgstr "部分弹出"
+
+msgid "Passed"
+msgstr "通过"
 
 msgid "Password not remembered"
 msgstr "未记住密码"
@@ -199,8 +472,32 @@ msgstr "未记住密码"
 msgid "Password:"
 msgstr "密码:"
 
+msgid "Path"
+msgstr "路径"
+
+msgid "Pending sectors"
+msgstr "待映射扇区"
+
+msgid "Photo black"
+msgstr "照片黑"
+
 msgid "Pictures"
 msgstr "图片"
+
+msgid "Pin a folder…"
+msgstr "固定文件夹…"
+
+msgid "Pin to Quick access"
+msgstr "固定到快速访问"
+
+msgid "Power cycles"
+msgstr "通电次数"
+
+msgid "Power-on time"
+msgstr "通电时间"
+
+msgid "Print test page"
+msgstr "打印测试页"
 
 msgid "Printer"
 msgstr "打印机"
@@ -211,6 +508,9 @@ msgstr "打印机和设备({n})"
 msgid "Printing"
 msgstr "正在打印"
 
+msgid "Processor"
+msgstr "处理器"
+
 msgid "Program not found"
 msgstr "未找到程序"
 
@@ -220,14 +520,44 @@ msgstr "属性"
 msgid "Properties of {name}"
 msgstr "{name} 属性"
 
+msgid "Quick access"
+msgstr "快速访问"
+
+msgid "Quick access ({n})"
+msgstr "快速访问({n})"
+
+msgid "Read"
+msgstr "读取"
+
+msgid "Read SMART…"
+msgstr "读取 SMART…"
+
+msgid "Read slot details (administrator)"
+msgstr "读取插槽详细信息(管理员)"
+
+msgid "Read with smartctl at {time}"
+msgstr "于 {time} 通过 smartctl 读取"
+
+msgid "Reading SMART data…"
+msgstr "正在读取 SMART 数据…"
+
 msgid "Reading SMART requires root rights, and pkexec (graphical elevation) was not found on this system."
 msgstr "读取 SMART 需要 root 权限,而此系统上未找到 pkexec(图形化提权)。"
 
 msgid "Reading SMART timed out."
 msgstr "读取 SMART 超时。"
 
+msgid "Reading hardware…"
+msgstr "正在读取硬件…"
+
 msgid "Ready"
 msgstr "就绪"
+
+msgid "Reallocated sectors"
+msgstr "重新分配扇区"
+
+msgid "Red gauge and ⚠ symbol from this much free space or less."
+msgstr "可用空间等于或低于此值时显示红色指示和 ⚠ 符号。"
 
 msgid "Refresh"
 msgstr "刷新"
@@ -253,8 +583,32 @@ msgstr "删除此位置"
 msgid "Rename"
 msgstr "重命名"
 
+msgid "Rename DriveDeck"
+msgstr "重命名 DriveDeck"
+
+msgid "Rename…"
+msgstr "重命名…"
+
 msgid "Renaming is not supported for this format ({fstype})."
 msgstr "此格式({fstype})不支持重命名。"
+
+msgid "Report saved"
+msgstr "报告已保存"
+
+msgid "Reset"
+msgstr "重置"
+
+msgid "Reset name"
+msgstr "重置名称"
+
+msgid "Restore"
+msgstr "还原"
+
+msgid "Running"
+msgstr "运行中"
+
+msgid "SMART health"
+msgstr "SMART 健康状况"
 
 msgid "SMART status…"
 msgstr "SMART 状态…"
@@ -262,14 +616,29 @@ msgstr "SMART 状态…"
 msgid "SMART unavailable"
 msgstr "SMART 不可用"
 
+msgid "SSD optimization"
+msgstr "SSD 优化"
+
+msgid "SSD optimization failed"
+msgstr "SSD 优化失败"
+
 msgid "Safely remove"
 msgstr "安全删除"
 
 msgid "Scanner"
 msgstr "扫描仪"
 
+msgid "Scan…"
+msgstr "扫描…"
+
 msgid "Searching…"
 msgstr "正在搜索…"
+
+msgid "Self-test"
+msgstr "自检"
+
+msgid "Self-test failed"
+msgstr "自检失败"
 
 msgid "Server address:"
 msgstr "服务器地址:"
@@ -277,44 +646,116 @@ msgstr "服务器地址:"
 msgid "Server unreachable. Check the address and that the server is turned on."
 msgstr "无法连接到服务器。请检查地址以及服务器是否已开机。"
 
+msgid "Set as default printer"
+msgstr "设为默认打印机"
+
+msgid "Settings"
+msgstr "设置"
+
 msgid "Share name (required):"
 msgstr "共享名称(必填):"
 
 msgid "Shares found:"
 msgstr "找到的共享:"
 
+msgid "Sheet feeder"
+msgstr "进纸器"
+
 msgid "Show"
 msgstr "显示"
+
+msgid "Show and options"
+msgstr "显示和选项"
 
 msgid "Signs of wear – see Properties"
 msgstr "有磨损迹象 – 请查看属性"
 
+msgid "Size"
+msgstr "大小"
+
+msgid "Sound"
+msgstr "声音"
+
+msgid "Spare"
+msgstr "备用空间"
+
+msgid "Spare capacity below the limit"
+msgstr "备用空间低于阈值"
+
+msgid "Status"
+msgstr "状态"
+
 msgid "Status:"
 msgstr "状态:"
+
+msgid "Storage"
+msgstr "存储"
+
+msgid "Storage I/O"
+msgstr "存储 I/O"
 
 msgid "System"
 msgstr "系统"
 
+msgid "System & Drivers"
+msgstr "系统和驱动程序"
+
 msgid "System Settings"
 msgstr "系统设置"
+
+msgid "System center"
+msgstr "系统中心"
 
 msgid "System information"
 msgstr "系统信息"
 
+msgid "System monitor"
+msgstr "系统监视器"
+
+msgid "System overview"
+msgstr "系统概览"
+
+msgid "System specs"
+msgstr "系统规格"
+
 msgid "TB"
 msgstr "TB"
+
+msgid "Temperature"
+msgstr "温度"
+
+msgid "Temperature warning"
+msgstr "温度警告"
+
+msgid "Temperature:"
+msgstr "温度:"
+
+msgid "Terminal"
+msgstr "终端"
+
+msgid "Text report"
+msgstr "文本报告"
 
 msgid "The disk could not be remounted:\n{detail}\n\nUnplug it and plug it back in."
 msgstr "无法重新挂载磁盘:\n{detail}\n\n请拔出后再重新插入。"
 
+msgid "The drive reports a critical error"
+msgstr "驱动器报告了严重错误"
+
 msgid "The final password is requested by Dolphin the first time you open it; you can ask it to remember it."
 msgstr "最终密码由 Dolphin 在首次打开时询问;您可以让它记住密码。"
+
+msgid "The fstrim and pkexec programs are required."
+msgstr "需要 fstrim 和 pkexec 程序。"
 
 msgid "The name is empty or contains a forbidden character."
 msgstr "名称为空或包含不允许的字符。"
 
 msgid "The name is too long for this format (maximum {max} characters)."
 msgstr "名称对此格式来说太长(最多 {max} 个字符)。"
+
+msgid "The operation took too long and was stopped."
+msgstr "操作耗时过长,已停止。"
 
 msgid "The program “{name}” is not installed on this computer."
 msgstr "此计算机上未安装程序“{name}”。"
@@ -343,23 +784,32 @@ msgstr "在此系统上未找到 udisksctl 命令。"
 msgid "The username contains a forbidden character."
 msgstr "用户名包含不允许的字符。"
 
-msgid "The username is required to remember the password."
-msgstr "记住密码需要填写用户名。"
-
 msgid "The username is required."
 msgstr "必须填写用户名。"
 
 msgid "This PC"
 msgstr "此电脑"
 
+msgid "This drive needs smartctl with the administrator password (e.g. a disk in a USB enclosure)."
+msgstr "此驱动器需要使用管理员密码运行 smartctl(例如 USB 硬盘盒中的磁盘)。"
+
 msgid "This location already exists in the list."
 msgstr "此位置已在列表中。"
+
+msgid "This printer does not report ink levels"
+msgstr "此打印机不报告墨水量"
 
 msgid "This software is neither affiliated with nor endorsed by Microsoft Corporation. Windows is a trademark of Microsoft Corporation."
 msgstr "本软件与 Microsoft Corporation 无关联,也未获其认可。Windows 是 Microsoft Corporation 的商标。"
 
+msgid "Toggle inspector"
+msgstr "显示/隐藏检查器"
+
 msgid "Touchpad"
 msgstr "触摸板"
+
+msgid "Trash"
+msgstr "回收站"
 
 msgid "Type the password to be able to remember it."
 msgstr "请输入密码以便记住它。"
@@ -367,11 +817,32 @@ msgstr "请输入密码以便记住它。"
 msgid "Type:"
 msgstr "类型:"
 
+msgid "Uncorrectable sectors"
+msgstr "无法纠正的扇区"
+
+msgid "Unmount"
+msgstr "卸载"
+
 msgid "Unmounting the disk failed."
 msgstr "卸载磁盘失败。"
 
 msgid "Unmounting {label} timed out."
 msgstr "卸载 {label} 超时。"
+
+msgid "Unpin from Quick access"
+msgstr "从快速访问取消固定"
+
+msgid "Unsafe shutdowns"
+msgstr "异常关机"
+
+msgid "Up to date"
+msgstr "已是最新"
+
+msgid "Uptime"
+msgstr "运行时间"
+
+msgid "Used"
+msgstr "已用"
 
 msgid "Used: {size}"
 msgstr "已用: {size}"
@@ -394,29 +865,86 @@ msgstr "查看"
 msgid "Volume name"
 msgstr "卷名称"
 
+msgid "Warning"
+msgstr "警告"
+
+msgid "Warning threshold for free space"
+msgstr "可用空间警告阈值"
+
+msgid "Warning threshold…"
+msgstr "警告阈值…"
+
+msgid "Wear"
+msgstr "磨损"
+
+msgid "Write"
+msgstr "写入"
+
+msgid "Yellow"
+msgstr "黄色"
+
+msgid "day"
+msgstr "天"
+
+msgid "days"
+msgstr "天"
+
+msgid "driver {name}"
+msgstr "驱动程序 {name}"
+
+msgid "file manager"
+msgstr "文件管理器"
+
 msgid "filled in from the list, or type it"
 msgstr "从列表填入,或手动输入"
 
 msgid "gdbus not found or timed out."
 msgstr "未找到 gdbus 或已超时。"
 
+msgid "limit {n} %"
+msgstr "阈值 {n} %"
+
+msgid "needs administrator rights"
+msgstr "需要管理员权限"
+
+msgid "needs administrator rights – use the button below"
+msgstr "需要管理员权限 – 请使用下方按钮"
+
 msgid "only for “List”, never saved"
 msgstr "仅用于“列出”,不会保存"
+
+msgid "running…"
+msgstr "运行中…"
 
 msgid "unknown error"
 msgstr "未知错误"
 
+msgid "{cores} cores / {threads} threads"
+msgstr "{cores} 核 / {threads} 线程"
+
+msgid "{free} free"
+msgstr "可用 {free}"
+
 msgid "{free} free of {total}"
 msgstr "{total} 中有 {free} 可用"
+
+msgid "{ink} (toner)"
+msgstr "{ink}(碳粉)"
 
 msgid "{label} was unmounted but could not be powered off:\n{detail}\n\nYou can still unplug it."
 msgstr "{label} 已卸载,但无法断电:\n{detail}\n\n您仍然可以直接拔出。"
 
-msgid "{n} item(s)"
+msgid "{n} items"
 msgstr "{n} 个项目"
+
+msgid "{n} updates"
+msgstr "{n} 个更新"
 
 msgid "{share} on {host}"
 msgstr "{host} 上的 {share}"
+
+msgid "{used} in use ({pct} %)"
+msgstr "已用 {used}({pct} %)"
 
 msgid "“{name}” is not responding. Check that it is turned on and connected to the network."
 msgstr "“{name}”没有响应。请检查它是否已开机并连接到网络。"

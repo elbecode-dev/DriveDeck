@@ -4,14 +4,50 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Language: ru\n"
 
+msgid "1 item"
+msgstr "1 элемент"
+
+msgid "1 update"
+msgstr "1 обновление"
+
 msgid "192.168.1.10, nas-name or smb://..."
 msgstr "192.168.1.10, имя-nas или smb://..."
+
+msgid "A community fork of Fenestra “This PC” by naykkalak: your folders, drives, network locations, printers and devices in one window for KDE Plasma."
+msgstr "Форк сообщества приложения Fenestra «Этот компьютер» от naykkalak: папки, диски, сетевые расположения, принтеры и устройства в одном окне для KDE Plasma."
+
+msgid "ADF duplex"
+msgstr "АПД, двусторонний"
 
 msgid "About"
 msgstr "О программе"
 
+msgid "About DriveDeck"
+msgstr "О DriveDeck"
+
+msgid "Actions & tools"
+msgstr "Действия и инструменты"
+
+msgid "Activity"
+msgstr "Активность"
+
 msgid "Add a network location"
 msgstr "Добавить сетевое расположение"
+
+msgid "Address"
+msgstr "Адрес"
+
+msgid "Almost full"
+msgstr "Почти заполнен"
+
+msgid "Always use the compact toolbar"
+msgstr "Всегда использовать компактную панель"
+
+msgid "Analyze storage"
+msgstr "Анализ дискового пространства"
+
+msgid "Application name:"
+msgstr "Название приложения:"
 
 msgid "Author: {author}"
 msgstr "Автор: {author}"
@@ -19,20 +55,47 @@ msgstr "Автор: {author}"
 msgid "Available"
 msgstr "Доступно"
 
+msgid "Bad sectors"
+msgstr "Повреждённые секторы"
+
+msgid "Black"
+msgstr "Чёрный"
+
 msgid "Built-in"
 msgstr "Встроенное"
 
 msgid "CD/DVD Drive"
 msgstr "CD/DVD-дисковод"
 
+msgid "CPU & Board"
+msgstr "Процессор и плата"
+
 msgid "Cannot add"
 msgstr "Не удаётся добавить"
+
+msgid "Cannot disconnect"
+msgstr "Не удалось отключить"
 
 msgid "Cannot eject"
 msgstr "Не удаётся извлечь"
 
+msgid "Cannot mount"
+msgstr "Не удалось подключить"
+
 msgid "Cannot open"
 msgstr "Не удаётся открыть"
+
+msgid "Cannot open terminal"
+msgstr "Не удалось открыть терминал"
+
+msgid "Cannot open trash"
+msgstr "Не удалось открыть корзину"
+
+msgid "Cannot print test page"
+msgstr "Не удалось напечатать пробную страницу"
+
+msgid "Cannot read hardware details"
+msgstr "Не удалось прочитать сведения об оборудовании"
 
 msgid "Cannot remove"
 msgstr "Не удаётся удалить"
@@ -40,8 +103,23 @@ msgstr "Не удаётся удалить"
 msgid "Cannot rename"
 msgstr "Не удаётся переименовать"
 
+msgid "Cannot save report"
+msgstr "Не удалось сохранить отчёт"
+
+msgid "Cannot set default printer"
+msgstr "Не удалось назначить принтер по умолчанию"
+
+msgid "Cannot start tool"
+msgstr "Не удалось запустить программу"
+
+msgid "Cannot unmount"
+msgstr "Не удалось отмонтировать"
+
 msgid "Capacity: {size}"
 msgstr "Ёмкость: {size}"
+
+msgid "Change name…"
+msgstr "Изменить название…"
 
 msgid "Check for a new version once a week"
 msgstr "Проверять наличие новой версии раз в неделю"
@@ -49,11 +127,35 @@ msgstr "Проверять наличие новой версии раз в не
 msgid "Choose a share…"
 msgstr "Выберите общий ресурс…"
 
+msgid "Close"
+msgstr "Закрыть"
+
 msgid "Command bar icons: Fluent UI System Icons, © Microsoft Corporation, MIT license."
 msgstr "Значки панели команд: Fluent UI System Icons, © Microsoft Corporation, лицензия MIT."
 
+msgid "Connected"
+msgstr "Подключено"
+
 msgid "Connected via USB"
 msgstr "Подключён по USB"
+
+msgid "Connection"
+msgstr "Подключение"
+
+msgid "Continue?"
+msgstr "Продолжить?"
+
+msgid "Copied to clipboard"
+msgstr "Скопировано в буфер обмена"
+
+msgid "Copy name"
+msgstr "Копировать имя"
+
+msgid "Copy path"
+msgstr "Копировать путь"
+
+msgid "Copy specs"
+msgstr "Копировать характеристики"
 
 msgid "Could not save the list:\n{error}"
 msgstr "Не удалось сохранить список:\n{error}"
@@ -64,20 +166,47 @@ msgstr "Не удалось размонтировать диск:\n{detail}\n\n
 msgid "Could not unmount {label}:\n{detail}\n\nCheck that no file is still open on this drive."
 msgstr "Не удалось размонтировать {label}:\n{detail}\n\nПроверьте, что на этом диске не осталось открытых файлов."
 
+msgid "Critical"
+msgstr "Критическое"
+
+msgid "Ctrl+I"
+msgstr "Ctrl+I"
+
+msgid "Customize the application name (e.g. This PC, CyberDeck)"
+msgstr "Изменить название приложения (например, Этот компьютер, CyberDeck)"
+
+msgid "Cyan"
+msgstr "Голубой"
+
+msgid "Data read"
+msgstr "Прочитано"
+
+msgid "Data written"
+msgstr "Записано"
+
 msgid "Default"
 msgstr "По умолчанию"
 
 msgid "Desktop"
 msgstr "Рабочий стол"
 
+msgid "Details"
+msgstr "Подробности"
+
 msgid "Detected automatically on the network"
 msgstr "Обнаружен автоматически в сети"
+
+msgid "Device"
+msgstr "Устройство"
 
 msgid "Device:"
 msgstr "Устройство:"
 
 msgid "Devices and drives ({n})"
 msgstr "Устройства и диски ({n})"
+
+msgid "Disconnect"
+msgstr "Отключить"
 
 msgid "Disk failing – back up your files"
 msgstr "Диск неисправен – сохраните свои файлы"
@@ -91,14 +220,47 @@ msgstr "Документы"
 msgid "Downloads"
 msgstr "Загрузки"
 
+msgid "Drag folders here to pin them"
+msgstr "Перетащите сюда папки, чтобы закрепить их"
+
+msgid "DriveDeck runs “fstrim” on all mounted drives that support it. This needs administrator rights and can take a while."
+msgstr "DriveDeck выполняет «fstrim» на всех смонтированных дисках, которые это поддерживают. Нужны права администратора, это может занять некоторое время."
+
 msgid "Eject"
 msgstr "Извлечь"
+
+msgid "Empty"
+msgstr "Пусто"
+
+msgid "Export full report…"
+msgstr "Экспортировать полный отчёт…"
+
+msgid "Failed"
+msgstr "Сбой"
+
+msgid "File system"
+msgstr "Файловая система"
 
 msgid "File system:"
 msgstr "Файловая система:"
 
+msgid "Film"
+msgstr "Плёнка"
+
+msgid "Flatbed"
+msgstr "Планшет"
+
+msgid "Folder"
+msgstr "Папка"
+
+msgid "Folder not found"
+msgstr "Папка не найдена"
+
 msgid "Folders ({n})"
 msgstr "Папки ({n})"
+
+msgid "Free"
+msgstr "Свободно"
 
 msgid "Free: {size}"
 msgstr "Свободно: {size}"
@@ -112,11 +274,29 @@ msgstr "только GPL-3.0"
 msgid "GPL-3.0 or later"
 msgstr "GPL-3.0 или более поздняя"
 
+msgid "GPU & Display"
+msgstr "Графика и дисплей"
+
 msgid "Game controller"
 msgstr "Игровой контроллер"
 
+msgid "Good"
+msgstr "Хорошее"
+
+msgid "Graphics"
+msgstr "Графика"
+
+msgid "Graphics adapter"
+msgstr "Видеоадаптер"
+
 msgid "Graphics tablet"
 msgstr "Графический планшет"
+
+msgid "Gray"
+msgstr "Серый"
+
+msgid "Health"
+msgstr "Состояние"
 
 msgid "Incorrect username or password."
 msgstr "Неверное имя пользователя или пароль."
@@ -124,8 +304,14 @@ msgstr "Неверное имя пользователя или пароль."
 msgid "Ink levels"
 msgstr "Уровень чернил"
 
+msgid "Installed"
+msgstr "Установлено"
+
 msgid "Insufficient rights"
 msgstr "Недостаточно прав"
+
+msgid "JSON report"
+msgstr "Отчёт JSON"
 
 msgid "KWallet could not save the password: the gauge will not be shown."
 msgstr "KWallet не смог сохранить пароль: шкала свободного места не будет показана."
@@ -136,29 +322,83 @@ msgstr "Клавиатура"
 msgid "License: {license}"
 msgstr "Лицензия: {license}"
 
+msgid "Light cyan"
+msgstr "Светло-голубой"
+
+msgid "Light gray"
+msgstr "Светло-серый"
+
+msgid "Light magenta"
+msgstr "Светло-пурпурный"
+
 msgid "List"
 msgstr "Показать"
 
 msgid "Local Disk"
 msgstr "Локальный диск"
 
-msgid "Location"
-msgstr "Расположение"
-
 msgid "Location unavailable"
 msgstr "Расположение недоступно"
+
+msgid "Magenta"
+msgstr "Пурпурный"
+
+msgid "Mainboard"
+msgstr "Материнская плата"
+
+msgid "Matte black"
+msgstr "Матовый чёрный"
+
+msgid "Maximize"
+msgstr "Развернуть"
+
+msgid "Media errors"
+msgstr "Ошибки носителя"
+
+msgid "Media errors reported"
+msgstr "Сообщено об ошибках носителя"
+
+msgid "Memory"
+msgstr "Память"
+
+msgid "Minimize"
+msgstr "Свернуть"
+
+msgid "Mount"
+msgstr "Смонтировать"
+
+msgid "Mount point"
+msgstr "Точка монтирования"
 
 msgid "Mount point:"
 msgstr "Точка монтирования:"
 
+msgid "Mounted"
+msgstr "Смонтирован"
+
 msgid "Mouse"
 msgstr "Мышь"
+
+msgid "Move down"
+msgstr "Переместить вниз"
+
+msgid "Move up"
+msgstr "Переместить вверх"
 
 msgid "Music"
 msgstr "Музыка"
 
 msgid "My NAS"
 msgstr "Мой NAS"
+
+msgid "Name shown in the title bar and as the heading of the drive list. Leave empty for the default names."
+msgstr "Название в заголовке окна и над списком дисков. Оставьте пустым, чтобы использовать названия по умолчанию."
+
+msgid "Navigation"
+msgstr "Навигация"
+
+msgid "Nearly worn out"
+msgstr "Почти изношен"
 
 msgid "Network"
 msgstr "Сеть"
@@ -169,17 +409,35 @@ msgstr "Сетевое расположение"
 msgid "Network locations ({n})"
 msgstr "Сетевые расположения ({n})"
 
+msgid "No SMART data without an administrator password (e.g. a disk in a USB enclosure). The button below shows the full report."
+msgstr "Без пароля администратора данные SMART недоступны (например, диск в USB-корпусе). Кнопка ниже показывает полный отчёт."
+
 msgid "No disc"
 msgstr "Нет диска"
 
 msgid "No information available."
 msgstr "Нет доступной информации."
 
+msgid "No scanning program was found on this computer. Please install “skanpage” or “simple-scan”."
+msgstr "На этом компьютере не найдена программа для сканирования. Установите «skanpage» или «simple-scan»."
+
 msgid "No share visible with these credentials."
 msgstr "С этими учётными данными общие ресурсы не видны."
 
+msgid "No terminal program found"
+msgstr "Программа терминала не найдена"
+
 msgid "Not connected"
 msgstr "Не подключено"
+
+msgid "Not mounted"
+msgstr "Не смонтирован"
+
+msgid "Note"
+msgstr "Примечание"
+
+msgid "Note: the external USB enclosure or bridge controller does not support SMART pass-through."
+msgstr "Примечание: внешний USB-корпус или контроллер-мост не поддерживает передачу SMART."
 
 msgid "Offline"
 msgstr "Не в сети"
@@ -187,11 +445,26 @@ msgstr "Не в сети"
 msgid "Open"
 msgstr "Открыть"
 
-msgid "Open with Dolphin"
-msgstr "Открыть в Dolphin"
+msgid "Open in terminal"
+msgstr "Открыть в терминале"
+
+msgid "Open in {app} terminal"
+msgstr "Открыть в терминале {app}"
+
+msgid "Open settings"
+msgstr "Открыть настройки"
+
+msgid "Open with {app}"
+msgstr "Открыть в {app}"
+
+msgid "Overview"
+msgstr "Обзор"
 
 msgid "Partial eject"
 msgstr "Частичное извлечение"
+
+msgid "Passed"
+msgstr "Пройден"
 
 msgid "Password not remembered"
 msgstr "Пароль не запомнен"
@@ -199,8 +472,32 @@ msgstr "Пароль не запомнен"
 msgid "Password:"
 msgstr "Пароль:"
 
+msgid "Path"
+msgstr "Путь"
+
+msgid "Pending sectors"
+msgstr "Ожидающие секторы"
+
+msgid "Photo black"
+msgstr "Фоточёрный"
+
 msgid "Pictures"
 msgstr "Изображения"
+
+msgid "Pin a folder…"
+msgstr "Закрепить папку…"
+
+msgid "Pin to Quick access"
+msgstr "Закрепить в быстром доступе"
+
+msgid "Power cycles"
+msgstr "Циклы включения"
+
+msgid "Power-on time"
+msgstr "Время работы диска"
+
+msgid "Print test page"
+msgstr "Напечатать пробную страницу"
 
 msgid "Printer"
 msgstr "Принтер"
@@ -211,6 +508,9 @@ msgstr "Принтеры и устройства ({n})"
 msgid "Printing"
 msgstr "Печать"
 
+msgid "Processor"
+msgstr "Процессор"
+
 msgid "Program not found"
 msgstr "Программа не найдена"
 
@@ -220,14 +520,44 @@ msgstr "Свойства"
 msgid "Properties of {name}"
 msgstr "Свойства: {name}"
 
+msgid "Quick access"
+msgstr "Быстрый доступ"
+
+msgid "Quick access ({n})"
+msgstr "Быстрый доступ ({n})"
+
+msgid "Read"
+msgstr "Чтение"
+
+msgid "Read SMART…"
+msgstr "Прочитать SMART…"
+
+msgid "Read slot details (administrator)"
+msgstr "Прочитать сведения о слотах (администратор)"
+
+msgid "Read with smartctl at {time}"
+msgstr "Прочитано smartctl в {time}"
+
+msgid "Reading SMART data…"
+msgstr "Чтение данных SMART…"
+
 msgid "Reading SMART requires root rights, and pkexec (graphical elevation) was not found on this system."
 msgstr "Для чтения SMART нужны права root, а pkexec (графическое повышение прав) не найден в этой системе."
 
 msgid "Reading SMART timed out."
 msgstr "Время чтения SMART истекло."
 
+msgid "Reading hardware…"
+msgstr "Чтение сведений об оборудовании…"
+
 msgid "Ready"
 msgstr "Готов"
+
+msgid "Reallocated sectors"
+msgstr "Переназначенные секторы"
+
+msgid "Red gauge and ⚠ symbol from this much free space or less."
+msgstr "Красный индикатор и символ ⚠ при таком или меньшем свободном месте."
 
 msgid "Refresh"
 msgstr "Обновить"
@@ -253,8 +583,32 @@ msgstr "Удалить это расположение"
 msgid "Rename"
 msgstr "Переименовать"
 
+msgid "Rename DriveDeck"
+msgstr "Переименовать DriveDeck"
+
+msgid "Rename…"
+msgstr "Переименовать…"
+
 msgid "Renaming is not supported for this format ({fstype})."
 msgstr "Переименование не поддерживается для этого формата ({fstype})."
+
+msgid "Report saved"
+msgstr "Отчёт сохранён"
+
+msgid "Reset"
+msgstr "Сбросить"
+
+msgid "Reset name"
+msgstr "Сбросить название"
+
+msgid "Restore"
+msgstr "Восстановить"
+
+msgid "Running"
+msgstr "Выполняется"
+
+msgid "SMART health"
+msgstr "Состояние SMART"
 
 msgid "SMART status…"
 msgstr "Состояние SMART…"
@@ -262,14 +616,29 @@ msgstr "Состояние SMART…"
 msgid "SMART unavailable"
 msgstr "SMART недоступен"
 
+msgid "SSD optimization"
+msgstr "Оптимизация SSD"
+
+msgid "SSD optimization failed"
+msgstr "Сбой оптимизации SSD"
+
 msgid "Safely remove"
 msgstr "Безопасно извлечь"
 
 msgid "Scanner"
 msgstr "Сканер"
 
+msgid "Scan…"
+msgstr "Сканировать…"
+
 msgid "Searching…"
 msgstr "Поиск…"
+
+msgid "Self-test"
+msgstr "Самотест"
+
+msgid "Self-test failed"
+msgstr "Самотест не пройден"
 
 msgid "Server address:"
 msgstr "Адрес сервера:"
@@ -277,44 +646,116 @@ msgstr "Адрес сервера:"
 msgid "Server unreachable. Check the address and that the server is turned on."
 msgstr "Сервер недоступен. Проверьте адрес и убедитесь, что сервер включён."
 
+msgid "Set as default printer"
+msgstr "Использовать по умолчанию"
+
+msgid "Settings"
+msgstr "Настройки"
+
 msgid "Share name (required):"
 msgstr "Имя общего ресурса (обязательно):"
 
 msgid "Shares found:"
 msgstr "Найденные общие ресурсы:"
 
+msgid "Sheet feeder"
+msgstr "Податчик листов"
+
 msgid "Show"
 msgstr "Показать"
+
+msgid "Show and options"
+msgstr "Вид и параметры"
 
 msgid "Signs of wear – see Properties"
 msgstr "Признаки износа – см. Свойства"
 
+msgid "Size"
+msgstr "Размер"
+
+msgid "Sound"
+msgstr "Звук"
+
+msgid "Spare"
+msgstr "Резерв"
+
+msgid "Spare capacity below the limit"
+msgstr "Резерв ниже порога"
+
+msgid "Status"
+msgstr "Состояние"
+
 msgid "Status:"
 msgstr "Состояние:"
+
+msgid "Storage"
+msgstr "Хранилище"
+
+msgid "Storage I/O"
+msgstr "Ввод-вывод дисков"
 
 msgid "System"
 msgstr "Система"
 
+msgid "System & Drivers"
+msgstr "Система и драйверы"
+
 msgid "System Settings"
 msgstr "Параметры системы"
+
+msgid "System center"
+msgstr "Центр системы"
 
 msgid "System information"
 msgstr "Сведения о системе"
 
+msgid "System monitor"
+msgstr "Системный монитор"
+
+msgid "System overview"
+msgstr "Обзор системы"
+
+msgid "System specs"
+msgstr "Характеристики системы"
+
 msgid "TB"
 msgstr "ТБ"
+
+msgid "Temperature"
+msgstr "Температура"
+
+msgid "Temperature warning"
+msgstr "Предупреждение о температуре"
+
+msgid "Temperature:"
+msgstr "Температура:"
+
+msgid "Terminal"
+msgstr "Терминал"
+
+msgid "Text report"
+msgstr "Текстовый отчёт"
 
 msgid "The disk could not be remounted:\n{detail}\n\nUnplug it and plug it back in."
 msgstr "Не удалось повторно смонтировать диск:\n{detail}\n\nОтсоедините его и подключите снова."
 
+msgid "The drive reports a critical error"
+msgstr "Диск сообщает о критической ошибке"
+
 msgid "The final password is requested by Dolphin the first time you open it; you can ask it to remember it."
 msgstr "Окончательный пароль запрашивает Dolphin при первом открытии; можно попросить его запомнить пароль."
+
+msgid "The fstrim and pkexec programs are required."
+msgstr "Требуются программы fstrim и pkexec."
 
 msgid "The name is empty or contains a forbidden character."
 msgstr "Имя пусто или содержит недопустимый символ."
 
 msgid "The name is too long for this format (maximum {max} characters)."
 msgstr "Имя слишком длинное для этого формата (максимум {max} символов)."
+
+msgid "The operation took too long and was stopped."
+msgstr "Операция заняла слишком много времени и была остановлена."
 
 msgid "The program “{name}” is not installed on this computer."
 msgstr "Программа «{name}» не установлена на этом компьютере."
@@ -343,23 +784,32 @@ msgstr "Команда udisksctl не найдена в этой системе.
 msgid "The username contains a forbidden character."
 msgstr "Имя пользователя содержит недопустимый символ."
 
-msgid "The username is required to remember the password."
-msgstr "Чтобы запомнить пароль, необходимо указать имя пользователя."
-
 msgid "The username is required."
 msgstr "Имя пользователя обязательно."
 
 msgid "This PC"
 msgstr "Этот компьютер"
 
+msgid "This drive needs smartctl with the administrator password (e.g. a disk in a USB enclosure)."
+msgstr "Для этого диска нужен smartctl с паролем администратора (например, диск в USB-корпусе)."
+
 msgid "This location already exists in the list."
 msgstr "Это расположение уже есть в списке."
+
+msgid "This printer does not report ink levels"
+msgstr "Этот принтер не сообщает уровень чернил"
 
 msgid "This software is neither affiliated with nor endorsed by Microsoft Corporation. Windows is a trademark of Microsoft Corporation."
 msgstr "Это программное обеспечение не связано с корпорацией Microsoft и не одобрено ею. Windows является товарным знаком корпорации Microsoft."
 
+msgid "Toggle inspector"
+msgstr "Показать или скрыть инспектор"
+
 msgid "Touchpad"
 msgstr "Сенсорная панель"
+
+msgid "Trash"
+msgstr "Корзина"
 
 msgid "Type the password to be able to remember it."
 msgstr "Введите пароль, чтобы его можно было запомнить."
@@ -367,11 +817,32 @@ msgstr "Введите пароль, чтобы его можно было за�
 msgid "Type:"
 msgstr "Тип:"
 
+msgid "Uncorrectable sectors"
+msgstr "Неисправимые секторы"
+
+msgid "Unmount"
+msgstr "Отмонтировать"
+
 msgid "Unmounting the disk failed."
 msgstr "Не удалось размонтировать диск."
 
 msgid "Unmounting {label} timed out."
 msgstr "Время размонтирования {label} истекло."
+
+msgid "Unpin from Quick access"
+msgstr "Открепить от быстрого доступа"
+
+msgid "Unsafe shutdowns"
+msgstr "Небезопасные выключения"
+
+msgid "Up to date"
+msgstr "Актуально"
+
+msgid "Uptime"
+msgstr "Время работы"
+
+msgid "Used"
+msgstr "Занято"
 
 msgid "Used: {size}"
 msgstr "Занято: {size}"
@@ -394,29 +865,86 @@ msgstr "Открыть"
 msgid "Volume name"
 msgstr "Имя тома"
 
+msgid "Warning"
+msgstr "Предупреждение"
+
+msgid "Warning threshold for free space"
+msgstr "Порог предупреждения о свободном месте"
+
+msgid "Warning threshold…"
+msgstr "Порог предупреждения…"
+
+msgid "Wear"
+msgstr "Износ"
+
+msgid "Write"
+msgstr "Запись"
+
+msgid "Yellow"
+msgstr "Жёлтый"
+
+msgid "day"
+msgstr "день"
+
+msgid "days"
+msgstr "дн."
+
+msgid "driver {name}"
+msgstr "драйвер {name}"
+
+msgid "file manager"
+msgstr "файловый менеджер"
+
 msgid "filled in from the list, or type it"
 msgstr "заполняется из списка или вводится вручную"
 
 msgid "gdbus not found or timed out."
 msgstr "gdbus не найден или превышено время ожидания."
 
+msgid "limit {n} %"
+msgstr "порог {n} %"
+
+msgid "needs administrator rights"
+msgstr "нужны права администратора"
+
+msgid "needs administrator rights – use the button below"
+msgstr "нужны права администратора – используйте кнопку ниже"
+
 msgid "only for “List”, never saved"
 msgstr "только для «Показать», нигде не сохраняется"
+
+msgid "running…"
+msgstr "выполняется…"
 
 msgid "unknown error"
 msgstr "неизвестная ошибка"
 
+msgid "{cores} cores / {threads} threads"
+msgstr "ядер: {cores} / потоков: {threads}"
+
+msgid "{free} free"
+msgstr "{free} своб."
+
 msgid "{free} free of {total}"
-msgstr "Свободно {free} из {total}"
+msgstr "{free} своб. из {total}"
+
+msgid "{ink} (toner)"
+msgstr "{ink} (тонер)"
 
 msgid "{label} was unmounted but could not be powered off:\n{detail}\n\nYou can still unplug it."
 msgstr "{label} размонтирован, но его не удалось отключить от питания:\n{detail}\n\nВы всё равно можете его отсоединить."
 
-msgid "{n} item(s)"
-msgstr "Элементов: {n}"
+msgid "{n} items"
+msgstr "{n} эл."
+
+msgid "{n} updates"
+msgstr "Обновлений: {n}"
 
 msgid "{share} on {host}"
 msgstr "{share} на {host}"
+
+msgid "{used} in use ({pct} %)"
+msgstr "занято {used} ({pct} %)"
 
 msgid "“{name}” is not responding. Check that it is turned on and connected to the network."
 msgstr "«{name}» не отвечает. Убедитесь, что устройство включено и подключено к сети."

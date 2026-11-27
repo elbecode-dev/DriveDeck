@@ -212,8 +212,10 @@ small **live graph** of their read and write speed, and warn you when they are a
 - The built-in update check is **switched off** in this fork, because it would point to the original project and
   suggest replacing this version. (You can switch it back on with your own repository, see the code comment at
   `MAJ_API`.)
-- New menu texts come with **German** translations. Other languages show English for the new entries until someone
-  translates them (help is welcome!).
+- **All 13 languages are complete again:** the texts added by this fork are translated into German, Spanish, French,
+  Italian, Japanese, Dutch, Polish, Brazilian Portuguese, Russian, Turkish and Simplified and Traditional Chinese.
+  Apart from German they were translated with AI help and not yet reviewed by native speakers – corrections to the
+  files in `locale/` are very welcome.
 - Programs started from DriveDeck (Terminal, System monitor, Dolphin, …) run completely on their own and no longer
   hang under DriveDeck in the process tree.
 - The program gives unused memory back to the system after heavy work (opening the System information window, minimising).

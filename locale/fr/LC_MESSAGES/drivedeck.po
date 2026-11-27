@@ -4,14 +4,50 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Language: fr\n"
 
+msgid "1 item"
+msgstr "1 élément"
+
+msgid "1 update"
+msgstr "1 mise à jour"
+
 msgid "192.168.1.10, nas-name or smb://..."
 msgstr "192.168.1.10, nom-du-nas ou smb://..."
+
+msgid "A community fork of Fenestra “This PC” by naykkalak: your folders, drives, network locations, printers and devices in one window for KDE Plasma."
+msgstr "Un fork communautaire de Fenestra « Ce PC » par naykkalak : vos dossiers, lecteurs, emplacements réseau, imprimantes et périphériques dans une seule fenêtre pour KDE Plasma."
+
+msgid "ADF duplex"
+msgstr "ADF recto verso"
 
 msgid "About"
 msgstr "À propos"
 
+msgid "About DriveDeck"
+msgstr "À propos de DriveDeck"
+
+msgid "Actions & tools"
+msgstr "Actions et outils"
+
+msgid "Activity"
+msgstr "Activité"
+
 msgid "Add a network location"
 msgstr "Ajouter un emplacement réseau"
+
+msgid "Address"
+msgstr "Adresse"
+
+msgid "Almost full"
+msgstr "Presque plein"
+
+msgid "Always use the compact toolbar"
+msgstr "Toujours utiliser la barre d'outils compacte"
+
+msgid "Analyze storage"
+msgstr "Analyser le stockage"
+
+msgid "Application name:"
+msgstr "Nom de l'application :"
 
 msgid "Author: {author}"
 msgstr "Auteur : {author}"
@@ -19,20 +55,47 @@ msgstr "Auteur : {author}"
 msgid "Available"
 msgstr "Disponible"
 
+msgid "Bad sectors"
+msgstr "Secteurs défectueux"
+
+msgid "Black"
+msgstr "Noir"
+
 msgid "Built-in"
 msgstr "Intégré"
 
 msgid "CD/DVD Drive"
 msgstr "Lecteur CD/DVD"
 
+msgid "CPU & Board"
+msgstr "Processeur et carte mère"
+
 msgid "Cannot add"
 msgstr "Ajout impossible"
+
+msgid "Cannot disconnect"
+msgstr "Impossible de déconnecter"
 
 msgid "Cannot eject"
 msgstr "Éjection impossible"
 
+msgid "Cannot mount"
+msgstr "Impossible de monter"
+
 msgid "Cannot open"
 msgstr "Ouverture impossible"
+
+msgid "Cannot open terminal"
+msgstr "Impossible d'ouvrir le terminal"
+
+msgid "Cannot open trash"
+msgstr "Impossible d'ouvrir la corbeille"
+
+msgid "Cannot print test page"
+msgstr "Impossible d'imprimer la page de test"
+
+msgid "Cannot read hardware details"
+msgstr "Impossible de lire les détails matériels"
 
 msgid "Cannot remove"
 msgstr "Suppression impossible"
@@ -40,8 +103,23 @@ msgstr "Suppression impossible"
 msgid "Cannot rename"
 msgstr "Renommage impossible"
 
+msgid "Cannot save report"
+msgstr "Impossible d'enregistrer le rapport"
+
+msgid "Cannot set default printer"
+msgstr "Impossible de définir l'imprimante par défaut"
+
+msgid "Cannot start tool"
+msgstr "Impossible de lancer l'outil"
+
+msgid "Cannot unmount"
+msgstr "Impossible de démonter"
+
 msgid "Capacity: {size}"
 msgstr "Capacité : {size}"
+
+msgid "Change name…"
+msgstr "Changer le nom…"
 
 msgid "Check for a new version once a week"
 msgstr "Rechercher une nouvelle version une fois par semaine"
@@ -49,11 +127,35 @@ msgstr "Rechercher une nouvelle version une fois par semaine"
 msgid "Choose a share…"
 msgstr "Choisir un partage…"
 
+msgid "Close"
+msgstr "Fermer"
+
 msgid "Command bar icons: Fluent UI System Icons, © Microsoft Corporation, MIT license."
 msgstr "Icônes de la barre de commandes : Fluent UI System Icons, © Microsoft Corporation, licence MIT."
 
+msgid "Connected"
+msgstr "Connecté"
+
 msgid "Connected via USB"
 msgstr "Connectée en USB"
+
+msgid "Connection"
+msgstr "Connexion"
+
+msgid "Continue?"
+msgstr "Continuer ?"
+
+msgid "Copied to clipboard"
+msgstr "Copié dans le presse-papiers"
+
+msgid "Copy name"
+msgstr "Copier le nom"
+
+msgid "Copy path"
+msgstr "Copier le chemin"
+
+msgid "Copy specs"
+msgstr "Copier les caractéristiques"
 
 msgid "Could not save the list:\n{error}"
 msgstr "Impossible d'enregistrer la liste :\n{error}"
@@ -64,20 +166,47 @@ msgstr "Impossible de démonter le disque :\n{detail}\n\nFerme les fenêtres et 
 msgid "Could not unmount {label}:\n{detail}\n\nCheck that no file is still open on this drive."
 msgstr "Impossible de démonter {label} :\n{detail}\n\nVérifiez qu'aucun fichier n'est encore ouvert sur ce lecteur."
 
+msgid "Critical"
+msgstr "Critique"
+
+msgid "Ctrl+I"
+msgstr "Ctrl+I"
+
+msgid "Customize the application name (e.g. This PC, CyberDeck)"
+msgstr "Personnaliser le nom de l'application (p. ex. Ce PC, CyberDeck)"
+
+msgid "Cyan"
+msgstr "Cyan"
+
+msgid "Data read"
+msgstr "Données lues"
+
+msgid "Data written"
+msgstr "Données écrites"
+
 msgid "Default"
 msgstr "Par défaut"
 
 msgid "Desktop"
 msgstr "Bureau"
 
+msgid "Details"
+msgstr "Détails"
+
 msgid "Detected automatically on the network"
 msgstr "Détectée automatiquement sur le réseau"
+
+msgid "Device"
+msgstr "Périphérique"
 
 msgid "Device:"
 msgstr "Périphérique :"
 
 msgid "Devices and drives ({n})"
 msgstr "Périphériques et lecteurs ({n})"
+
+msgid "Disconnect"
+msgstr "Déconnecter"
 
 msgid "Disk failing – back up your files"
 msgstr "Disque défaillant – sauvegardez vos fichiers"
@@ -91,14 +220,47 @@ msgstr "Documents"
 msgid "Downloads"
 msgstr "Téléchargements"
 
+msgid "Drag folders here to pin them"
+msgstr "Glissez des dossiers ici pour les épingler"
+
+msgid "DriveDeck runs “fstrim” on all mounted drives that support it. This needs administrator rights and can take a while."
+msgstr "DriveDeck exécute « fstrim » sur tous les lecteurs montés qui le prennent en charge. Cela nécessite des droits d'administrateur et peut prendre un moment."
+
 msgid "Eject"
 msgstr "Éjecter"
+
+msgid "Empty"
+msgstr "Vide"
+
+msgid "Export full report…"
+msgstr "Exporter le rapport complet…"
+
+msgid "Failed"
+msgstr "Échec"
+
+msgid "File system"
+msgstr "Système de fichiers"
 
 msgid "File system:"
 msgstr "Système de fichiers :"
 
+msgid "Film"
+msgstr "Film"
+
+msgid "Flatbed"
+msgstr "Vitre"
+
+msgid "Folder"
+msgstr "Dossier"
+
+msgid "Folder not found"
+msgstr "Dossier introuvable"
+
 msgid "Folders ({n})"
 msgstr "Dossiers ({n})"
+
+msgid "Free"
+msgstr "Libre"
 
 msgid "Free: {size}"
 msgstr "Libre : {size}"
@@ -112,11 +274,29 @@ msgstr "GPL-3.0 uniquement"
 msgid "GPL-3.0 or later"
 msgstr "GPL-3.0 ou ultérieure"
 
+msgid "GPU & Display"
+msgstr "Graphiques et affichage"
+
 msgid "Game controller"
 msgstr "Manette de jeu"
 
+msgid "Good"
+msgstr "Bon"
+
+msgid "Graphics"
+msgstr "Graphiques"
+
+msgid "Graphics adapter"
+msgstr "Carte graphique"
+
 msgid "Graphics tablet"
 msgstr "Tablette graphique"
+
+msgid "Gray"
+msgstr "Gris"
+
+msgid "Health"
+msgstr "Santé"
 
 msgid "Incorrect username or password."
 msgstr "Identifiant ou mot de passe refusé."
@@ -124,8 +304,14 @@ msgstr "Identifiant ou mot de passe refusé."
 msgid "Ink levels"
 msgstr "Niveaux d'encre"
 
+msgid "Installed"
+msgstr "Installé"
+
 msgid "Insufficient rights"
 msgstr "Droits insuffisants"
+
+msgid "JSON report"
+msgstr "Rapport JSON"
 
 msgid "KWallet could not save the password: the gauge will not be shown."
 msgstr "KWallet n'a pas pu enregistrer le mot de passe : la jauge ne sera pas affichée."
@@ -136,29 +322,83 @@ msgstr "Clavier"
 msgid "License: {license}"
 msgstr "Licence : {license}"
 
+msgid "Light cyan"
+msgstr "Cyan clair"
+
+msgid "Light gray"
+msgstr "Gris clair"
+
+msgid "Light magenta"
+msgstr "Magenta clair"
+
 msgid "List"
 msgstr "Lister"
 
 msgid "Local Disk"
 msgstr "Disque local"
 
-msgid "Location"
-msgstr "Emplacement"
-
 msgid "Location unavailable"
 msgstr "Emplacement indisponible"
+
+msgid "Magenta"
+msgstr "Magenta"
+
+msgid "Mainboard"
+msgstr "Carte mère"
+
+msgid "Matte black"
+msgstr "Noir mat"
+
+msgid "Maximize"
+msgstr "Agrandir"
+
+msgid "Media errors"
+msgstr "Erreurs de support"
+
+msgid "Media errors reported"
+msgstr "Erreurs de support signalées"
+
+msgid "Memory"
+msgstr "Mémoire"
+
+msgid "Minimize"
+msgstr "Réduire"
+
+msgid "Mount"
+msgstr "Monter"
+
+msgid "Mount point"
+msgstr "Point de montage"
 
 msgid "Mount point:"
 msgstr "Point de montage :"
 
+msgid "Mounted"
+msgstr "Monté"
+
 msgid "Mouse"
 msgstr "Souris"
+
+msgid "Move down"
+msgstr "Déplacer vers le bas"
+
+msgid "Move up"
+msgstr "Déplacer vers le haut"
 
 msgid "Music"
 msgstr "Musique"
 
 msgid "My NAS"
 msgstr "Mon NAS"
+
+msgid "Name shown in the title bar and as the heading of the drive list. Leave empty for the default names."
+msgstr "Nom affiché dans la barre de titre et en tête de la liste des lecteurs. Laissez vide pour les noms par défaut."
+
+msgid "Navigation"
+msgstr "Navigation"
+
+msgid "Nearly worn out"
+msgstr "Presque usé"
 
 msgid "Network"
 msgstr "Réseau"
@@ -169,17 +409,35 @@ msgstr "Emplacement réseau"
 msgid "Network locations ({n})"
 msgstr "Emplacements réseau ({n})"
 
+msgid "No SMART data without an administrator password (e.g. a disk in a USB enclosure). The button below shows the full report."
+msgstr "Pas de données SMART sans mot de passe administrateur (p. ex. un disque dans un boîtier USB). Le bouton ci-dessous affiche le rapport complet."
+
 msgid "No disc"
 msgstr "Aucun disque"
 
 msgid "No information available."
 msgstr "Aucune information disponible."
 
+msgid "No scanning program was found on this computer. Please install “skanpage” or “simple-scan”."
+msgstr "Aucun programme de numérisation n'a été trouvé sur cet ordinateur. Veuillez installer « skanpage » ou « simple-scan »."
+
 msgid "No share visible with these credentials."
 msgstr "Aucun partage visible avec ces identifiants."
 
+msgid "No terminal program found"
+msgstr "Aucun programme de terminal trouvé"
+
 msgid "Not connected"
 msgstr "Non connecté"
+
+msgid "Not mounted"
+msgstr "Non monté"
+
+msgid "Note"
+msgstr "Remarque"
+
+msgid "Note: the external USB enclosure or bridge controller does not support SMART pass-through."
+msgstr "Remarque : le boîtier USB externe ou le contrôleur de pont ne prend pas en charge le relais SMART."
 
 msgid "Offline"
 msgstr "Hors ligne"
@@ -187,11 +445,26 @@ msgstr "Hors ligne"
 msgid "Open"
 msgstr "Ouvrir"
 
-msgid "Open with Dolphin"
-msgstr "Ouvrir avec Dolphin"
+msgid "Open in terminal"
+msgstr "Ouvrir dans un terminal"
+
+msgid "Open in {app} terminal"
+msgstr "Ouvrir dans le terminal {app}"
+
+msgid "Open settings"
+msgstr "Ouvrir les paramètres"
+
+msgid "Open with {app}"
+msgstr "Ouvrir avec {app}"
+
+msgid "Overview"
+msgstr "Vue d'ensemble"
 
 msgid "Partial eject"
 msgstr "Éjection partielle"
+
+msgid "Passed"
+msgstr "Réussi"
 
 msgid "Password not remembered"
 msgstr "Mot de passe non retenu"
@@ -199,8 +472,32 @@ msgstr "Mot de passe non retenu"
 msgid "Password:"
 msgstr "Mot de passe :"
 
+msgid "Path"
+msgstr "Chemin"
+
+msgid "Pending sectors"
+msgstr "Secteurs en attente"
+
+msgid "Photo black"
+msgstr "Noir photo"
+
 msgid "Pictures"
 msgstr "Images"
+
+msgid "Pin a folder…"
+msgstr "Épingler un dossier…"
+
+msgid "Pin to Quick access"
+msgstr "Épingler à l'accès rapide"
+
+msgid "Power cycles"
+msgstr "Cycles d'alimentation"
+
+msgid "Power-on time"
+msgstr "Durée sous tension"
+
+msgid "Print test page"
+msgstr "Imprimer une page de test"
 
 msgid "Printer"
 msgstr "Imprimante"
@@ -211,6 +508,9 @@ msgstr "Imprimantes et périphériques ({n})"
 msgid "Printing"
 msgstr "Impression en cours"
 
+msgid "Processor"
+msgstr "Processeur"
+
 msgid "Program not found"
 msgstr "Programme introuvable"
 
@@ -220,14 +520,44 @@ msgstr "Propriétés"
 msgid "Properties of {name}"
 msgstr "Propriétés de {name}"
 
+msgid "Quick access"
+msgstr "Accès rapide"
+
+msgid "Quick access ({n})"
+msgstr "Accès rapide ({n})"
+
+msgid "Read"
+msgstr "Lecture"
+
+msgid "Read SMART…"
+msgstr "Lire SMART…"
+
+msgid "Read slot details (administrator)"
+msgstr "Lire les détails des emplacements (administrateur)"
+
+msgid "Read with smartctl at {time}"
+msgstr "Lu avec smartctl à {time}"
+
+msgid "Reading SMART data…"
+msgstr "Lecture des données SMART…"
+
 msgid "Reading SMART requires root rights, and pkexec (graphical elevation) was not found on this system."
 msgstr "La lecture SMART nécessite les droits root, et pkexec (élévation graphique) est introuvable sur ce système."
 
 msgid "Reading SMART timed out."
 msgstr "La lecture SMART a expiré."
 
+msgid "Reading hardware…"
+msgstr "Lecture du matériel…"
+
 msgid "Ready"
 msgstr "Prête"
+
+msgid "Reallocated sectors"
+msgstr "Secteurs réalloués"
+
+msgid "Red gauge and ⚠ symbol from this much free space or less."
+msgstr "Jauge rouge et symbole ⚠ à partir de cet espace libre ou moins."
 
 msgid "Refresh"
 msgstr "Actualiser"
@@ -253,8 +583,32 @@ msgstr "Supprimer cet emplacement"
 msgid "Rename"
 msgstr "Renommer"
 
+msgid "Rename DriveDeck"
+msgstr "Renommer DriveDeck"
+
+msgid "Rename…"
+msgstr "Renommer…"
+
 msgid "Renaming is not supported for this format ({fstype})."
 msgstr "Le renommage n'est pas pris en charge pour ce format ({fstype})."
+
+msgid "Report saved"
+msgstr "Rapport enregistré"
+
+msgid "Reset"
+msgstr "Réinitialiser"
+
+msgid "Reset name"
+msgstr "Réinitialiser le nom"
+
+msgid "Restore"
+msgstr "Restaurer"
+
+msgid "Running"
+msgstr "En cours"
+
+msgid "SMART health"
+msgstr "Santé SMART"
 
 msgid "SMART status…"
 msgstr "État SMART…"
@@ -262,14 +616,29 @@ msgstr "État SMART…"
 msgid "SMART unavailable"
 msgstr "SMART indisponible"
 
+msgid "SSD optimization"
+msgstr "Optimisation SSD"
+
+msgid "SSD optimization failed"
+msgstr "Échec de l'optimisation SSD"
+
 msgid "Safely remove"
 msgstr "Enlever en toute sécurité"
 
 msgid "Scanner"
 msgstr "Scanner"
 
+msgid "Scan…"
+msgstr "Numériser…"
+
 msgid "Searching…"
 msgstr "Recherche…"
+
+msgid "Self-test"
+msgstr "Auto-test"
+
+msgid "Self-test failed"
+msgstr "Échec de l'auto-test"
 
 msgid "Server address:"
 msgstr "Adresse du serveur :"
@@ -277,44 +646,116 @@ msgstr "Adresse du serveur :"
 msgid "Server unreachable. Check the address and that the server is turned on."
 msgstr "Serveur injoignable. Vérifiez l'adresse et que le serveur est allumé."
 
+msgid "Set as default printer"
+msgstr "Définir comme imprimante par défaut"
+
+msgid "Settings"
+msgstr "Paramètres"
+
 msgid "Share name (required):"
 msgstr "Nom du partage (obligatoire) :"
 
 msgid "Shares found:"
 msgstr "Partages trouvés :"
 
+msgid "Sheet feeder"
+msgstr "Chargeur de feuilles"
+
 msgid "Show"
 msgstr "Afficher"
+
+msgid "Show and options"
+msgstr "Affichage et options"
 
 msgid "Signs of wear – see Properties"
 msgstr "Signes d'usure – voir Propriétés"
 
+msgid "Size"
+msgstr "Taille"
+
+msgid "Sound"
+msgstr "Son"
+
+msgid "Spare"
+msgstr "Réserve"
+
+msgid "Spare capacity below the limit"
+msgstr "Réserve sous la limite"
+
+msgid "Status"
+msgstr "État"
+
 msgid "Status:"
 msgstr "État :"
+
+msgid "Storage"
+msgstr "Stockage"
+
+msgid "Storage I/O"
+msgstr "E/S du stockage"
 
 msgid "System"
 msgstr "Système"
 
+msgid "System & Drivers"
+msgstr "Système et pilotes"
+
 msgid "System Settings"
 msgstr "Configuration du système"
+
+msgid "System center"
+msgstr "Centre système"
 
 msgid "System information"
 msgstr "Informations système"
 
+msgid "System monitor"
+msgstr "Moniteur système"
+
+msgid "System overview"
+msgstr "Vue d'ensemble du système"
+
+msgid "System specs"
+msgstr "Caractéristiques du système"
+
 msgid "TB"
 msgstr "To"
+
+msgid "Temperature"
+msgstr "Température"
+
+msgid "Temperature warning"
+msgstr "Alerte de température"
+
+msgid "Temperature:"
+msgstr "Température :"
+
+msgid "Terminal"
+msgstr "Terminal"
+
+msgid "Text report"
+msgstr "Rapport texte"
 
 msgid "The disk could not be remounted:\n{detail}\n\nUnplug it and plug it back in."
 msgstr "Le disque n'a pas pu être remonté :\n{detail}\n\nDébranche-le puis rebranche-le."
 
+msgid "The drive reports a critical error"
+msgstr "Le lecteur signale une erreur critique"
+
 msgid "The final password is requested by Dolphin the first time you open it; you can ask it to remember it."
 msgstr "Le mot de passe définitif est demandé par Dolphin à la première ouverture ; vous pouvez lui demander de le retenir."
+
+msgid "The fstrim and pkexec programs are required."
+msgstr "Les programmes fstrim et pkexec sont nécessaires."
 
 msgid "The name is empty or contains a forbidden character."
 msgstr "Le nom est vide ou contient un caractère interdit."
 
 msgid "The name is too long for this format (maximum {max} characters)."
 msgstr "Le nom est trop long pour ce format (maximum {max} caractères)."
+
+msgid "The operation took too long and was stopped."
+msgstr "L'opération a pris trop de temps et a été arrêtée."
 
 msgid "The program “{name}” is not installed on this computer."
 msgstr "Le programme « {name} » n'est pas installé sur cet ordinateur."
@@ -343,23 +784,32 @@ msgstr "La commande udisksctl est introuvable sur ce système."
 msgid "The username contains a forbidden character."
 msgstr "L'identifiant contient un caractère interdit."
 
-msgid "The username is required to remember the password."
-msgstr "L'identifiant est obligatoire pour retenir le mot de passe."
-
 msgid "The username is required."
 msgstr "L'identifiant est obligatoire."
 
 msgid "This PC"
 msgstr "Ce PC"
 
+msgid "This drive needs smartctl with the administrator password (e.g. a disk in a USB enclosure)."
+msgstr "Ce lecteur nécessite smartctl avec le mot de passe administrateur (p. ex. un disque dans un boîtier USB)."
+
 msgid "This location already exists in the list."
 msgstr "Cet emplacement existe déjà dans la liste."
+
+msgid "This printer does not report ink levels"
+msgstr "Cette imprimante n'indique pas ses niveaux d'encre"
 
 msgid "This software is neither affiliated with nor endorsed by Microsoft Corporation. Windows is a trademark of Microsoft Corporation."
 msgstr "Ce logiciel n'est ni affilié à Microsoft Corporation, ni approuvé par elle. Windows est une marque de Microsoft Corporation."
 
+msgid "Toggle inspector"
+msgstr "Afficher/masquer l'inspecteur"
+
 msgid "Touchpad"
 msgstr "Pavé tactile"
+
+msgid "Trash"
+msgstr "Corbeille"
 
 msgid "Type the password to be able to remember it."
 msgstr "Saisissez le mot de passe pour pouvoir le retenir."
@@ -367,11 +817,32 @@ msgstr "Saisissez le mot de passe pour pouvoir le retenir."
 msgid "Type:"
 msgstr "Type :"
 
+msgid "Uncorrectable sectors"
+msgstr "Secteurs non corrigibles"
+
+msgid "Unmount"
+msgstr "Démonter"
+
 msgid "Unmounting the disk failed."
 msgstr "Le démontage du disque a échoué."
 
 msgid "Unmounting {label} timed out."
 msgstr "Le démontage de {label} a expiré."
+
+msgid "Unpin from Quick access"
+msgstr "Retirer de l'accès rapide"
+
+msgid "Unsafe shutdowns"
+msgstr "Arrêts non sécurisés"
+
+msgid "Up to date"
+msgstr "À jour"
+
+msgid "Uptime"
+msgstr "Temps de fonctionnement"
+
+msgid "Used"
+msgstr "Utilisé"
 
 msgid "Used: {size}"
 msgstr "Utilisé : {size}"
@@ -394,29 +865,86 @@ msgstr "Voir"
 msgid "Volume name"
 msgstr "Nom du volume"
 
+msgid "Warning"
+msgstr "Avertissement"
+
+msgid "Warning threshold for free space"
+msgstr "Seuil d'alerte pour l'espace libre"
+
+msgid "Warning threshold…"
+msgstr "Seuil d'alerte…"
+
+msgid "Wear"
+msgstr "Usure"
+
+msgid "Write"
+msgstr "Écriture"
+
+msgid "Yellow"
+msgstr "Jaune"
+
+msgid "day"
+msgstr "jour"
+
+msgid "days"
+msgstr "jours"
+
+msgid "driver {name}"
+msgstr "pilote {name}"
+
+msgid "file manager"
+msgstr "gestionnaire de fichiers"
+
 msgid "filled in from the list, or type it"
 msgstr "rempli par la liste, ou à saisir"
 
 msgid "gdbus not found or timed out."
 msgstr "gdbus introuvable ou expiré."
 
+msgid "limit {n} %"
+msgstr "limite {n} %"
+
+msgid "needs administrator rights"
+msgstr "nécessite des droits d'administrateur"
+
+msgid "needs administrator rights – use the button below"
+msgstr "nécessite des droits d'administrateur – utilisez le bouton ci-dessous"
+
 msgid "only for “List”, never saved"
 msgstr "seulement pour « Lister », jamais enregistré"
+
+msgid "running…"
+msgstr "en cours…"
 
 msgid "unknown error"
 msgstr "erreur inconnue"
 
+msgid "{cores} cores / {threads} threads"
+msgstr "{cores} cœurs / {threads} threads"
+
+msgid "{free} free"
+msgstr "{free} libres"
+
 msgid "{free} free of {total}"
 msgstr "{free} libres sur {total}"
+
+msgid "{ink} (toner)"
+msgstr "{ink} (toner)"
 
 msgid "{label} was unmounted but could not be powered off:\n{detail}\n\nYou can still unplug it."
 msgstr "{label} a été démonté mais n'a pas pu être mis hors tension :\n{detail}\n\nVous pouvez tout de même le débrancher."
 
-msgid "{n} item(s)"
-msgstr "{n} élément(s)"
+msgid "{n} items"
+msgstr "{n} éléments"
+
+msgid "{n} updates"
+msgstr "{n} mises à jour"
 
 msgid "{share} on {host}"
 msgstr "{share} sur {host}"
+
+msgid "{used} in use ({pct} %)"
+msgstr "{used} utilisés ({pct} %)"
 
 msgid "“{name}” is not responding. Check that it is turned on and connected to the network."
 msgstr "« {name} » ne répond pas. Vérifiez qu'il est allumé et connecté au réseau."

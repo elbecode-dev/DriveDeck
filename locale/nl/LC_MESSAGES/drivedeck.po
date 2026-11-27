@@ -4,14 +4,50 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Language: nl\n"
 
+msgid "1 item"
+msgstr "1 item"
+
+msgid "1 update"
+msgstr "1 update"
+
 msgid "192.168.1.10, nas-name or smb://..."
 msgstr "192.168.1.10, naam-van-de-nas of smb://..."
+
+msgid "A community fork of Fenestra “This PC” by naykkalak: your folders, drives, network locations, printers and devices in one window for KDE Plasma."
+msgstr "Een communityfork van Fenestra ‘Deze pc’ door naykkalak: je mappen, stations, netwerklocaties, printers en apparaten in één venster voor KDE Plasma."
+
+msgid "ADF duplex"
+msgstr "ADF dubbelzijdig"
 
 msgid "About"
 msgstr "Info"
 
+msgid "About DriveDeck"
+msgstr "Over DriveDeck"
+
+msgid "Actions & tools"
+msgstr "Acties en hulpmiddelen"
+
+msgid "Activity"
+msgstr "Activiteit"
+
 msgid "Add a network location"
 msgstr "Een netwerklocatie toevoegen"
+
+msgid "Address"
+msgstr "Adres"
+
+msgid "Almost full"
+msgstr "Bijna vol"
+
+msgid "Always use the compact toolbar"
+msgstr "Altijd de compacte werkbalk gebruiken"
+
+msgid "Analyze storage"
+msgstr "Opslag analyseren"
+
+msgid "Application name:"
+msgstr "Naam van de toepassing:"
 
 msgid "Author: {author}"
 msgstr "Auteur: {author}"
@@ -19,20 +55,47 @@ msgstr "Auteur: {author}"
 msgid "Available"
 msgstr "Beschikbaar"
 
+msgid "Bad sectors"
+msgstr "Slechte sectoren"
+
+msgid "Black"
+msgstr "Zwart"
+
 msgid "Built-in"
 msgstr "Ingebouwd"
 
 msgid "CD/DVD Drive"
 msgstr "Cd/dvd-station"
 
+msgid "CPU & Board"
+msgstr "Processor en moederbord"
+
 msgid "Cannot add"
 msgstr "Toevoegen niet mogelijk"
+
+msgid "Cannot disconnect"
+msgstr "Kan verbinding niet verbreken"
 
 msgid "Cannot eject"
 msgstr "Uitwerpen niet mogelijk"
 
+msgid "Cannot mount"
+msgstr "Kan niet koppelen"
+
 msgid "Cannot open"
 msgstr "Kan niet openen"
+
+msgid "Cannot open terminal"
+msgstr "Kan terminal niet openen"
+
+msgid "Cannot open trash"
+msgstr "Kan prullenbak niet openen"
+
+msgid "Cannot print test page"
+msgstr "Kan testpagina niet afdrukken"
+
+msgid "Cannot read hardware details"
+msgstr "Kan hardwaregegevens niet lezen"
 
 msgid "Cannot remove"
 msgstr "Verwijderen niet mogelijk"
@@ -40,8 +103,23 @@ msgstr "Verwijderen niet mogelijk"
 msgid "Cannot rename"
 msgstr "Naam wijzigen niet mogelijk"
 
+msgid "Cannot save report"
+msgstr "Kan rapport niet opslaan"
+
+msgid "Cannot set default printer"
+msgstr "Kan standaardprinter niet instellen"
+
+msgid "Cannot start tool"
+msgstr "Kan programma niet starten"
+
+msgid "Cannot unmount"
+msgstr "Kan niet ontkoppelen"
+
 msgid "Capacity: {size}"
 msgstr "Capaciteit: {size}"
+
+msgid "Change name…"
+msgstr "Naam wijzigen…"
 
 msgid "Check for a new version once a week"
 msgstr "Eén keer per week op een nieuwe versie controleren"
@@ -49,11 +127,35 @@ msgstr "Eén keer per week op een nieuwe versie controleren"
 msgid "Choose a share…"
 msgstr "Kies een share…"
 
+msgid "Close"
+msgstr "Sluiten"
+
 msgid "Command bar icons: Fluent UI System Icons, © Microsoft Corporation, MIT license."
 msgstr "Pictogrammen van de opdrachtbalk: Fluent UI System Icons, © Microsoft Corporation, MIT-licentie."
 
+msgid "Connected"
+msgstr "Verbonden"
+
 msgid "Connected via USB"
 msgstr "Verbonden via USB"
+
+msgid "Connection"
+msgstr "Verbinding"
+
+msgid "Continue?"
+msgstr "Doorgaan?"
+
+msgid "Copied to clipboard"
+msgstr "Naar klembord gekopieerd"
+
+msgid "Copy name"
+msgstr "Naam kopiëren"
+
+msgid "Copy path"
+msgstr "Pad kopiëren"
+
+msgid "Copy specs"
+msgstr "Specificaties kopiëren"
 
 msgid "Could not save the list:\n{error}"
 msgstr "De lijst kon niet worden opgeslagen:\n{error}"
@@ -64,20 +166,47 @@ msgstr "De schijf kon niet worden ontkoppeld:\n{detail}\n\nSluit de vensters en 
 msgid "Could not unmount {label}:\n{detail}\n\nCheck that no file is still open on this drive."
 msgstr "{label} kon niet worden ontkoppeld:\n{detail}\n\nControleer of er nog geen bestand op dit station is geopend."
 
+msgid "Critical"
+msgstr "Kritiek"
+
+msgid "Ctrl+I"
+msgstr "Ctrl+I"
+
+msgid "Customize the application name (e.g. This PC, CyberDeck)"
+msgstr "De naam van de toepassing aanpassen (bijv. Deze pc, CyberDeck)"
+
+msgid "Cyan"
+msgstr "Cyaan"
+
+msgid "Data read"
+msgstr "Gelezen gegevens"
+
+msgid "Data written"
+msgstr "Geschreven gegevens"
+
 msgid "Default"
 msgstr "Standaard"
 
 msgid "Desktop"
 msgstr "Bureaublad"
 
+msgid "Details"
+msgstr "Details"
+
 msgid "Detected automatically on the network"
 msgstr "Automatisch gedetecteerd op het netwerk"
+
+msgid "Device"
+msgstr "Apparaat"
 
 msgid "Device:"
 msgstr "Apparaat:"
 
 msgid "Devices and drives ({n})"
 msgstr "Apparaten en stations ({n})"
+
+msgid "Disconnect"
+msgstr "Verbinding verbreken"
 
 msgid "Disk failing – back up your files"
 msgstr "Schijf defect – maak een back-up van uw bestanden"
@@ -91,14 +220,47 @@ msgstr "Documenten"
 msgid "Downloads"
 msgstr "Downloads"
 
+msgid "Drag folders here to pin them"
+msgstr "Sleep mappen hierheen om ze vast te pinnen"
+
+msgid "DriveDeck runs “fstrim” on all mounted drives that support it. This needs administrator rights and can take a while."
+msgstr "DriveDeck voert ‘fstrim’ uit op alle gekoppelde stations die dit ondersteunen. Hiervoor zijn beheerdersrechten nodig en het kan even duren."
+
 msgid "Eject"
 msgstr "Uitwerpen"
+
+msgid "Empty"
+msgstr "Leeg"
+
+msgid "Export full report…"
+msgstr "Volledig rapport exporteren…"
+
+msgid "Failed"
+msgstr "Mislukt"
+
+msgid "File system"
+msgstr "Bestandssysteem"
 
 msgid "File system:"
 msgstr "Bestandssysteem:"
 
+msgid "Film"
+msgstr "Film"
+
+msgid "Flatbed"
+msgstr "Glasplaat"
+
+msgid "Folder"
+msgstr "Map"
+
+msgid "Folder not found"
+msgstr "Map niet gevonden"
+
 msgid "Folders ({n})"
 msgstr "Mappen ({n})"
+
+msgid "Free"
+msgstr "Vrij"
 
 msgid "Free: {size}"
 msgstr "Vrij: {size}"
@@ -112,11 +274,29 @@ msgstr "alleen GPL-3.0"
 msgid "GPL-3.0 or later"
 msgstr "GPL-3.0 of later"
 
+msgid "GPU & Display"
+msgstr "Grafisch en beeldscherm"
+
 msgid "Game controller"
 msgstr "Gamecontroller"
 
+msgid "Good"
+msgstr "Goed"
+
+msgid "Graphics"
+msgstr "Grafisch"
+
+msgid "Graphics adapter"
+msgstr "Grafische adapter"
+
 msgid "Graphics tablet"
 msgstr "Tekentablet"
+
+msgid "Gray"
+msgstr "Grijs"
+
+msgid "Health"
+msgstr "Gezondheid"
 
 msgid "Incorrect username or password."
 msgstr "Gebruikersnaam of wachtwoord onjuist."
@@ -124,8 +304,14 @@ msgstr "Gebruikersnaam of wachtwoord onjuist."
 msgid "Ink levels"
 msgstr "Inktniveaus"
 
+msgid "Installed"
+msgstr "Geïnstalleerd"
+
 msgid "Insufficient rights"
 msgstr "Onvoldoende rechten"
+
+msgid "JSON report"
+msgstr "JSON-rapport"
 
 msgid "KWallet could not save the password: the gauge will not be shown."
 msgstr "KWallet kon het wachtwoord niet opslaan: de ruimtebalk wordt niet getoond."
@@ -136,29 +322,83 @@ msgstr "Toetsenbord"
 msgid "License: {license}"
 msgstr "Licentie: {license}"
 
+msgid "Light cyan"
+msgstr "Lichtcyaan"
+
+msgid "Light gray"
+msgstr "Lichtgrijs"
+
+msgid "Light magenta"
+msgstr "Lichtmagenta"
+
 msgid "List"
 msgstr "Weergeven"
 
 msgid "Local Disk"
 msgstr "Lokale schijf"
 
-msgid "Location"
-msgstr "Locatie"
-
 msgid "Location unavailable"
 msgstr "Locatie niet beschikbaar"
+
+msgid "Magenta"
+msgstr "Magenta"
+
+msgid "Mainboard"
+msgstr "Moederbord"
+
+msgid "Matte black"
+msgstr "Matzwart"
+
+msgid "Maximize"
+msgstr "Maximaliseren"
+
+msgid "Media errors"
+msgstr "Mediafouten"
+
+msgid "Media errors reported"
+msgstr "Mediafouten gemeld"
+
+msgid "Memory"
+msgstr "Geheugen"
+
+msgid "Minimize"
+msgstr "Minimaliseren"
+
+msgid "Mount"
+msgstr "Koppelen"
+
+msgid "Mount point"
+msgstr "Koppelpunt"
 
 msgid "Mount point:"
 msgstr "Koppelpunt:"
 
+msgid "Mounted"
+msgstr "Gekoppeld"
+
 msgid "Mouse"
 msgstr "Muis"
+
+msgid "Move down"
+msgstr "Omlaag"
+
+msgid "Move up"
+msgstr "Omhoog"
 
 msgid "Music"
 msgstr "Muziek"
 
 msgid "My NAS"
 msgstr "Mijn NAS"
+
+msgid "Name shown in the title bar and as the heading of the drive list. Leave empty for the default names."
+msgstr "Naam in de titelbalk en als kop van de lijst met stations. Laat leeg voor de standaardnamen."
+
+msgid "Navigation"
+msgstr "Navigatie"
+
+msgid "Nearly worn out"
+msgstr "Bijna versleten"
 
 msgid "Network"
 msgstr "Netwerk"
@@ -169,17 +409,35 @@ msgstr "Netwerklocatie"
 msgid "Network locations ({n})"
 msgstr "Netwerklocaties ({n})"
 
+msgid "No SMART data without an administrator password (e.g. a disk in a USB enclosure). The button below shows the full report."
+msgstr "Geen SMART-gegevens zonder beheerderswachtwoord (bijv. een schijf in een USB-behuizing). De knop hieronder toont het volledige rapport."
+
 msgid "No disc"
 msgstr "Geen schijf"
 
 msgid "No information available."
 msgstr "Geen informatie beschikbaar."
 
+msgid "No scanning program was found on this computer. Please install “skanpage” or “simple-scan”."
+msgstr "Er is geen scanprogramma op deze computer gevonden. Installeer ‘skanpage’ of ‘simple-scan’."
+
 msgid "No share visible with these credentials."
 msgstr "Geen shares zichtbaar met deze inloggegevens."
 
+msgid "No terminal program found"
+msgstr "Geen terminalprogramma gevonden"
+
 msgid "Not connected"
 msgstr "Niet verbonden"
+
+msgid "Not mounted"
+msgstr "Niet gekoppeld"
+
+msgid "Note"
+msgstr "Opmerking"
+
+msgid "Note: the external USB enclosure or bridge controller does not support SMART pass-through."
+msgstr "Opmerking: de externe USB-behuizing of bridgecontroller ondersteunt geen SMART-doorgifte."
 
 msgid "Offline"
 msgstr "Offline"
@@ -187,11 +445,26 @@ msgstr "Offline"
 msgid "Open"
 msgstr "Openen"
 
-msgid "Open with Dolphin"
-msgstr "Openen met Dolphin"
+msgid "Open in terminal"
+msgstr "Openen in terminal"
+
+msgid "Open in {app} terminal"
+msgstr "Openen in {app}-terminal"
+
+msgid "Open settings"
+msgstr "Instellingen openen"
+
+msgid "Open with {app}"
+msgstr "Openen met {app}"
+
+msgid "Overview"
+msgstr "Overzicht"
 
 msgid "Partial eject"
 msgstr "Gedeeltelijk uitgeworpen"
+
+msgid "Passed"
+msgstr "Geslaagd"
 
 msgid "Password not remembered"
 msgstr "Wachtwoord niet onthouden"
@@ -199,8 +472,32 @@ msgstr "Wachtwoord niet onthouden"
 msgid "Password:"
 msgstr "Wachtwoord:"
 
+msgid "Path"
+msgstr "Pad"
+
+msgid "Pending sectors"
+msgstr "Wachtende sectoren"
+
+msgid "Photo black"
+msgstr "Fotozwart"
+
 msgid "Pictures"
 msgstr "Afbeeldingen"
+
+msgid "Pin a folder…"
+msgstr "Een map vastpinnen…"
+
+msgid "Pin to Quick access"
+msgstr "Vastpinnen aan Snelle toegang"
+
+msgid "Power cycles"
+msgstr "Inschakelingen"
+
+msgid "Power-on time"
+msgstr "Ingeschakelde tijd"
+
+msgid "Print test page"
+msgstr "Testpagina afdrukken"
 
 msgid "Printer"
 msgstr "Printer"
@@ -211,6 +508,9 @@ msgstr "Printers en apparaten ({n})"
 msgid "Printing"
 msgstr "Bezig met afdrukken"
 
+msgid "Processor"
+msgstr "Processor"
+
 msgid "Program not found"
 msgstr "Programma niet gevonden"
 
@@ -220,14 +520,44 @@ msgstr "Eigenschappen"
 msgid "Properties of {name}"
 msgstr "Eigenschappen van {name}"
 
+msgid "Quick access"
+msgstr "Snelle toegang"
+
+msgid "Quick access ({n})"
+msgstr "Snelle toegang ({n})"
+
+msgid "Read"
+msgstr "Lezen"
+
+msgid "Read SMART…"
+msgstr "SMART lezen…"
+
+msgid "Read slot details (administrator)"
+msgstr "Geheugensloten lezen (beheerder)"
+
+msgid "Read with smartctl at {time}"
+msgstr "Gelezen met smartctl om {time}"
+
+msgid "Reading SMART data…"
+msgstr "SMART-gegevens lezen…"
+
 msgid "Reading SMART requires root rights, and pkexec (graphical elevation) was not found on this system."
 msgstr "Voor het lezen van SMART zijn root-rechten nodig, en pkexec (grafische verhoging van rechten) is op dit systeem niet gevonden."
 
 msgid "Reading SMART timed out."
 msgstr "Het lezen van SMART duurde te lang."
 
+msgid "Reading hardware…"
+msgstr "Hardware lezen…"
+
 msgid "Ready"
 msgstr "Gereed"
+
+msgid "Reallocated sectors"
+msgstr "Opnieuw toegewezen sectoren"
+
+msgid "Red gauge and ⚠ symbol from this much free space or less."
+msgstr "Rode meter en ⚠-symbool vanaf zo weinig vrije ruimte."
 
 msgid "Refresh"
 msgstr "Vernieuwen"
@@ -253,8 +583,32 @@ msgstr "Deze locatie verwijderen"
 msgid "Rename"
 msgstr "Naam wijzigen"
 
+msgid "Rename DriveDeck"
+msgstr "DriveDeck hernoemen"
+
+msgid "Rename…"
+msgstr "Hernoemen…"
+
 msgid "Renaming is not supported for this format ({fstype})."
 msgstr "Naam wijzigen wordt voor deze indeling ({fstype}) niet ondersteund."
+
+msgid "Report saved"
+msgstr "Rapport opgeslagen"
+
+msgid "Reset"
+msgstr "Herstellen"
+
+msgid "Reset name"
+msgstr "Naam herstellen"
+
+msgid "Restore"
+msgstr "Vorig formaat"
+
+msgid "Running"
+msgstr "Actief"
+
+msgid "SMART health"
+msgstr "SMART-gezondheid"
 
 msgid "SMART status…"
 msgstr "SMART-status…"
@@ -262,14 +616,29 @@ msgstr "SMART-status…"
 msgid "SMART unavailable"
 msgstr "SMART niet beschikbaar"
 
+msgid "SSD optimization"
+msgstr "SSD-optimalisatie"
+
+msgid "SSD optimization failed"
+msgstr "SSD-optimalisatie mislukt"
+
 msgid "Safely remove"
 msgstr "Veilig verwijderen"
 
 msgid "Scanner"
 msgstr "Scanner"
 
+msgid "Scan…"
+msgstr "Scannen…"
+
 msgid "Searching…"
 msgstr "Zoeken…"
+
+msgid "Self-test"
+msgstr "Zelftest"
+
+msgid "Self-test failed"
+msgstr "Zelftest mislukt"
 
 msgid "Server address:"
 msgstr "Serveradres:"
@@ -277,44 +646,116 @@ msgstr "Serveradres:"
 msgid "Server unreachable. Check the address and that the server is turned on."
 msgstr "Server niet bereikbaar. Controleer het adres en of de server is ingeschakeld."
 
+msgid "Set as default printer"
+msgstr "Als standaardprinter instellen"
+
+msgid "Settings"
+msgstr "Instellingen"
+
 msgid "Share name (required):"
 msgstr "Naam van de share (verplicht):"
 
 msgid "Shares found:"
 msgstr "Gevonden shares:"
 
+msgid "Sheet feeder"
+msgstr "Velleninvoer"
+
 msgid "Show"
 msgstr "Weergeven"
+
+msgid "Show and options"
+msgstr "Weergave en opties"
 
 msgid "Signs of wear – see Properties"
 msgstr "Tekenen van slijtage – zie Eigenschappen"
 
+msgid "Size"
+msgstr "Grootte"
+
+msgid "Sound"
+msgstr "Geluid"
+
+msgid "Spare"
+msgstr "Reserve"
+
+msgid "Spare capacity below the limit"
+msgstr "Reserve onder de limiet"
+
+msgid "Status"
+msgstr "Status"
+
 msgid "Status:"
 msgstr "Status:"
+
+msgid "Storage"
+msgstr "Opslag"
+
+msgid "Storage I/O"
+msgstr "Opslag-I/O"
 
 msgid "System"
 msgstr "Systeem"
 
+msgid "System & Drivers"
+msgstr "Systeem en stuurprogramma’s"
+
 msgid "System Settings"
 msgstr "Systeeminstellingen"
+
+msgid "System center"
+msgstr "Systeemcentrum"
 
 msgid "System information"
 msgstr "Systeeminformatie"
 
+msgid "System monitor"
+msgstr "Systeemmonitor"
+
+msgid "System overview"
+msgstr "Systeemoverzicht"
+
+msgid "System specs"
+msgstr "Systeemspecificaties"
+
 msgid "TB"
 msgstr "TB"
+
+msgid "Temperature"
+msgstr "Temperatuur"
+
+msgid "Temperature warning"
+msgstr "Temperatuurwaarschuwing"
+
+msgid "Temperature:"
+msgstr "Temperatuur:"
+
+msgid "Terminal"
+msgstr "Terminal"
+
+msgid "Text report"
+msgstr "Tekstrapport"
 
 msgid "The disk could not be remounted:\n{detail}\n\nUnplug it and plug it back in."
 msgstr "De schijf kon niet opnieuw worden gekoppeld:\n{detail}\n\nKoppel hem los en sluit hem opnieuw aan."
 
+msgid "The drive reports a critical error"
+msgstr "Het station meldt een kritieke fout"
+
 msgid "The final password is requested by Dolphin the first time you open it; you can ask it to remember it."
 msgstr "Het definitieve wachtwoord wordt bij het eerste openen door Dolphin gevraagd; u kunt Dolphin vragen het te onthouden."
+
+msgid "The fstrim and pkexec programs are required."
+msgstr "De programma’s fstrim en pkexec zijn vereist."
 
 msgid "The name is empty or contains a forbidden character."
 msgstr "De naam is leeg of bevat een niet-toegestaan teken."
 
 msgid "The name is too long for this format (maximum {max} characters)."
 msgstr "De naam is te lang voor deze indeling (maximaal {max} tekens)."
+
+msgid "The operation took too long and was stopped."
+msgstr "De bewerking duurde te lang en is gestopt."
 
 msgid "The program “{name}” is not installed on this computer."
 msgstr "Het programma ‘{name}’ is niet geïnstalleerd op deze computer."
@@ -343,23 +784,32 @@ msgstr "De opdracht udisksctl is op dit systeem niet gevonden."
 msgid "The username contains a forbidden character."
 msgstr "De gebruikersnaam bevat een niet-toegestaan teken."
 
-msgid "The username is required to remember the password."
-msgstr "De gebruikersnaam is verplicht om het wachtwoord te onthouden."
-
 msgid "The username is required."
 msgstr "De gebruikersnaam is verplicht."
 
 msgid "This PC"
 msgstr "Deze pc"
 
+msgid "This drive needs smartctl with the administrator password (e.g. a disk in a USB enclosure)."
+msgstr "Dit station heeft smartctl met het beheerderswachtwoord nodig (bijv. een schijf in een USB-behuizing)."
+
 msgid "This location already exists in the list."
 msgstr "Deze locatie staat al in de lijst."
+
+msgid "This printer does not report ink levels"
+msgstr "Deze printer meldt geen inktniveaus"
 
 msgid "This software is neither affiliated with nor endorsed by Microsoft Corporation. Windows is a trademark of Microsoft Corporation."
 msgstr "Deze software is niet verbonden aan Microsoft Corporation en wordt niet door Microsoft Corporation goedgekeurd. Windows is een handelsmerk van Microsoft Corporation."
 
+msgid "Toggle inspector"
+msgstr "Inspector tonen/verbergen"
+
 msgid "Touchpad"
 msgstr "Touchpad"
+
+msgid "Trash"
+msgstr "Prullenbak"
 
 msgid "Type the password to be able to remember it."
 msgstr "Typ het wachtwoord om het te kunnen onthouden."
@@ -367,11 +817,32 @@ msgstr "Typ het wachtwoord om het te kunnen onthouden."
 msgid "Type:"
 msgstr "Type:"
 
+msgid "Uncorrectable sectors"
+msgstr "Niet-corrigeerbare sectoren"
+
+msgid "Unmount"
+msgstr "Ontkoppelen"
+
 msgid "Unmounting the disk failed."
 msgstr "Het ontkoppelen van de schijf is mislukt."
 
 msgid "Unmounting {label} timed out."
 msgstr "Het ontkoppelen van {label} duurde te lang."
+
+msgid "Unpin from Quick access"
+msgstr "Losmaken van Snelle toegang"
+
+msgid "Unsafe shutdowns"
+msgstr "Onveilige uitschakelingen"
+
+msgid "Up to date"
+msgstr "Bijgewerkt"
+
+msgid "Uptime"
+msgstr "Actieve tijd"
+
+msgid "Used"
+msgstr "Gebruikt"
 
 msgid "Used: {size}"
 msgstr "In gebruik: {size}"
@@ -394,29 +865,86 @@ msgstr "Bekijken"
 msgid "Volume name"
 msgstr "Volumenaam"
 
+msgid "Warning"
+msgstr "Waarschuwing"
+
+msgid "Warning threshold for free space"
+msgstr "Waarschuwingsdrempel voor vrije ruimte"
+
+msgid "Warning threshold…"
+msgstr "Waarschuwingsdrempel…"
+
+msgid "Wear"
+msgstr "Slijtage"
+
+msgid "Write"
+msgstr "Schrijven"
+
+msgid "Yellow"
+msgstr "Geel"
+
+msgid "day"
+msgstr "dag"
+
+msgid "days"
+msgstr "dagen"
+
+msgid "driver {name}"
+msgstr "stuurprogramma {name}"
+
+msgid "file manager"
+msgstr "bestandsbeheerder"
+
 msgid "filled in from the list, or type it"
 msgstr "ingevuld via de lijst, of zelf typen"
 
 msgid "gdbus not found or timed out."
 msgstr "gdbus niet gevonden of time-out."
 
+msgid "limit {n} %"
+msgstr "limiet {n} %"
+
+msgid "needs administrator rights"
+msgstr "vereist beheerdersrechten"
+
+msgid "needs administrator rights – use the button below"
+msgstr "vereist beheerdersrechten – gebruik de knop hieronder"
+
 msgid "only for “List”, never saved"
 msgstr "alleen voor ‘Weergeven’, wordt nooit opgeslagen"
+
+msgid "running…"
+msgstr "actief…"
 
 msgid "unknown error"
 msgstr "onbekende fout"
 
+msgid "{cores} cores / {threads} threads"
+msgstr "{cores} kernen / {threads} threads"
+
+msgid "{free} free"
+msgstr "{free} vrij"
+
 msgid "{free} free of {total}"
 msgstr "{free} vrij van {total}"
+
+msgid "{ink} (toner)"
+msgstr "{ink} (toner)"
 
 msgid "{label} was unmounted but could not be powered off:\n{detail}\n\nYou can still unplug it."
 msgstr "{label} is ontkoppeld, maar kon niet worden uitgeschakeld:\n{detail}\n\nU kunt het toch loskoppelen."
 
-msgid "{n} item(s)"
-msgstr "{n} item(s)"
+msgid "{n} items"
+msgstr "{n} items"
+
+msgid "{n} updates"
+msgstr "{n} updates"
 
 msgid "{share} on {host}"
 msgstr "{share} op {host}"
+
+msgid "{used} in use ({pct} %)"
+msgstr "{used} in gebruik ({pct} %)"
 
 msgid "“{name}” is not responding. Check that it is turned on and connected to the network."
 msgstr "‘{name}’ reageert niet. Controleer of het is ingeschakeld en met het netwerk is verbonden."

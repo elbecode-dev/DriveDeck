@@ -4,14 +4,50 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Language: ja\n"
 
+msgid "1 item"
+msgstr "1 項目"
+
+msgid "1 update"
+msgstr "1 件の更新"
+
 msgid "192.168.1.10, nas-name or smb://..."
 msgstr "192.168.1.10、NAS 名、または smb://..."
+
+msgid "A community fork of Fenestra “This PC” by naykkalak: your folders, drives, network locations, printers and devices in one window for KDE Plasma."
+msgstr "naykkalak による Fenestra「PC」のコミュニティフォーク：フォルダー、ドライブ、ネットワークの場所、プリンター、デバイスを KDE Plasma のひとつのウィンドウにまとめます。"
+
+msgid "ADF duplex"
+msgstr "ADF 両面"
 
 msgid "About"
 msgstr "バージョン情報"
 
+msgid "About DriveDeck"
+msgstr "DriveDeck について"
+
+msgid "Actions & tools"
+msgstr "操作とツール"
+
+msgid "Activity"
+msgstr "アクティビティ"
+
 msgid "Add a network location"
 msgstr "ネットワークの場所を追加"
+
+msgid "Address"
+msgstr "アドレス"
+
+msgid "Almost full"
+msgstr "空き容量わずか"
+
+msgid "Always use the compact toolbar"
+msgstr "常にコンパクトなツールバーを使う"
+
+msgid "Analyze storage"
+msgstr "ストレージを分析"
+
+msgid "Application name:"
+msgstr "アプリケーション名:"
 
 msgid "Author: {author}"
 msgstr "作者: {author}"
@@ -19,20 +55,47 @@ msgstr "作者: {author}"
 msgid "Available"
 msgstr "利用可能"
 
+msgid "Bad sectors"
+msgstr "不良セクター"
+
+msgid "Black"
+msgstr "ブラック"
+
 msgid "Built-in"
 msgstr "内蔵"
 
 msgid "CD/DVD Drive"
 msgstr "CD/DVD ドライブ"
 
+msgid "CPU & Board"
+msgstr "CPU とマザーボード"
+
 msgid "Cannot add"
 msgstr "追加できません"
+
+msgid "Cannot disconnect"
+msgstr "切断できません"
 
 msgid "Cannot eject"
 msgstr "取り出せません"
 
+msgid "Cannot mount"
+msgstr "マウントできません"
+
 msgid "Cannot open"
 msgstr "開けません"
+
+msgid "Cannot open terminal"
+msgstr "ターミナルを開けません"
+
+msgid "Cannot open trash"
+msgstr "ごみ箱を開けません"
+
+msgid "Cannot print test page"
+msgstr "テストページを印刷できません"
+
+msgid "Cannot read hardware details"
+msgstr "ハードウェアの詳細を読み取れません"
 
 msgid "Cannot remove"
 msgstr "削除できません"
@@ -40,8 +103,23 @@ msgstr "削除できません"
 msgid "Cannot rename"
 msgstr "名前を変更できません"
 
+msgid "Cannot save report"
+msgstr "レポートを保存できません"
+
+msgid "Cannot set default printer"
+msgstr "通常使うプリンターに設定できません"
+
+msgid "Cannot start tool"
+msgstr "ツールを起動できません"
+
+msgid "Cannot unmount"
+msgstr "アンマウントできません"
+
 msgid "Capacity: {size}"
 msgstr "容量: {size}"
+
+msgid "Change name…"
+msgstr "名前を変更…"
 
 msgid "Check for a new version once a week"
 msgstr "週に 1 回新しいバージョンを確認する"
@@ -49,11 +127,35 @@ msgstr "週に 1 回新しいバージョンを確認する"
 msgid "Choose a share…"
 msgstr "共有を選択…"
 
+msgid "Close"
+msgstr "閉じる"
+
 msgid "Command bar icons: Fluent UI System Icons, © Microsoft Corporation, MIT license."
 msgstr "コマンド バーのアイコン: Fluent UI System Icons、© Microsoft Corporation、MIT ライセンス。"
 
+msgid "Connected"
+msgstr "接続済み"
+
 msgid "Connected via USB"
 msgstr "USB 接続"
+
+msgid "Connection"
+msgstr "接続"
+
+msgid "Continue?"
+msgstr "続行しますか?"
+
+msgid "Copied to clipboard"
+msgstr "クリップボードにコピーしました"
+
+msgid "Copy name"
+msgstr "名前をコピー"
+
+msgid "Copy path"
+msgstr "パスをコピー"
+
+msgid "Copy specs"
+msgstr "仕様をコピー"
 
 msgid "Could not save the list:\n{error}"
 msgstr "一覧を保存できませんでした:\n{error}"
@@ -64,20 +166,47 @@ msgstr "ディスクのマウントを解除できませんでした:\n{detail}\
 msgid "Could not unmount {label}:\n{detail}\n\nCheck that no file is still open on this drive."
 msgstr "{label} のマウントを解除できませんでした:\n{detail}\n\nこのドライブで開いているファイルがないか確認してください。"
 
+msgid "Critical"
+msgstr "危険"
+
+msgid "Ctrl+I"
+msgstr "Ctrl+I"
+
+msgid "Customize the application name (e.g. This PC, CyberDeck)"
+msgstr "アプリケーション名をカスタマイズ (例: PC、CyberDeck)"
+
+msgid "Cyan"
+msgstr "シアン"
+
+msgid "Data read"
+msgstr "読み取ったデータ"
+
+msgid "Data written"
+msgstr "書き込んだデータ"
+
 msgid "Default"
 msgstr "既定"
 
 msgid "Desktop"
 msgstr "デスクトップ"
 
+msgid "Details"
+msgstr "詳細"
+
 msgid "Detected automatically on the network"
 msgstr "ネットワーク上で自動検出"
+
+msgid "Device"
+msgstr "デバイス"
 
 msgid "Device:"
 msgstr "デバイス:"
 
 msgid "Devices and drives ({n})"
 msgstr "デバイスとドライブ ({n})"
+
+msgid "Disconnect"
+msgstr "切断"
 
 msgid "Disk failing – back up your files"
 msgstr "ディスクの故障 – ファイルをバックアップしてください"
@@ -91,14 +220,47 @@ msgstr "ドキュメント"
 msgid "Downloads"
 msgstr "ダウンロード"
 
+msgid "Drag folders here to pin them"
+msgstr "ここにフォルダーをドラッグしてピン留め"
+
+msgid "DriveDeck runs “fstrim” on all mounted drives that support it. This needs administrator rights and can take a while."
+msgstr "DriveDeck は対応するすべてのマウント済みドライブで「fstrim」を実行します。管理者権限が必要で、しばらく時間がかかることがあります。"
+
 msgid "Eject"
 msgstr "取り出し"
+
+msgid "Empty"
+msgstr "空"
+
+msgid "Export full report…"
+msgstr "完全なレポートをエクスポート…"
+
+msgid "Failed"
+msgstr "失敗"
+
+msgid "File system"
+msgstr "ファイルシステム"
 
 msgid "File system:"
 msgstr "ファイル システム:"
 
+msgid "Film"
+msgstr "フィルム"
+
+msgid "Flatbed"
+msgstr "フラットベッド"
+
+msgid "Folder"
+msgstr "フォルダー"
+
+msgid "Folder not found"
+msgstr "フォルダーが見つかりません"
+
 msgid "Folders ({n})"
 msgstr "フォルダー ({n})"
+
+msgid "Free"
+msgstr "空き"
 
 msgid "Free: {size}"
 msgstr "空き: {size}"
@@ -112,11 +274,29 @@ msgstr "GPL-3.0 のみ"
 msgid "GPL-3.0 or later"
 msgstr "GPL-3.0 以降"
 
+msgid "GPU & Display"
+msgstr "グラフィックスとディスプレイ"
+
 msgid "Game controller"
 msgstr "ゲームコントローラー"
 
+msgid "Good"
+msgstr "良好"
+
+msgid "Graphics"
+msgstr "グラフィックス"
+
+msgid "Graphics adapter"
+msgstr "グラフィックス アダプター"
+
 msgid "Graphics tablet"
 msgstr "ペンタブレット"
+
+msgid "Gray"
+msgstr "グレー"
+
+msgid "Health"
+msgstr "健康状態"
 
 msgid "Incorrect username or password."
 msgstr "ユーザー名またはパスワードが正しくありません。"
@@ -124,8 +304,14 @@ msgstr "ユーザー名またはパスワードが正しくありません。"
 msgid "Ink levels"
 msgstr "インク残量"
 
+msgid "Installed"
+msgstr "インストール日"
+
 msgid "Insufficient rights"
 msgstr "権限が不足しています"
+
+msgid "JSON report"
+msgstr "JSON レポート"
 
 msgid "KWallet could not save the password: the gauge will not be shown."
 msgstr "KWallet がパスワードを保存できませんでした。空き容量のバーは表示されません。"
@@ -136,29 +322,83 @@ msgstr "キーボード"
 msgid "License: {license}"
 msgstr "ライセンス: {license}"
 
+msgid "Light cyan"
+msgstr "ライトシアン"
+
+msgid "Light gray"
+msgstr "ライトグレー"
+
+msgid "Light magenta"
+msgstr "ライトマゼンタ"
+
 msgid "List"
 msgstr "一覧表示"
 
 msgid "Local Disk"
 msgstr "ローカル ディスク"
 
-msgid "Location"
-msgstr "場所"
-
 msgid "Location unavailable"
 msgstr "場所を利用できません"
+
+msgid "Magenta"
+msgstr "マゼンタ"
+
+msgid "Mainboard"
+msgstr "マザーボード"
+
+msgid "Matte black"
+msgstr "マットブラック"
+
+msgid "Maximize"
+msgstr "最大化"
+
+msgid "Media errors"
+msgstr "メディアエラー"
+
+msgid "Media errors reported"
+msgstr "メディアエラーが報告されています"
+
+msgid "Memory"
+msgstr "メモリ"
+
+msgid "Minimize"
+msgstr "最小化"
+
+msgid "Mount"
+msgstr "マウント"
+
+msgid "Mount point"
+msgstr "マウントポイント"
 
 msgid "Mount point:"
 msgstr "マウント ポイント:"
 
+msgid "Mounted"
+msgstr "マウント済み"
+
 msgid "Mouse"
 msgstr "マウス"
+
+msgid "Move down"
+msgstr "下へ移動"
+
+msgid "Move up"
+msgstr "上へ移動"
 
 msgid "Music"
 msgstr "ミュージック"
 
 msgid "My NAS"
 msgstr "マイ NAS"
+
+msgid "Name shown in the title bar and as the heading of the drive list. Leave empty for the default names."
+msgstr "タイトルバーとドライブ一覧の見出しに表示される名前です。空欄にすると既定の名前を使います。"
+
+msgid "Navigation"
+msgstr "ナビゲーション"
+
+msgid "Nearly worn out"
+msgstr "寿命が近い"
 
 msgid "Network"
 msgstr "ネットワーク"
@@ -169,17 +409,35 @@ msgstr "ネットワークの場所"
 msgid "Network locations ({n})"
 msgstr "ネットワークの場所 ({n})"
 
+msgid "No SMART data without an administrator password (e.g. a disk in a USB enclosure). The button below shows the full report."
+msgstr "管理者パスワードがないと SMART データを取得できません (例: USB ケース内のディスク)。下のボタンで完全なレポートを表示します。"
+
 msgid "No disc"
 msgstr "ディスクなし"
 
 msgid "No information available."
 msgstr "利用できる情報がありません。"
 
+msgid "No scanning program was found on this computer. Please install “skanpage” or “simple-scan”."
+msgstr "このコンピューターにスキャンプログラムが見つかりません。「skanpage」または「simple-scan」をインストールしてください。"
+
 msgid "No share visible with these credentials."
 msgstr "この資格情報では表示できる共有がありません。"
 
+msgid "No terminal program found"
+msgstr "ターミナルプログラムが見つかりません"
+
 msgid "Not connected"
 msgstr "未接続"
+
+msgid "Not mounted"
+msgstr "未マウント"
+
+msgid "Note"
+msgstr "注意"
+
+msgid "Note: the external USB enclosure or bridge controller does not support SMART pass-through."
+msgstr "注意: 外付け USB ケースまたはブリッジコントローラーが SMART パススルーに対応していません。"
 
 msgid "Offline"
 msgstr "オフライン"
@@ -187,11 +445,26 @@ msgstr "オフライン"
 msgid "Open"
 msgstr "開く"
 
-msgid "Open with Dolphin"
-msgstr "Dolphin で開く"
+msgid "Open in terminal"
+msgstr "ターミナルで開く"
+
+msgid "Open in {app} terminal"
+msgstr "{app} ターミナルで開く"
+
+msgid "Open settings"
+msgstr "設定を開く"
+
+msgid "Open with {app}"
+msgstr "{app} で開く"
+
+msgid "Overview"
+msgstr "概要"
 
 msgid "Partial eject"
 msgstr "一部のみ取り出しました"
+
+msgid "Passed"
+msgstr "合格"
 
 msgid "Password not remembered"
 msgstr "パスワードを記憶できませんでした"
@@ -199,8 +472,32 @@ msgstr "パスワードを記憶できませんでした"
 msgid "Password:"
 msgstr "パスワード:"
 
+msgid "Path"
+msgstr "パス"
+
+msgid "Pending sectors"
+msgstr "保留中のセクター"
+
+msgid "Photo black"
+msgstr "フォトブラック"
+
 msgid "Pictures"
 msgstr "ピクチャ"
+
+msgid "Pin a folder…"
+msgstr "フォルダーをピン留め…"
+
+msgid "Pin to Quick access"
+msgstr "クイック アクセスにピン留め"
+
+msgid "Power cycles"
+msgstr "電源投入回数"
+
+msgid "Power-on time"
+msgstr "通電時間"
+
+msgid "Print test page"
+msgstr "テストページの印刷"
 
 msgid "Printer"
 msgstr "プリンター"
@@ -211,6 +508,9 @@ msgstr "プリンターとデバイス ({n})"
 msgid "Printing"
 msgstr "印刷中"
 
+msgid "Processor"
+msgstr "プロセッサ"
+
 msgid "Program not found"
 msgstr "プログラムが見つかりません"
 
@@ -220,14 +520,44 @@ msgstr "プロパティ"
 msgid "Properties of {name}"
 msgstr "{name} のプロパティ"
 
+msgid "Quick access"
+msgstr "クイック アクセス"
+
+msgid "Quick access ({n})"
+msgstr "クイック アクセス ({n})"
+
+msgid "Read"
+msgstr "読み取り"
+
+msgid "Read SMART…"
+msgstr "SMART を読み取る…"
+
+msgid "Read slot details (administrator)"
+msgstr "スロットの詳細を読み取る (管理者)"
+
+msgid "Read with smartctl at {time}"
+msgstr "{time} に smartctl で読み取り"
+
+msgid "Reading SMART data…"
+msgstr "SMART データを読み取り中…"
+
 msgid "Reading SMART requires root rights, and pkexec (graphical elevation) was not found on this system."
 msgstr "SMART の読み取りには root 権限が必要ですが、このシステムでは pkexec (グラフィカルな権限昇格) が見つかりません。"
 
 msgid "Reading SMART timed out."
 msgstr "SMART の読み取りがタイムアウトしました。"
 
+msgid "Reading hardware…"
+msgstr "ハードウェアを読み取り中…"
+
 msgid "Ready"
 msgstr "準備完了"
+
+msgid "Reallocated sectors"
+msgstr "代替処理済みセクター"
+
+msgid "Red gauge and ⚠ symbol from this much free space or less."
+msgstr "空き容量がこれ以下になると赤いゲージと ⚠ 記号を表示します。"
 
 msgid "Refresh"
 msgstr "最新の情報に更新"
@@ -253,8 +583,32 @@ msgstr "この場所を削除"
 msgid "Rename"
 msgstr "名前の変更"
 
+msgid "Rename DriveDeck"
+msgstr "DriveDeck の名前を変更"
+
+msgid "Rename…"
+msgstr "名前の変更…"
+
 msgid "Renaming is not supported for this format ({fstype})."
 msgstr "この形式 ({fstype}) では名前の変更はサポートされていません。"
+
+msgid "Report saved"
+msgstr "レポートを保存しました"
+
+msgid "Reset"
+msgstr "リセット"
+
+msgid "Reset name"
+msgstr "名前をリセット"
+
+msgid "Restore"
+msgstr "元のサイズに戻す"
+
+msgid "Running"
+msgstr "実行中"
+
+msgid "SMART health"
+msgstr "SMART の健康状態"
 
 msgid "SMART status…"
 msgstr "SMART の状態…"
@@ -262,14 +616,29 @@ msgstr "SMART の状態…"
 msgid "SMART unavailable"
 msgstr "SMART を利用できません"
 
+msgid "SSD optimization"
+msgstr "SSD の最適化"
+
+msgid "SSD optimization failed"
+msgstr "SSD の最適化に失敗しました"
+
 msgid "Safely remove"
 msgstr "安全に取り外す"
 
 msgid "Scanner"
 msgstr "スキャナー"
 
+msgid "Scan…"
+msgstr "スキャン…"
+
 msgid "Searching…"
 msgstr "検索中…"
+
+msgid "Self-test"
+msgstr "セルフテスト"
+
+msgid "Self-test failed"
+msgstr "セルフテストに失敗しました"
 
 msgid "Server address:"
 msgstr "サーバーのアドレス:"
@@ -277,44 +646,116 @@ msgstr "サーバーのアドレス:"
 msgid "Server unreachable. Check the address and that the server is turned on."
 msgstr "サーバーに接続できません。アドレスと、サーバーの電源が入っていることを確認してください。"
 
+msgid "Set as default printer"
+msgstr "通常使うプリンターに設定"
+
+msgid "Settings"
+msgstr "設定"
+
 msgid "Share name (required):"
 msgstr "共有名 (必須):"
 
 msgid "Shares found:"
 msgstr "見つかった共有:"
 
+msgid "Sheet feeder"
+msgstr "シートフィーダー"
+
 msgid "Show"
 msgstr "表示"
+
+msgid "Show and options"
+msgstr "表示とオプション"
 
 msgid "Signs of wear – see Properties"
 msgstr "劣化の兆候 – プロパティを確認"
 
+msgid "Size"
+msgstr "サイズ"
+
+msgid "Sound"
+msgstr "サウンド"
+
+msgid "Spare"
+msgstr "予備領域"
+
+msgid "Spare capacity below the limit"
+msgstr "予備領域がしきい値未満"
+
+msgid "Status"
+msgstr "状態"
+
 msgid "Status:"
 msgstr "状態:"
+
+msgid "Storage"
+msgstr "ストレージ"
+
+msgid "Storage I/O"
+msgstr "ストレージ I/O"
 
 msgid "System"
 msgstr "システム"
 
+msgid "System & Drivers"
+msgstr "システムとドライバー"
+
 msgid "System Settings"
 msgstr "システム設定"
+
+msgid "System center"
+msgstr "システム センター"
 
 msgid "System information"
 msgstr "システム情報"
 
+msgid "System monitor"
+msgstr "システムモニター"
+
+msgid "System overview"
+msgstr "システムの概要"
+
+msgid "System specs"
+msgstr "システム仕様"
+
 msgid "TB"
 msgstr "TB"
+
+msgid "Temperature"
+msgstr "温度"
+
+msgid "Temperature warning"
+msgstr "温度の警告"
+
+msgid "Temperature:"
+msgstr "温度:"
+
+msgid "Terminal"
+msgstr "ターミナル"
+
+msgid "Text report"
+msgstr "テキストレポート"
 
 msgid "The disk could not be remounted:\n{detail}\n\nUnplug it and plug it back in."
 msgstr "ディスクを再マウントできませんでした:\n{detail}\n\n一度取り外して、もう一度接続してください。"
 
+msgid "The drive reports a critical error"
+msgstr "ドライブが重大なエラーを報告しています"
+
 msgid "The final password is requested by Dolphin the first time you open it; you can ask it to remember it."
 msgstr "最終的なパスワードは、初回に開くときに Dolphin から求められます。記憶するよう設定することもできます。"
+
+msgid "The fstrim and pkexec programs are required."
+msgstr "fstrim と pkexec プログラムが必要です。"
 
 msgid "The name is empty or contains a forbidden character."
 msgstr "名前が空か、使用できない文字が含まれています。"
 
 msgid "The name is too long for this format (maximum {max} characters)."
 msgstr "名前がこの形式には長すぎます (最大 {max} 文字)。"
+
+msgid "The operation took too long and was stopped."
+msgstr "処理に時間がかかりすぎたため中止しました。"
 
 msgid "The program “{name}” is not installed on this computer."
 msgstr "プログラム「{name}」はこのコンピューターにインストールされていません。"
@@ -343,23 +784,32 @@ msgstr "このシステムでは udisksctl コマンドが見つかりません�
 msgid "The username contains a forbidden character."
 msgstr "ユーザー名に使用できない文字が含まれています。"
 
-msgid "The username is required to remember the password."
-msgstr "パスワードを記憶するには、ユーザー名が必要です。"
-
 msgid "The username is required."
 msgstr "ユーザー名は必須です。"
 
 msgid "This PC"
 msgstr "PC"
 
+msgid "This drive needs smartctl with the administrator password (e.g. a disk in a USB enclosure)."
+msgstr "このドライブには管理者パスワード付きの smartctl が必要です (例: USB ケース内のディスク)。"
+
 msgid "This location already exists in the list."
 msgstr "この場所はすでに一覧にあります。"
+
+msgid "This printer does not report ink levels"
+msgstr "このプリンターはインク残量を報告しません"
 
 msgid "This software is neither affiliated with nor endorsed by Microsoft Corporation. Windows is a trademark of Microsoft Corporation."
 msgstr "このソフトウェアは Microsoft Corporation とは関係がなく、承認も受けていません。Windows は Microsoft Corporation の商標です。"
 
+msgid "Toggle inspector"
+msgstr "インスペクターの表示切り替え"
+
 msgid "Touchpad"
 msgstr "タッチパッド"
+
+msgid "Trash"
+msgstr "ごみ箱"
 
 msgid "Type the password to be able to remember it."
 msgstr "パスワードを記憶するには、パスワードを入力してください。"
@@ -367,11 +817,32 @@ msgstr "パスワードを記憶するには、パスワードを入力してく
 msgid "Type:"
 msgstr "種類:"
 
+msgid "Uncorrectable sectors"
+msgstr "訂正不能セクター"
+
+msgid "Unmount"
+msgstr "アンマウント"
+
 msgid "Unmounting the disk failed."
 msgstr "ディスクのマウント解除に失敗しました。"
 
 msgid "Unmounting {label} timed out."
 msgstr "{label} のマウント解除がタイムアウトしました。"
+
+msgid "Unpin from Quick access"
+msgstr "クイック アクセスからピン留めを外す"
+
+msgid "Unsafe shutdowns"
+msgstr "不正なシャットダウン"
+
+msgid "Up to date"
+msgstr "最新"
+
+msgid "Uptime"
+msgstr "稼働時間"
+
+msgid "Used"
+msgstr "使用済み"
 
 msgid "Used: {size}"
 msgstr "使用中: {size}"
@@ -394,29 +865,86 @@ msgstr "表示"
 msgid "Volume name"
 msgstr "ボリューム名"
 
+msgid "Warning"
+msgstr "警告"
+
+msgid "Warning threshold for free space"
+msgstr "空き容量の警告しきい値"
+
+msgid "Warning threshold…"
+msgstr "警告しきい値…"
+
+msgid "Wear"
+msgstr "消耗度"
+
+msgid "Write"
+msgstr "書き込み"
+
+msgid "Yellow"
+msgstr "イエロー"
+
+msgid "day"
+msgstr "日"
+
+msgid "days"
+msgstr "日"
+
+msgid "driver {name}"
+msgstr "ドライバー {name}"
+
+msgid "file manager"
+msgstr "ファイルマネージャー"
+
 msgid "filled in from the list, or type it"
 msgstr "一覧から入力されます。または直接入力"
 
 msgid "gdbus not found or timed out."
 msgstr "gdbus が見つからないか、タイムアウトしました。"
 
+msgid "limit {n} %"
+msgstr "しきい値 {n} %"
+
+msgid "needs administrator rights"
+msgstr "管理者権限が必要"
+
+msgid "needs administrator rights – use the button below"
+msgstr "管理者権限が必要 – 下のボタンを使ってください"
+
 msgid "only for “List”, never saved"
 msgstr "「一覧表示」専用で、保存されません"
+
+msgid "running…"
+msgstr "実行中…"
 
 msgid "unknown error"
 msgstr "不明なエラー"
 
+msgid "{cores} cores / {threads} threads"
+msgstr "{cores} コア / {threads} スレッド"
+
+msgid "{free} free"
+msgstr "空き {free}"
+
 msgid "{free} free of {total}"
 msgstr "{total} 中 {free} が空き"
+
+msgid "{ink} (toner)"
+msgstr "{ink} (トナー)"
 
 msgid "{label} was unmounted but could not be powered off:\n{detail}\n\nYou can still unplug it."
 msgstr "{label} のマウントは解除されましたが、電源を切れませんでした:\n{detail}\n\nそのまま取り外しても問題ありません。"
 
-msgid "{n} item(s)"
-msgstr "{n} 個の項目"
+msgid "{n} items"
+msgstr "{n} 項目"
+
+msgid "{n} updates"
+msgstr "{n} 件の更新"
 
 msgid "{share} on {host}"
 msgstr "{host} の {share}"
+
+msgid "{used} in use ({pct} %)"
+msgstr "{used} 使用中 ({pct} %)"
 
 msgid "“{name}” is not responding. Check that it is turned on and connected to the network."
 msgstr "「{name}」が応答しません。電源が入っていて、ネットワークに接続されていることを確認してください。"

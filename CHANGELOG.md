@@ -13,7 +13,17 @@ hidden and everything else works).
 ## Unreleased
 
 ### Added
+- **Complete translations in all 13 languages.** The 180 texts added by the fork (SMART health, inspector, compact toolbar, hardware overview, messages, About window …) were only translated into German and showed in English everywhere else. They are now in every `locale/*/LC_MESSAGES/drivedeck.po` and the compiled `.mo` files: Spanish, French, Italian, Japanese, Dutch, Polish, Brazilian Portuguese, Russian, Turkish, Simplified and Traditional Chinese (AI-assisted, not yet reviewed by native speakers – corrections welcome). German moved from the built-in `EXTRA_DE` table into `de.po`, so all languages now use the same gettext files; the German output is unchanged for every text.
 - **Installer: explains why PyQt6 cannot be loaded.** When PyQt6 is installed but `python3` cannot import it, `install.sh` now says why instead of only reporting it as missing: a `python3` that is not the system Python (conda, pyenv, venv), PyQt6 modules whose file names end in a suffix this Python does not load (for example `QtCore.cpython-312-abi3-x86_64-linux-gnu.so` instead of `QtCore.abi3.so`), or the import error itself. It suggests reinstalling PyQt6 from the distribution and, as a last resort, the symlink workaround. Thanks to **3Shadow3S** for tracking this down and sharing the workaround ([#3](https://github.com/elbecode-dev/DriveDeck/issues/3)).
+
+### Changed
+- **Toolbar buttons size themselves to a two-line label.** The width used to follow only the longest word, so long labels such as "Ajouter un emplacement réseau" (French), "Een netwerklocatie toevoegen" (Dutch) or "Добавить сетевое расположение" (Russian) needed three lines and were cut off. The width now follows the best split into two lines; short two-word titles ("À propos", "О программе") stay on one line when that is barely wider.
+- Shorter Russian and Turkish "free of" texts on the drive cards, which were a few pixels too wide for the card.
+
+### Removed
+- The `EXTRA_DE` table in `drivedeck.py` (German now lives in `de.po`), nine of its entries that nothing used any more, and four entries in every `.po` file that the program no longer uses ("Location", "Open with Dolphin", "{n} item(s)", "The username is required to remember the password.").
+
+**Updating:** run `bash install.sh` again – it copies the new translation files. Replacing only `drivedeck.py` would leave the old `.mo` files in place, and German would lose the fork's texts.
 
 ## 2.2.0 – 2026-11-27
 
