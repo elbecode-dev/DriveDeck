@@ -10,7 +10,7 @@ hidden and everything else works).
 
 ---
 
-## Unreleased
+## 2.2.0 – 2026-11-27
 
 ### Changed
 - **Calmer side columns in the style of macOS Finder.** The sidebar and the inspector are no longer floating glass panels with their own outline, light edge and inner cards. Each is now a full-height column, flush with the window corners, set apart from the middle only by one luminance step (`rgba(255,255,255,0.045)` dark, `rgba(0,0,0,0.03)` light) and a single 1 px hairline (10 % white / black, Apple's separator alpha). The title bar and ribbon run without a break at the top edge.

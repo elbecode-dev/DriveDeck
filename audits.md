@@ -433,7 +433,7 @@ enclosure on real hardware.
 
 ---
 
-## 5o. Finder-style side columns (after 2.1.0)
+## 5o. Finder-style side columns (2.2.0)
 
 **Request:** sidebar and inspector should look like macOS Finder / System Settings: no box-in-box, one luminance step and
 one 1 px hairline per column, calm rows and icons, a Finder "Get Info" grid in the inspector. Icons keep their theme
@@ -463,7 +463,7 @@ test 39/39; 60 s stress run (about 5500 actions) 0 QML messages, 0 exceptions, R
 **Not verified:** Orca reading the regrouped inspector; very large system fonts (sizes use `fontGrow`, only the default
 size was looked at).
 
-## 5p. Visual design audit against the Apple HIG (after 2.1.0)
+## 5p. Visual design audit against the Apple HIG (2.2.0)
 
 **Request:** a strict visual audit along the Apple Human Interface Guidelines (macOS, Liquid Glass): 4/8 px grid, optical
 alignment, concentric radii, layer depth and alpha values in dark and light, typography and WCAG AA, tabular figures,

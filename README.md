@@ -12,7 +12,7 @@ locations, printers and devices in one clean window, and it follows your Plasma 
 
 <p align="center"><img src="preview.png" alt="DriveDeck main window"></p>
 
-**Version 2.1.0** – feedback and bug reports are very welcome.
+**Version 2.2.0** – feedback and bug reports are very welcome.
 
 ---
 
@@ -71,6 +71,15 @@ small **live graph** of their read and write speed, and warn you when they are a
 - **Keyboard:** Tab goes main area → sidebar → ribbon (buttons and *Show* boxes) → inspector toggle → window buttons →
   main area (Shift+Tab backwards, Esc back to the main area); `Ctrl+I` shows or hides the inspector.
 - Works with light and dark Plasma colour schemes.
+
+### New in 2.2.0
+
+- **Finder-style side columns.** Sidebar and inspector are full-height columns set apart by one hairline instead of
+  floating glass panels with cards; the inspector shows details in the Finder "Get Info" grid.
+- **Apple HIG design pass.** Every text meets WCAG AA (4.5 : 1) in light and dark themes, all statuses use one palette of
+  Apple system colours, hover and selection look the same everywhere, keyboard focus is a ring outside the element, and
+  spacing, radii and animations follow one system. The neon glow, outlines and accent stripes are gone.
+- **Calmer ink bars.** Printers that report pure RGB colours are shown in muted print tones.
 
 ### New in 2.1.0
 
