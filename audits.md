@@ -1,7 +1,7 @@
 # Audits – DriveDeck
 
 Summary of the quality audits run on DriveDeck during the 2.0.0 release-candidate phase (rc1 to rc4) and after the
-2.0.0 release (5e–5n): what was tested,
+2.0.0 release (5e–5o): what was tested,
 what was found, what was changed, and what could **not** be verified. Line numbers refer to `drivedeck.py` at the time of
 the audit and move with every edit.
 
@@ -430,6 +430,38 @@ udisks2 SMART data. A cancelled password prompt (pkexec 126/127) no longer opens
 
 **Not verified:** JMicron and ASMedia bridges (only the Realtek path exists on the test machine); SATA disks in a USB
 enclosure on real hardware.
+
+---
+
+## 5o. Finder-style side columns (after 2.1.0)
+
+**Request:** sidebar and inspector should look like macOS Finder / System Settings: no box-in-box, one luminance step and
+one 1 px hairline per column, calm rows and icons, a Finder "Get Info" grid in the inspector. Icons keep their theme
+colours (the user chose against tinting them).
+
+**Findings on the user's screenshot** (it showed a 2.0.0 window that was still running; the installed copy was 2.1.0, the
+side columns look the same in both): three frame levels (window → floating panel with outline and light edge → cards with
+outline and light edge); panels starting 8 px below the window edge while title and ribbon touch it; a 330 px sidebar with
+22 px coloured icons next to 16 px headings and row heights of 32 and 46 px; labels and values at opposite edges of the
+inspector; bordered selection pills and upper-case headings.
+
+| Area | Change |
+|------|--------|
+| Material | `SideMaterial`: full height, fill `rgba(255,255,255,0.03)` / `rgba(0,0,0,0.025)`, outer corners follow the window radius (clipped rectangle), one 1 px hairline (8 %) towards the middle. Floating panels, outlines, `SpecEdge` light edges and the cursor spotlight removed. |
+| Sidebar | 230 px; rows 32 px; pills 10 px margin, radius 7, selection 18 % / 10 %, hover 7 %, 150 ms `ColorAnimation`; icons 16 × 16, 10 px to text; headings 11 px DemiBold 50 % in sentence case, chevron on hover; drives: 2 px capacity line + size (11 px, tabular), eject/pin replace it on hover; tree indent 14 px per level, guide lines removed; plain header row above a hairline. |
+| Inspector | 300 px (280 px cut off "192.168.178.49 · Wayland" and German labels); 16 px margins, hairlines between sections, no cards; header icon 44 px, title 15 px DemiBold, subtitle 12 px 60 %; `KvRow`: label right-aligned in a fixed 40 % column (12 px, 60 %, wraps to two lines), value left-aligned (12 px, tabular figures, middle elision with tooltip); `LiveRow` with 24 px sparklines under "Activity"; SMART chevron before the title; `StatusBadge` (radius 5, 18 px, 16 % fill, no outline) with Apple system colours, also for the update status. |
+
+**Found and fixed during the work:** "Unable to assign [undefined] to bool" for tree rows without an `expandable` field
+(now compared with `=== true`); "Lokaler Datenträger" 6 px short in the sidebar (right margin 12 px, 6 px gap to the size).
+
+**Checks:** `pyright` 0 errors; `qmllint` exit 0, 0 errors, 0 warnings outside *unqualified* (1107, fewer than before);
+truncation scan of both columns in modes A and B (root disk, USB disk, printer) at 2560 px: only the long printer URI is
+elided in the middle on purpose; real-desktop screenshots in Vivid Violet Dark and Breeze Light with blur (scheme restored
+afterwards); right-click test 0 messages; layout test: compact toolbar now below about 2175 px with both columns; function
+test 39/39; 60 s stress run (about 5500 actions) 0 QML messages, 0 exceptions, RSS 185–203 MB, click mode seen both ways.
+
+**Not verified:** Orca reading the regrouped inspector; very large system fonts (sizes use `fontGrow`, only the default
+size was looked at).
 
 ---
 

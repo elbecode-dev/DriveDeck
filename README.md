@@ -52,16 +52,17 @@ small **live graph** of their read and write speed, and warn you when they are a
 
 ### A calmer look (2.0.0)
 
-- **Floating glass sidebar** with a header card (icon, name, version, item count), quiet section headings and a slim
-  capacity bar plus an eject button for each drive; unmounted drives are listed dimmed.
+- **Finder-style sidebar** (230 px): full-height column set apart by one hairline, 32 px rows with 16 px icons, quiet
+  section headings, a slim capacity line and the size for each drive, eject on hover; unmounted drives are listed dimmed.
 - **Cards float freely** and only show a faint glass surface on hover or keyboard selection; slim 4 px usage bars,
   a green or grey mount dot, and ink level pills on printer cards.
 - **Typography:** Inter for the interface and JetBrains Mono with tabular figures for live values, when installed
   (see *Optional tools* below). On Arch/CachyOS: `sudo pacman -S inter-font ttf-jetbrains-mono`; on Debian/Ubuntu:
   `sudo apt install fonts-inter fonts-jetbrains-mono`. Without them DriveDeck uses your system font.
-- **Floating inspector** on the right (from 1280 px width): a system overview with live CPU, RAM, storage I/O and
-  network graphs when nothing is selected, or details and quick actions for the selected folder, drive, network
-  location, printer or device.
+- **Inspector** on the right (from 1280 px width, 300 px): a calm column without cards, sections divided by hairlines and
+  key/value pairs in the Finder "Get Info" grid. A system overview with live CPU, RAM, storage I/O and network graphs when
+  nothing is selected, or details, SMART health and quick actions for the selected folder, drive, network location,
+  printer or device.
 - **Screen readers:** cards, chips, sidebar rows, inspector details and buttons have localized names that Orca can read.
 - **Keyboard:** Tab goes main area → sidebar → ribbon (buttons and *Show* boxes) → inspector toggle → window buttons →
   main area (Shift+Tab backwards, Esc back to the main area); `Ctrl+I` shows or hides the inspector.
@@ -69,8 +70,8 @@ small **live graph** of their read and write speed, and warn you when they are a
 
 ### New in 2.1.0
 
-- **Compact toolbar.** When the four ribbon groups do not fit between the side panels (about 2300 px window width with
-  both panels in German, 2200 px in English), the ribbon becomes a centred 48 px toolbar with the same commands as icons,
+- **Compact toolbar.** When the four ribbon groups do not fit between the side panels (about 2175 px window width with
+  both panels in German), the ribbon becomes a centred 48 px toolbar with the same commands as icons,
   tooltips and screen-reader names. *Show* and the warning threshold move into the "…" menu. Right-click the toolbar (or
   use "…") to keep the compact toolbar always. Wide windows keep the full ribbon.
 - **SMART health without a password.** For internal NVMe and SATA drives DriveDeck reads the key SMART values through

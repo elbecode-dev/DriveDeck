@@ -10,6 +10,17 @@ hidden and everything else works).
 
 ---
 
+## Unreleased
+
+### Changed
+- **Calmer side columns in the style of macOS Finder.** The sidebar and the inspector are no longer floating glass panels with their own outline, light edge and inner cards. Each is now a full-height column, flush with the window corners, set apart from the middle only by one luminance step (`rgba(255,255,255,0.03)` dark, `rgba(0,0,0,0.025)` light) and a single 1 px hairline (8 % white / black). The title bar and ribbon run without a break at the top edge.
+- **Sidebar:** 230 px wide (was 330); every row 32 px high; selection and hover pills with 10 px side margin and radius 7, no border (selection 18 % accent, 10 % when the sidebar is not the active zone; hover 7 %, 150 ms colour fade); all icons 16 × 16 with 10 px to the text, in their theme colours; section headings in sentence case, 11 px DemiBold at 50 % with a disclosure chevron that appears on hover (or when collapsed); drives with a 2 px capacity line under the name and the size on the right (eject and pin take its place on hover); tree levels indent by 14 px, the vertical guide lines are gone. The header is a plain row (28 px app icon, 14 px name, version badge, 12 px status) above a hairline instead of a gradient card.
+- **Inspector:** 300 px wide (was 330); one calm column with 16 px margins and hairlines between the sections instead of cards. Header with a 44 px icon, 15 px title and 12 px subtitle. Key/value pairs follow the Finder "Get Info" grid: labels right-aligned in a fixed column (12 px, 60 %, wrapping to two lines instead of being cut off), values left-aligned in 12 px with tabular figures. The live usage of mode A is one "Activity" section with four compact rows and 24 px sparklines. The *SMART health* section has its disclosure chevron before the title, and status badges (SMART, updates) use muted Apple system colours (green, amber, red) without an outline.
+- The middle column gains about 130 px, so the compact toolbar now takes over only below about 2175 px window width (with both side columns, German).
+
+### Removed
+- The cursor spotlight in the sidebar and the `GlassCard` / `SpecEdge` components, which nothing uses any more.
+
 ## 2.1.0 – 2026-11-26
 
 Five non-destructive ideas from the upstream comparison with Fenestra This PC 2.1.1, built on DriveDeck's own architecture (background threads, lazy menus, inspector, keyboard chain, screen-reader names), and SMART for NVMe drives in USB enclosures.
