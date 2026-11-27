@@ -5377,6 +5377,7 @@ import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import QtQuick.Shapes
 import QtQuick.Dialogs
+import QtQuick.Effects
 import org.kde.kirigami as Kirigami
 
 QQC2.ApplicationWindow {
@@ -5797,27 +5798,127 @@ QQC2.ApplicationWindow {
         }
     }
 
-    // Sektionskopf : Titel in normaler Schreibweise (13 px DemiBold), Anzahl als schlichter Sekundärtext ; Ruhe durch Weißraum,
-    // ohne Pille und ohne Linie
-    component SectionTitle: RowLayout {
+    // Sektionskopf des Hauptbereichs : Kategorie-Überschrift (12 px DemiBold, Versalien, gesperrt), drehender Chevron, Zähler als
+    // Glas-Pille im Akzent mit weichem Glow und eine Glaslinie, die nach rechts ausläuft. Knopf (Chevron + Titel + Pille) mit
+    // Hover-Fläche, Tastaturfokus (Tab-Kette der Sektionsköpfe, Leertaste/Eingabe klappen) und Screenreader-Namen.
+    component SectionHeader: Item {
+        id: sh
         property string fmt: ""
         property int count: 0
-        spacing: 8
-        QQC2.Label {
-            text: fmt.replace(" ({n})", "").replace("({n})", "").replace("（{n}）", "")
-            font.family: win.uiFont
-            font.weight: Font.DemiBold
-            font.pixelSize: win.px13
-            color: Kirigami.Theme.textColor
+        property bool collapsed: false
+        signal toggled()
+        readonly property string titel: fmt.replace(" ({n})", "").replace("({n})", "").replace("（{n}）", "")
+        readonly property color accent: Kirigami.Theme.highlightColor
+        readonly property bool aktiv: shHover.hovered || shKnopf.activeFocus
+        readonly property Item knopf: shKnopf
+        implicitHeight: Math.round(28 * win.fontGrow)
+        Item {
+            id: shKnopf
+            objectName: "sectionHeader"
+            width: shRow.implicitWidth + 16
+            height: parent.height
+            Accessible.role: Accessible.Button
+            Accessible.name: sh.titel + ", " + sh.count
+            Accessible.onPressAction: sh.toggled()
+            Keys.onSpacePressed: sh.toggled()
+            Keys.onReturnPressed: sh.toggled()
+            Keys.onEnterPressed: sh.toggled()
+            Keys.onTabPressed: win.sectionMove(sh, 1)
+            Keys.onBacktabPressed: win.sectionMove(sh, -1)
+            Keys.onEscapePressed: { keyHandler.forceActiveFocus(); win.enterMain() }
+            Rectangle {   // Hover : zarte Glasfläche
+                anchors.fill: parent
+                radius: 8
+                color: win.darkTheme ? Qt.rgba(1, 1, 1, 0.05) : Qt.rgba(0, 0, 0, 0.04)
+                opacity: shHover.hovered ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: win.animMs; easing.type: Easing.OutCubic } }
+            }
+            FocusRing { shown: shKnopf.activeFocus; innerRadius: 8 }
+            RowLayout {
+                id: shRow
+                x: 8
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 8
+                Kirigami.Icon {   // Chevron : zeigt nach rechts (eingeklappt) und dreht sich beim Aufklappen um 90° nach unten
+                    source: "arrow-right"
+                    Layout.preferredWidth: 12
+                    Layout.preferredHeight: 12
+                    Layout.alignment: Qt.AlignVCenter
+                    color: shTitel.color
+                    rotation: sh.collapsed ? 0 : 90
+                    Behavior on rotation { NumberAnimation { duration: win.animMs; easing.type: Easing.OutCubic } }
+                }
+                QQC2.Label {
+                    id: shTitel
+                    text: sh.titel
+                    font.family: win.uiFont
+                    font.pixelSize: win.px12
+                    font.weight: Font.DemiBold
+                    font.capitalization: Font.AllUppercase
+                    font.letterSpacing: 0.8
+                    color: win.darkTheme ? Qt.rgba(1, 1, 1, 0.72) : Qt.rgba(0, 0, 0, 0.62)
+                    Layout.alignment: Qt.AlignVCenter
+                }
+                Item {   // Zähler : Glas-Pille mit weichem Glow dahinter
+                    implicitWidth: shPill.width
+                    implicitHeight: shPill.height
+                    Layout.alignment: Qt.AlignVCenter
+                    Rectangle {   // Quelle des Glows (unsichtbar ; MultiEffect zeichnet sie weichgezeichnet)
+                        id: shGlowQuelle
+                        anchors.fill: shPill
+                        radius: shPill.radius
+                        color: sh.accent
+                        visible: false
+                    }
+                    MultiEffect {   // nur mit Grafik-Backend : bei Software-Rendering gibt es keine Shader-Effekte
+                        anchors.fill: shPill
+                        source: shGlowQuelle
+                        visible: GraphicsInfo.api !== GraphicsInfo.Software
+                        autoPaddingEnabled: true
+                        blurEnabled: true
+                        blur: 1.0
+                        blurMax: 16
+                        opacity: sh.aktiv ? 0.34 : 0.20
+                        Behavior on opacity { NumberAnimation { duration: win.animMs; easing.type: Easing.OutCubic } }
+                    }
+                    Rectangle {
+                        id: shPill
+                        height: Math.round(20 * win.fontGrow)
+                        width: Math.max(height, shZahl.implicitWidth + 16)
+                        radius: height / 2
+                        color: Qt.alpha(sh.accent, 0.16)
+                        border.width: 1
+                        border.color: Qt.alpha(sh.accent, 0.34)
+                        QQC2.Label {
+                            id: shZahl
+                            anchors.centerIn: parent
+                            text: sh.count
+                            font.family: win.uiFont
+                            font.pointSize: 11.5 * 0.75 * win.fontGrow
+                            font.weight: Font.DemiBold
+                            font.features: { "tnum": 1 }
+                            // leuchtender Akzent, aber lesbar bei jedem Akzentton : mit Weiß (dunkel) bzw. Schwarz (hell) gemischt
+                            // (Qt.lighter hellt dunkle, satte Töne wie Violett kaum auf) ; ≥ 4,5 : 1 auf der Tönung
+                            color: Qt.tint(sh.accent, win.darkTheme ? Qt.rgba(1, 1, 1, 0.6) : Qt.rgba(0, 0, 0, 0.5))
+                        }
+                    }
+                }
+            }
+            HoverHandler { id: shHover; cursorShape: Qt.PointingHandCursor }
+            TapHandler { onTapped: sh.toggled() }
         }
-        QQC2.Label {
-            text: count
-            font.family: win.uiFont
-            font.pixelSize: win.px13
-            font.features: { "tnum": 1 }
-            color: win.textSecondary
+        Rectangle {   // Glaslinie : läuft nach rechts ins Transparente aus
+            anchors.left: shKnopf.right
+            anchors.leftMargin: 8
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            height: win.sectionLineW
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0.0; color: win.hairline }
+                GradientStop { position: 1.0; color: Qt.alpha(win.hairline, 0) }
+            }
         }
-        Item { Layout.fillWidth: true }
     }
 
     property bool foldersCollapsed: sectInit.folders.collapsed
@@ -6812,6 +6913,40 @@ QQC2.ApplicationWindow {
         if (target >= 0)
             selectedKey = secs[ts].items[target].key
     }
+    // Sektionsköpfe des Hauptbereichs : eigener Abschnitt der Tab-Kette (Hauptbereich -> Köpfe -> Seitenleiste -> Ribbon …)
+    function sectionStops() {
+        return [hdrFolders, hdrDisks, hdrNet, hdrPrinters].filter(function(h) { return h.parent.visible })
+    }
+    function enterSections(vorwaerts) {
+        const s = sectionStops()
+        if (s.length === 0) {
+            keyHandler.forceActiveFocus()
+            if (!vorwaerts)
+                enterMain()
+            else if (sidebarUsable)
+                enterSidebar()
+            else
+                enterRibbon(true)
+            return
+        }
+        navZone = "sections"
+        s[vorwaerts ? 0 : s.length - 1].knopf.forceActiveFocus(Qt.TabFocusReason)
+    }
+    function sectionMove(von, richtung) {
+        const s = sectionStops()
+        const i = s.indexOf(von) + richtung
+        if (i >= 0 && i < s.length) {
+            s[i].knopf.forceActiveFocus(Qt.TabFocusReason)
+            return
+        }
+        keyHandler.forceActiveFocus()
+        if (i < 0)
+            enterMain()
+        else if (sidebarUsable)
+            enterSidebar()
+        else
+            enterRibbon(true)
+    }
     function enterSidebar() {
         if (!sidebarUsable)
             return
@@ -6891,7 +7026,7 @@ QQC2.ApplicationWindow {
             if (sidebarUsable)
                 enterSidebar()
             else
-                enterMain()
+                enterSections(false)
         } else {
             focusRibbonStop(s[i])
         }
@@ -7036,16 +7171,15 @@ QQC2.ApplicationWindow {
         if (ev.key === Qt.Key_F5) {
             backend.refreshAll()
         } else if (ev.key === Qt.Key_Tab) {
-            // Tab-Reihenfolge : Hauptbereich -> Seitenleiste -> Ribbon (mit Inspector-Knopf) -> Fensterknöpfe -> Hauptbereich
+            // Tab-Reihenfolge : Hauptbereich -> Sektionsköpfe -> Seitenleiste -> Ribbon (mit Einstellungen und Inspector-Knopf)
+            // -> Fensterknöpfe -> Hauptbereich
             if (seite)
                 enterRibbon(true)
-            else if (sidebarUsable)
-                enterSidebar()
             else
-                enterRibbon(true)
+                enterSections(true)   // Hauptbereich -> Sektionsköpfe -> Seitenleiste
         } else if (ev.key === Qt.Key_Backtab) {
             if (seite)
-                enterMain()
+                enterSections(false)
             else
                 winCloseBtn.forceActiveFocus()
         } else if (ev.key === Qt.Key_Return || ev.key === Qt.Key_Enter) {
@@ -9220,38 +9354,20 @@ QQC2.ApplicationWindow {
                     Item {
                         visible: win.foldersShown
                         Layout.fillWidth: true
-                        Layout.leftMargin: 24
+                        Layout.leftMargin: 16
                         Layout.rightMargin: 16
                         Layout.topMargin: 24
                         Layout.bottomMargin: 8
-                        implicitHeight: headerRow.implicitHeight
+                        implicitHeight: hdrFolders.implicitHeight
 
-                        RowLayout {
-                            id: headerRow
-                            anchors.fill: parent
-                            spacing: 8
-
-                            Kirigami.Icon {
-                                source: win.foldersCollapsed ? "arrow-right" : "arrow-down"
-                                Layout.preferredWidth: 12
-                                Layout.preferredHeight: 12
-                                Layout.leftMargin: 2
-                                Layout.rightMargin: 2
-                                color: win.textTertiary
-                            }
-                            SectionTitle {
-                                Layout.fillWidth: true
-                                fmt: win.trad("Folders ({n})")
-                                count: win.fFolders.length
-                            }
-                        }
-                        MouseArea {   // flecheSeule : seule la flèche replie la rubrique
+                        SectionHeader {
+                            id: hdrFolders
                             anchors.left: parent.left
-                            anchors.top: parent.top
-                            anchors.bottom: parent.bottom
-                            width: 32
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: win.foldersCollapsed = !win.foldersCollapsed
+                            anchors.right: parent.right
+                            fmt: win.trad("Folders ({n})")
+                            count: win.fFolders.length
+                            collapsed: win.foldersCollapsed
+                            onToggled: win.foldersCollapsed = !win.foldersCollapsed
                         }
                     }
 
@@ -9384,38 +9500,20 @@ QQC2.ApplicationWindow {
                     Item {
                         visible: win.disksShown
                         Layout.fillWidth: true
-                        Layout.leftMargin: 24
+                        Layout.leftMargin: 16
                         Layout.rightMargin: 16
                         Layout.topMargin: 24
                         Layout.bottomMargin: 8
-                        implicitHeight: disksHeaderRow.implicitHeight
+                        implicitHeight: hdrDisks.implicitHeight
 
-                        RowLayout {
-                            id: disksHeaderRow
-                            anchors.fill: parent
-                            spacing: 8
-
-                            Kirigami.Icon {
-                                source: win.disksCollapsed ? "arrow-right" : "arrow-down"
-                                Layout.preferredWidth: 12
-                                Layout.preferredHeight: 12
-                                Layout.leftMargin: 2
-                                Layout.rightMargin: 2
-                                color: win.textTertiary
-                            }
-                            SectionTitle {
-                                Layout.fillWidth: true
-                                fmt: win.trad("Devices and drives ({n})")
-                                count: win.fDisks.length
-                            }
-                        }
-                        MouseArea {   // flecheSeule : seule la flèche replie la rubrique
+                        SectionHeader {
+                            id: hdrDisks
                             anchors.left: parent.left
-                            anchors.top: parent.top
-                            anchors.bottom: parent.bottom
-                            width: 32
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: win.disksCollapsed = !win.disksCollapsed
+                            anchors.right: parent.right
+                            fmt: win.trad("Devices and drives ({n})")
+                            count: win.fDisks.length
+                            collapsed: win.disksCollapsed
+                            onToggled: win.disksCollapsed = !win.disksCollapsed
                         }
                     }
 
@@ -9853,38 +9951,20 @@ QQC2.ApplicationWindow {
                     Item {
                         visible: win.netShown
                         Layout.fillWidth: true
-                        Layout.leftMargin: 24
+                        Layout.leftMargin: 16
                         Layout.rightMargin: 16
                         Layout.topMargin: 24
                         Layout.bottomMargin: 8
-                        implicitHeight: netHeaderRow.implicitHeight
+                        implicitHeight: hdrNet.implicitHeight
 
-                        RowLayout {
-                            id: netHeaderRow
-                            anchors.fill: parent
-                            spacing: 8
-
-                            Kirigami.Icon {
-                                source: win.netCollapsed ? "arrow-right" : "arrow-down"
-                                Layout.preferredWidth: 12
-                                Layout.preferredHeight: 12
-                                Layout.leftMargin: 2
-                                Layout.rightMargin: 2
-                                color: win.textTertiary
-                            }
-                            SectionTitle {
-                                Layout.fillWidth: true
-                                fmt: win.trad("Network locations ({n})")
-                                count: win.fNets.length
-                            }
-                        }
-                        MouseArea {   // flecheSeule : seule la flèche replie la rubrique
+                        SectionHeader {
+                            id: hdrNet
                             anchors.left: parent.left
-                            anchors.top: parent.top
-                            anchors.bottom: parent.bottom
-                            width: 32
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: win.netCollapsed = !win.netCollapsed
+                            anchors.right: parent.right
+                            fmt: win.trad("Network locations ({n})")
+                            count: win.fNets.length
+                            collapsed: win.netCollapsed
+                            onToggled: win.netCollapsed = !win.netCollapsed
                         }
                     }
 
@@ -10149,38 +10229,20 @@ QQC2.ApplicationWindow {
                     Item {
                         visible: win.printersShown && ((backend && backend.printers) ? backend.printers : []).length > 0
                         Layout.fillWidth: true
-                        Layout.leftMargin: 24
+                        Layout.leftMargin: 16
                         Layout.rightMargin: 16
                         Layout.topMargin: 24
                         Layout.bottomMargin: 8
-                        implicitHeight: printersHeaderRow.implicitHeight
+                        implicitHeight: hdrPrinters.implicitHeight
 
-                        RowLayout {
-                            id: printersHeaderRow
-                            anchors.fill: parent
-                            spacing: 8
-
-                            Kirigami.Icon {
-                                source: win.printersCollapsed ? "arrow-right" : "arrow-down"
-                                Layout.preferredWidth: 12
-                                Layout.preferredHeight: 12
-                                Layout.leftMargin: 2
-                                Layout.rightMargin: 2
-                                color: win.textTertiary
-                            }
-                            SectionTitle {
-                                Layout.fillWidth: true
-                                fmt: win.trad("Printers and devices ({n})")
-                                count: win.fPrinters.length
-                            }
-                        }
-                        MouseArea {   // flecheSeule : seule la flèche replie la rubrique
+                        SectionHeader {
+                            id: hdrPrinters
                             anchors.left: parent.left
-                            anchors.top: parent.top
-                            anchors.bottom: parent.bottom
-                            width: 32
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: win.printersCollapsed = !win.printersCollapsed
+                            anchors.right: parent.right
+                            fmt: win.trad("Printers and devices ({n})")
+                            count: win.fPrinters.length
+                            collapsed: win.printersCollapsed
+                            onToggled: win.printersCollapsed = !win.printersCollapsed
                         }
                     }
 

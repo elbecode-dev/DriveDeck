@@ -570,6 +570,28 @@ well above 2000 px. `pyright` 0 errors, `qmllint` 0 warnings outside *unqualifie
 free-space text by a few pixels, exactly as before this change: the cards are a fixed 340 px wide and do not grow with
 the font.
 
+## 5t. Section headers of the main area (2.3.1)
+
+**Request:** category-style headers (12 px semi-bold capitals, 0.8 tracking, muted white/black), a rotating 12 px chevron,
+the count in an accent glass capsule with a soft glow, a fading 1.5 px glass rule, a hover surface and full keyboard
+support.
+
+**Implementation:** component `SectionHeader` (replaces `SectionTitle` and the arrow-only `MouseArea`); the button part
+(chevron, title, capsule) has `Accessible.role: Button`, `Accessible.name` "title, count", a `FocusRing`, `HoverHandler`
+and `TapHandler`; the glow is a hidden accent rectangle blurred by `MultiEffect` (opacity 0.20, 0.34 on hover/focus),
+hidden when `GraphicsInfo.api` is software. Tab chain: `enterSections()` / `sectionMove()` between the main area and the
+sidebar; Backtab from the sidebar (or from the first ribbon stop without a sidebar) returns to the last header.
+
+**Found during the check:** with `Qt.lighter(accent, 1.45)` / `Qt.darker(accent, 1.45)` the count reached only 4.06 : 1
+in a dark violet scheme and 3.95 : 1 in Breeze Light (`Qt.lighter` barely lifts a dark, saturated violet). It is now
+`Qt.tint(accent, white 60 % / black 50 %)`: titles and counts measured 6.0–9.9 : 1 in Breeze Dark, Breeze Light and
+Vivid Violet Dark, including the hovered header.
+
+**Checks:** header test 14/14 in all three schemes (four headers with names, Tab main → four headers → sidebar, Space
+and Enter fold, a click on the title folds, Esc returns to the main area); `pyright` 0 errors, `qmllint` 0 warnings outside
+*unqualified* (1157); settings-dialog test 20/20; header lines still 0 px apart; 60 s stress run 0 QML messages, RSS
+225 MB. The glow and the chevron rotation were looked at on the real desktop by the user.
+
 ---
 
 ## 6. Not verified
