@@ -188,7 +188,7 @@ First release candidate for 2.0.0: no new features are planned before the final 
 ### Added
 
 - **Custom application name.** Right-click the title bar or the "This PC" heading (or click the small pencil that appears
-  when you hover the header, or use *About → Application name*) to give DriveDeck any name, e.g. "Dieser PC" or
+  when you hover the header, or use *About → Application name*) to give DriveDeck any name, e.g. "My Computer" or
   "CyberDeck". The name is used in the title bar, the window title and the heading of the drive list; an empty name
   restores the defaults. It is also written to `Name=` in `~/.local/share/applications/drivedeck.desktop`, so the
   application menu and KRunner show it (and `update-desktop-database` is run afterwards).
