@@ -10,7 +10,7 @@ hidden and everything else works).
 
 ---
 
-## Unreleased
+## 2.2.1 – 2026-11-27
 
 ### Added
 - **Complete translations in all 13 languages.** The 180 texts added by the fork (SMART health, inspector, compact toolbar, hardware overview, messages, About window …) were only translated into German and showed in English everywhere else. They are now in every `locale/*/LC_MESSAGES/drivedeck.po` and the compiled `.mo` files: Spanish, French, Italian, Japanese, Dutch, Polish, Brazilian Portuguese, Russian, Turkish, Simplified and Traditional Chinese (AI-assisted, not yet reviewed by native speakers – corrections welcome). German moved from the built-in `EXTRA_DE` table into `de.po`, so all languages now use the same gettext files; the German output is unchanged for every text.

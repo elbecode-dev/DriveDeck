@@ -12,7 +12,7 @@ locations, printers and devices in one clean window, and it follows your Plasma 
 
 <p align="center"><img src="preview.png" alt="DriveDeck main window"></p>
 
-**Version 2.2.0** – feedback and bug reports are very welcome.
+**Version 2.2.1** – feedback and bug reports are very welcome.
 
 ---
 
@@ -71,6 +71,13 @@ small **live graph** of their read and write speed, and warn you when they are a
 - **Keyboard:** Tab goes main area → sidebar → ribbon (buttons and *Show* boxes) → inspector toggle → window buttons →
   main area (Shift+Tab backwards, Esc back to the main area); `Ctrl+I` shows or hides the inspector.
 - Works with light and dark Plasma colour schemes.
+
+### New in 2.2.1
+
+- **Every language is complete again.** The texts added by this fork are now translated into all 13 languages, not
+  only German; long toolbar labels in French, Dutch or Russian are no longer cut off.
+- **Clearer installer.** When PyQt6 is installed but cannot be loaded, `install.sh` explains why and how to fix it
+  (thanks to 3Shadow3S, [#3](https://github.com/elbecode-dev/DriveDeck/issues/3)).
 
 ### New in 2.2.0
 
