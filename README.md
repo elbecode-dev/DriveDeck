@@ -52,10 +52,14 @@ small **live graph** of their read and write speed, and warn you when they are a
 
 ### A calmer look (2.0.0)
 
-- **Finder-style sidebar** (230 px): full-height column set apart by one hairline, 32 px rows with 16 px icons, quiet
-  section headings, a slim capacity line and the size for each drive, eject on hover; unmounted drives are listed dimmed.
-- **Cards float freely** and only show a faint glass surface on hover or keyboard selection; slim 4 px usage bars,
-  a green or grey mount dot, and ink level pills on printer cards.
+- **Finder-style sidebar** (240 px): full-height column set apart by one hairline, 32 px rows with 16 px icons, quiet
+  section headings, a slim capacity line and the size for each drive, eject on hover; unmounted drives have a dimmed icon
+  and a secondary (still readable) label.
+- **Cards float freely** and only show a neutral surface on hover and an accent-tinted one when selected, like the
+  sidebar; slim 4 px usage bars, a green or grey mount dot, and ink level bars on printer cards.
+- **Apple HIG polish:** one palette of Apple system colours for every status, secondary text that meets WCAG AA
+  (4.5 : 1) in light and dark themes, a 4 px spacing grid, four corner radii, 150 ms fades for every state and a
+  macOS-style focus ring outside buttons.
 - **Typography:** Inter for the interface and JetBrains Mono with tabular figures for live values, when installed
   (see *Optional tools* below). On Arch/CachyOS: `sudo pacman -S inter-font ttf-jetbrains-mono`; on Debian/Ubuntu:
   `sudo apt install fonts-inter fonts-jetbrains-mono`. Without them DriveDeck uses your system font.

@@ -463,6 +463,43 @@ test 39/39; 60 s stress run (about 5500 actions) 0 QML messages, 0 exceptions, R
 **Not verified:** Orca reading the regrouped inspector; very large system fonts (sizes use `fontGrow`, only the default
 size was looked at).
 
+## 5p. Visual design audit against the Apple HIG (after 2.1.0)
+
+**Request:** a strict visual audit along the Apple Human Interface Guidelines (macOS, Liquid Glass): 4/8 px grid, optical
+alignment, concentric radii, layer depth and alpha values in dark and light, typography and WCAG AA, tabular figures,
+icon weight, status colours, whitespace, and interaction/focus states; findings first, changes after approval.
+
+**Method:** the QML was scanned for every margin, padding, spacing and radius off the 4 px grid; the window was rendered
+offscreen at 2400 × 1300 in Breeze Light, Breeze Dark and Vivid Violet Dark, with nothing selected and with a drive
+selected. For every visible text the background was taken from the rendered pixels under it, the text colour was blended with
+its effective opacity, and the WCAG contrast ratio was computed (`vis.py`).
+
+| Finding (before) | Measured | Fix |
+|---|---|---|
+| Secondary text dimmed by `opacity` 0.5–0.6 | Breeze Light 3.05–4.08, Vivid 3.86–4.36 | `textSecondary` 70 / 72 %, `textTertiary` 62 / 66 % as colours |
+| Unmounted drives: whole row at 48 % | 2.89 (Light), 3.65 (Vivid) | label `textSecondary`, only the icon at 50 % |
+| Two status palettes (theme negative/neutral, Material blue, Tailwind cyan/magenta next to Apple colours) | "⚠ 88 %" 3.46–3.67, ▲ 2.59, "Good" 3.57 (Light) | one Apple palette; badge text `Qt.darker(tone, 1.25)` in light themes |
+| Neon gradient (`CardGlow`) and cyan version badge | – | neutral surface + hairline; neutral capsule |
+| Three selection languages, a 3 px accent stripe | – | hover 7 % neutral, selection accent 18 / 10 %, no stripe |
+| Toolbar hovers toggled via `visible`; 120/140/150/250/300 ms, linear/InOutQuad | – | 150 ms OutCubic everywhere; 3 px focus ring outside (`FocusRing`) |
+| Radii 1.5, 2, 3, 4, 5, 6, 7, 8, 10, 12 | – | 4 / 6 / 8 / 12; panel 12 = tile 8 + 4 |
+| Sidebar rhythm 33 px, headings at x 18 vs. 16, margins 14 / 16, width 230 | – | 32 px rhythm, one 16 px edge, 240 px |
+| Section titles: capitals, accent pill with border, rule | count 3.24 (Light) | sentence case 13 px DemiBold, plain count, 24 px above |
+| Pure RGB ink colours from the printer | yellow ≈ 1.1 : 1 on white | snapped to print tones, inner hairline in light themes |
+| Off-grid values 1, 3, 5, 6, 7, 9, 10, 14, 17, 18, 26, 67 | – | moved to the 4 px grid (the 17 px inspector margin stays: 16 px + hairline) |
+
+Tabular figures were already set on every live value (sizes, rates, temperatures, SMART values, counts); nothing was missing.
+
+**Checks:** `pyright` 0 errors; `qmllint` (Qt 6.12) exit 0, 0 errors, 0 warnings outside *unqualified* (1147); contrast
+scan after the change: 0 failing labels in all three schemes with a drive selected, and only the disabled toolbar buttons
+(WCAG exempt) with nothing selected; compact-toolbar threshold unchanged at about 2175 px; Tab chain unchanged; right-click
+test 0 messages; function test 39/39; 60 s stress run (about 4800 actions) 0 QML messages, 0 exceptions, RSS 171–201 MB,
+click mode seen both ways; real-desktop screenshots with blur in Vivid Violet Dark and Breeze Light (scheme restored
+afterwards).
+
+**Not verified:** contrast over very bright wallpapers behind the 93 % glass in dark themes (measured without blur);
+Orca; very large system fonts.
+
 ---
 
 ## 6. Not verified
