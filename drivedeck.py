@@ -9,6 +9,7 @@ import configparser
 import ctypes
 import gc
 import hashlib
+import ipaddress
 import json
 import re
 import shlex
@@ -1018,6 +1019,41 @@ def wallet_ecrire(cle, mot_de_passe):
         return False
 
 
+def _kwallet_aufruf(dienst, pfad, *argumente):
+    """Eine Methode von org.kde.KWallet über busctl (Benutzer-Bus) ; Rückgabewert oder None."""
+    try:
+        r = subprocess.run(["busctl", "--user", "--json=short", "call", dienst, pfad, "org.kde.KWallet", *argumente],
+                           capture_output=True, text=True, timeout=60)   # 60 s : KWallet fragt evtl. nach dem Passwort
+        if r.returncode != 0:
+            return None
+        return json.loads(r.stdout).get("data", [None])[0]
+    except (OSError, subprocess.SubprocessError, ValueError, AttributeError, IndexError):
+        return None
+
+
+def wallet_entfernen(cle):
+    """Löscht den gespeicherten Eintrag wirklich (D-Bus removeEntry) ; kwallet-query kann nur überschreiben.
+    True bei Erfolg ; False, wenn KWallet nicht erreichbar ist (dann bleibt nur das Leeren des Passworts)."""
+    for dienst, pfad in (("org.kde.kwalletd6", "/modules/kwalletd6"), ("org.kde.kwalletd5", "/modules/kwalletd5")):
+        griff = _kwallet_aufruf(dienst, pfad, "open", "sxs", "kdewallet", "0", "DriveDeck")
+        if not isinstance(griff, int):
+            continue
+        if griff < 0:
+            return False
+        try:
+            ergebnis = _kwallet_aufruf(dienst, pfad, "removeEntry", "isss", str(griff), WALLET_DOSSIER, cle, "DriveDeck")
+            return ergebnis == 0
+        finally:
+            _kwallet_aufruf(dienst, pfad, "close", "ibs", str(griff), "false", "DriveDeck")
+    return False
+
+
+def wallet_loeschen(cle):
+    """Eintrag entfernen ; ohne D-Bus-Zugriff wenigstens das Passwort leeren (bisheriges Verhalten)."""
+    if not wallet_entfernen(cle):
+        wallet_ecrire(cle, "")
+
+
 def _wallet_lire(cle):
     if time.time() < _PORTEFEUILLE["ko_jusqu"]:
         return None
@@ -1208,6 +1244,7 @@ def lade_einstellungen():
             "click_mode": modus if modus in CLICK_MODES else "system",
             "custom_name": name_begrenzen(data.get("custom_name", "")),
             "compact_toolbar": data.get("compact_toolbar") is True,   # immer die kompakte Leiste (sonst nur, wenn das Ribbon nicht passt)
+            "notifications": data.get("notifications") is True,   # Desktop-Benachrichtigungen (Warnschwelle, SMART) : bewusst einschalten
             "desktop_name": name_begrenzen(data.get("desktop_name", ""))}   # zuletzt in die Starter geschriebener Name
 
 
@@ -1934,6 +1971,90 @@ def host_reachable(host, port=445, timeout=0.8):
         return False
 
 
+_ADRESSEN: dict[str, tuple[float, frozenset[str]]] = {}   # Host -> (gültig bis (monotonic), IP-Adressen)
+_ADRESSEN_LAEUFT: set[str] = set()
+_ADRESSEN_SPERRE = threading.Lock()
+
+
+def host_adressen(host, timeout=1.0):
+    """IP-Adressen eines Hosts (getaddrinfo), höchstens timeout s gewartet und 5 min gemerkt (Fehlschlag 1 min).
+    Nur aus Hintergrund-Threads aufrufen. Eine IP-Adresse ergibt sich selbst ; hängt die Auflösung, wird für denselben
+    Host kein zweiter Versuch gestartet, solange der erste läuft."""
+    h = (host or "").strip().strip("[]").lower()
+    if not h:
+        return frozenset()
+    try:
+        return frozenset({str(ipaddress.ip_address(h.split("%")[0]))})
+    except ValueError:
+        pass
+    lu = _ADRESSEN.get(h)
+    if lu and time.monotonic() < lu[0]:
+        return lu[1]
+    with _ADRESSEN_SPERRE:
+        if h in _ADRESSEN_LAEUFT:
+            return lu[1] if lu else frozenset()
+        _ADRESSEN_LAEUFT.add(h)
+    gefunden: list[str] = []
+
+    def aufloesen():
+        try:
+            gefunden.extend(str(ai[4][0]).split("%")[0] for ai in socket.getaddrinfo(h, None))
+        except (OSError, UnicodeError):
+            pass
+        finally:
+            _ADRESSEN_LAEUFT.discard(h)
+    t = threading.Thread(target=aufloesen, daemon=True)
+    t.start()
+    t.join(timeout)
+    adressen = frozenset(gefunden) if not t.is_alive() else frozenset()
+    _ADRESSEN[h] = (time.monotonic() + (300 if adressen else 60), adressen)
+    return adressen
+
+
+def freigabe_teile(device):
+    """(Host, Freigabe) eines SMB-Geräts « //host/freigabe[/unterordner] » ; ("", "") für alles andere."""
+    d = (device or "").strip()
+    if not d.startswith("//"):
+        return "", ""
+    host, _, rest = d[2:].partition("/")
+    return host, rest.strip("/").split("/")[0]
+
+
+def gleiche_freigabe(loc, device):
+    """Gehört der eingehängte SMB-Pfad zu diesem gespeicherten Netzwerkort ? Gleiche Freigabe (ohne Groß-/Kleinschreibung)
+    und derselbe Server : als Text oder über gemeinsame IP-Adressen (per IP eingehängt, unter dem Namen gespeichert, oder umgekehrt)."""
+    host, freigabe = freigabe_teile(device)
+    if not host or freigabe.lower() != str(loc.get("share", "")).strip("/").lower():
+        return False
+    ziel = str(loc.get("host", "")).strip().lower()
+    if host.lower() == ziel:
+        return True
+    return bool(host_adressen(host) & host_adressen(ziel))
+
+
+def umount_braucht_root(meldung):
+    """Scheitert umount nur an fehlenden Rechten (kein « user »-Eintrag in /etc/fstab) ?"""
+    m = (meldung or "").lower()
+    return any(t in m for t in ("must be superuser", "only root", "operation not permitted", "permission denied",
+                                 "not permitted"))
+
+
+def desktop_benachrichtigung(titel, text):
+    """Desktop-Benachrichtigung : notify-send, sonst direkt über D-Bus (org.freedesktop.Notifications, busctl).
+    Blockiert kurz : nur aus Hintergrund-Threads aufrufen. True, wenn einer der Wege angenommen wurde."""
+    versuche = (["notify-send", "--app-name=DriveDeck", "--icon=drivedeck", titel, text],
+                ["busctl", "--user", "call", "org.freedesktop.Notifications", "/org/freedesktop/Notifications",
+                 "org.freedesktop.Notifications", "Notify", "susssasa{sv}i", "DriveDeck", "0", "drivedeck", titel, text,
+                 "0", "0", "-1"])
+    for argv in versuche:
+        try:
+            if subprocess.run(argv, capture_output=True, text=True, timeout=10).returncode == 0:
+                return True
+        except (OSError, subprocess.SubprocessError):
+            continue
+    return False
+
+
 def build_network_list():
     """Partages montés + emplacements ajoutés par l'utilisateur (avec leur disponibilité).
     Appelée dans un thread : un serveur qui ne répond pas ne doit pas figer la fenêtre.
@@ -1944,7 +2065,8 @@ def build_network_list():
         key = ("//%s/%s" % (loc["host"], loc["share"])).lower()
         label = nom_emplacement(loc)
         url = net_url(loc)
-        m = next((x for x in mounts if x["device"].lower().rstrip("/") == key), None)
+        m = next((x for x in mounts if x["device"].lower().rstrip("/") == key), None) \
+            or next((x for x in mounts if gleiche_freigabe(loc, x["device"])), None)   # IP ↔ Name : erst ohne DNS, dann aufgelöst
         if m:
             entry = dict(m)
             entry.update({"label": label, "available": True, "mounted": True,
@@ -3538,6 +3660,8 @@ class Backend(QObject):
     smartReady = pyqtSignal(str, str)
     smartInfoChanged = pyqtSignal()
     compactToolbarChanged = pyqtSignal()
+    notificationsChanged = pyqtSignal()
+    unmountAdminOffered = pyqtSignal(str, str)   # Einhängepunkt, Name : umount ohne Rechte -> einmal pkexec anbieten
     _smartGelesen = pyqtSignal(str, object)   # Thread -> GUI-Thread (verbunden in __init__)
     netUpdated = pyqtSignal(list)
     disksUpdated = pyqtSignal(list)
@@ -3619,6 +3743,7 @@ class Backend(QObject):
         self._smartZeit: dict[str, float] = {}
         self._smartGelesen.connect(self._smartSetzen)
         self._warn = self._einst["warn_threshold_percent"]
+        self._gemeldet: set[tuple[str, str]] = set()   # (Anlass, Gerät) : schon gemeldet in dieser Sitzung
         if self._einst["desktop_name"] != self._einst["custom_name"] or self._einst["custom_name"]:
             self._desktopAbgleichen()   # nachholen, falls das Beenden den letzten Abgleich abgeschnitten hat ; und nach einer Neuinstallation
         self._starten(self._verifierMaj)
@@ -4245,6 +4370,7 @@ class Backend(QObject):
         return [{k: v for k, v in d.items() if k not in ("used", "free", "total")} for d in liste]
 
     def _setDisks(self, new):
+        self._warnungenPruefen(new)
         if self._signature_disques(new) != self._signature_disques(self._disks):
             self._disks = new
             self.disksChanged.emit()
@@ -4354,6 +4480,55 @@ class Backend(QObject):
             self._einst["compact_toolbar"] = bool(ja)
             self._verzoegert("einst", lambda: speichere_einstellungen(dict(self._einst)))
             self.compactToolbarChanged.emit()
+
+    @pyqtProperty(bool, notify=notificationsChanged)
+    def notifications(self):
+        """Desktop-Benachrichtigungen bei Unterschreiten der Warnschwelle oder SMART-Warnung (je Gerät einmal pro Sitzung)."""
+        return self._einst["notifications"]
+
+    @pyqtSlot(bool)
+    def setNotifications(self, ja):
+        if bool(ja) != self._einst["notifications"]:
+            self._einst["notifications"] = bool(ja)
+            self._verzoegert("einst", lambda: speichere_einstellungen(dict(self._einst)))
+            self.notificationsChanged.emit()
+            if ja:   # gleich prüfen : die Listen ändern sich evtl. lange nicht
+                self._warnungenPruefen(list(self._disks) + list(self._networks))
+
+    @pyqtSlot()
+    def sendTestNotification(self):
+        def senden():
+            if not desktop_benachrichtigung("DriveDeck", tr("Notifications are working.")):
+                self.messageRequested.emit(tr("Cannot send notification"),
+                                           tr("Neither “notify-send” nor the desktop notification service could be reached."))
+        threading.Thread(target=senden, daemon=True).start()
+
+    def _warnungenPruefen(self, eintraege):
+        """Je Gerät höchstens eine Meldung pro Sitzung und Anlass : wenig Platz (Warnschwelle) und SMART-Warnung/-Fehler."""
+        if not self._einst["notifications"]:
+            return
+        meldungen = []
+        for d in eintraege:
+            if not isinstance(d, dict) or d.get("isOptical") or d.get("isUnmounted") or (d.get("isNetwork") and not d.get("mounted")):
+                continue
+            schluessel = d.get("device") or d.get("mountpoint") or ""
+            name = d.get("label") or schluessel
+            total, frei = d.get("total") or 0, d.get("free") or 0
+            if total > 0 and frei * 100 <= total * self._warn and ("platz", schluessel) not in self._gemeldet:
+                self._gemeldet.add(("platz", schluessel))
+                meldungen.append((tr("{label} is almost full").replace("{label}", name),
+                                  tr("{free} free – below the warning threshold of {n} %").replace("{free}", taille(frei))
+                                  .replace("{n}", str(self._warn))))
+            zustand = d.get("health") or ""
+            if zustand in ("warn", "fail") and ("smart", schluessel) not in self._gemeldet:
+                self._gemeldet.add(("smart", schluessel))
+                meldungen.append(((tr("Drive failing: {label}") if zustand == "fail" else tr("SMART warning: {label}"))
+                                  .replace("{label}", name), tr(HEALTH_TEXT[zustand])))
+        if meldungen:
+            def senden():
+                for titel, text in meldungen:
+                    desktop_benachrichtigung(titel, text)
+            threading.Thread(target=senden, daemon=True).start()
 
     @pyqtProperty("QVariantMap", notify=smartInfoChanged)
     def smartInfo(self):
@@ -4512,6 +4687,7 @@ class Backend(QObject):
             self._scanWake.clear()
 
     def _setNetworks(self, new_net):
+        self._warnungenPruefen(new_net)
         if new_net != self._networks:
             self._networks = new_net
             self.networksChanged.emit()
@@ -4729,7 +4905,7 @@ class Backend(QObject):
             self.messageRequested.emit(tr("Cannot remove"), str(e))
             return
         for l in retirees:
-            threading.Thread(target=wallet_ecrire, args=(wallet_cle(l), ""), daemon=True).start()
+            threading.Thread(target=wallet_loeschen, args=(wallet_cle(l),), daemon=True).start()
         sync_places(locs)
         self._netWake.set()
 
@@ -4800,6 +4976,30 @@ class Backend(QObject):
             self.messageRequested.emit(titre, tr("unknown error"))
             return
         if r.returncode != 0:
+            fehler = (r.stderr or "").strip()
+            if umount_braucht_root(fehler) and shutil.which("pkexec"):
+                # kein « user »-Eintrag in /etc/fstab : einmal anbieten, mit Administratorrechten zu trennen
+                self.unmountAdminOffered.emit(mountpoint, os.path.basename(mountpoint.rstrip("/")) or mountpoint)
+            else:
+                self.messageRequested.emit(titre, fehler or tr("unknown error"))
+        self._netWake.set()
+        self._diskWake.set()
+
+    @pyqtSlot(str)
+    def unmountNetworkAdmin(self, mountpoint):
+        threading.Thread(target=self._unmountNetworkAdmin, args=(mountpoint,), daemon=True).start()
+
+    def _unmountNetworkAdmin(self, mountpoint):
+        """pkexec umount, nur für einen Einhängepunkt, der gerade wirklich ein Netzwerk-Dateisystem ist (nie freier Pfad)."""
+        titre = tr("Cannot disconnect")
+        if mountpoint not in {m["mountpoint"] for m in list_network_mounts()}:
+            return
+        try:
+            r = subprocess.run(["pkexec", "umount", mountpoint], capture_output=True, text=True, timeout=120)
+        except (OSError, subprocess.SubprocessError):
+            self.messageRequested.emit(titre, tr("Program not found"))
+            return
+        if r.returncode not in (0, 126, 127):   # 126/127 : Passwortabfrage abgebrochen oder abgelehnt -> still
             self.messageRequested.emit(titre, (r.stderr or "").strip() or tr("unknown error"))
         self._netWake.set()
         self._diskWake.set()
@@ -6651,6 +6851,7 @@ QQC2.ApplicationWindow {
             while (stapel.length > 0 && stapel[0].stop !== undefined)
                 out.push(stapel.shift().stop)
         }
+        out.push(settingsBtn)
         if (inspToggle.visible)
             out.push(inspToggle)
         return out
@@ -6658,7 +6859,7 @@ QQC2.ApplicationWindow {
     function focusRibbonStop(c) {
         navZone = "ribbon"
         c.forceActiveFocus(Qt.TabFocusReason)
-        if (c === inspToggle || ribbonCompact)
+        if (c === inspToggle || c === settingsBtn || ribbonCompact)
             return
         const x = c.mapToItem(ribbonRow, 0, 0).x   // verdeckten Knopf ins Bild schieben (schmales Fenster : Ribbon scrollt)
         if (x < ribbonFlick.contentX)
@@ -6898,6 +7099,12 @@ QQC2.ApplicationWindow {
         context: Qt.ApplicationShortcut
         enabled: win.wideLayout
         onActivated: win.inspectorWanted = !win.inspectorWanted
+    }
+    Shortcut {   // Einstellungen (wie in KDE- und macOS-Programmen)
+        sequence: "Ctrl+,"
+        context: Qt.ApplicationShortcut
+        enabled: !settingsDialog.visible
+        onActivated: win.openSettings("")
     }
     Shortcut {
         sequence: "F2"
@@ -7823,36 +8030,6 @@ QQC2.ApplicationWindow {
                 text: win.trad("Command bar icons: Fluent UI System Icons, © Microsoft Corporation, MIT license.")
             }
 
-            // miseAJour (1.1)
-            QQC2.CheckBox {
-                Layout.fillWidth: true
-                visible: (backend && backend.updateSupported)
-                text: win.trad("Check for a new version once a week")
-                checked: (backend && backend.updateCheck)
-                onToggled: backend.setUpdateCheck(checked)
-            }
-
-            Kirigami.Separator { Layout.fillWidth: true }
-            QQC2.Label {
-                Layout.fillWidth: true
-                font.bold: true
-                text: win.trad("Application name:")
-            }
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Kirigami.Units.largeSpacing
-                QQC2.Button {
-                    text: win.trad("Change name…")
-                    onClicked: renameDialog.open()
-                }
-                QQC2.Button {
-                    visible: win.customName !== ""
-                    text: win.trad("Reset")
-                    onClicked: backend.setCustomName("")
-                }
-                Item { Layout.fillWidth: true }
-            }
-
             Kirigami.Separator { Layout.fillWidth: true }
 
             QQC2.Label {
@@ -7862,6 +8039,284 @@ QQC2.ApplicationWindow {
                 opacity: 0.75
                 text: "Qt " + aboutInfo.qt + " · PyQt6 " + aboutInfo.pyqt + " · Python " + aboutInfo.python
             }
+        }
+    }
+
+    // ---- Einstellungen (Strg+, · Zahnrad in der Titelleiste · « … » der kompakten Leiste) : alle App-Einstellungen an einem Ort
+    function openSettings(abschnitt) {
+        settingsDialog.fokus = abschnitt || ""
+        settingsDialog.open()
+    }
+    QQC2.Dialog {
+        id: settingsDialog
+        objectName: "settingsDialog"
+        property string fokus: ""
+        modal: true
+        anchors.centerIn: QQC2.Overlay.overlay
+        width: Math.round(440 * win.fontGrow)
+        padding: 20
+        topPadding: 12
+        title: win.trad("Settings")
+        standardButtons: QQC2.Dialog.Close
+        closePolicy: QQC2.Popup.CloseOnEscape | QQC2.Popup.CloseOnPressOutside
+        Kirigami.Theme.colorSet: Kirigami.Theme.Window
+        Kirigami.Theme.inherit: false
+        // Fläche wie die Seitenspalten : deckend (hinter einem Dialog gibt es keinen Blur, Durchscheinen störte das Lesen),
+        // Panel-Radius, eine Haarlinie statt Rahmen
+        background: Rectangle {
+            radius: win.rPanel
+            color: Kirigami.Theme.backgroundColor
+            border.width: 1
+            border.color: win.hairline
+        }
+        // eigene Kopfzeile : Titel bündig mit dem Inhalt (20 px), Schließen-Symbol rechts (Esc und « Close » gehen ebenso)
+        header: Item {
+            implicitHeight: Math.round(48 * win.fontGrow)
+            QQC2.Label {
+                x: 20
+                anchors.verticalCenter: parent.verticalCenter
+                text: settingsDialog.title
+                font.family: win.uiFont
+                font.weight: Font.DemiBold
+                font.pixelSize: win.px15
+                Accessible.role: Accessible.Heading
+            }
+            QQC2.ToolButton {
+                anchors.right: parent.right
+                anchors.rightMargin: 12
+                anchors.verticalCenter: parent.verticalCenter
+                icon.name: "window-close"
+                display: QQC2.AbstractButton.IconOnly
+                text: win.trad("Close")
+                Accessible.name: win.trad("Close")
+                onClicked: settingsDialog.close()
+            }
+        }
+        onAboutToShow: setName.text = win.customName
+        onOpened: (fokus === "threshold" ? setThreshold : setName).forceActiveFocus(Qt.TabFocusReason)
+        onClosed: if (setName.text !== win.customName) backend.setCustomName(setName.text)   // Name auch ohne Eingabetaste übernehmen
+
+        contentItem: ColumnLayout {
+            spacing: 8
+
+            // 1 · Darstellung
+            SectionLabel { text: win.trad("Appearance") }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                QQC2.Label {
+                    text: win.trad("Application name:")
+                    color: win.textSecondary
+                }
+                QQC2.TextField {
+                    id: setName
+                    objectName: "setName"
+                    Layout.fillWidth: true
+                    maximumLength: 40
+                    placeholderText: win.trad("This PC")
+                    Accessible.name: win.trad("Application name:")
+                    onEditingFinished: if (text !== win.customName) backend.setCustomName(text)
+                }
+                QQC2.Button {
+                    text: win.trad("Reset")
+                    enabled: win.customName !== "" || setName.text !== ""
+                    onClicked: { setName.text = ""; backend.setCustomName("") }
+                }
+            }
+            QQC2.Switch {
+                Layout.fillWidth: true
+                text: win.trad("Always use the compact toolbar")
+                checked: backend.compactToolbar
+                onToggled: { backend.setCompactToolbar(checked); checked = Qt.binding(function() { return backend.compactToolbar }) }
+            }
+            QQC2.Label {
+                Layout.topMargin: 4
+                text: win.trad("Show")
+                color: win.textSecondary
+            }
+            GridLayout {
+                Layout.fillWidth: true
+                columns: 2
+                columnSpacing: 16
+                rowSpacing: 0
+                QQC2.CheckBox {
+                    text: win.sectName(win.trad("Folders ({n})"))
+                    checked: win.foldersShown
+                    onToggled: { win.foldersShown = checked; checked = Qt.binding(function() { return win.foldersShown }) }
+                }
+                QQC2.CheckBox {
+                    text: win.sectName(win.trad("Devices and drives ({n})"))
+                    checked: win.disksShown
+                    onToggled: { win.disksShown = checked; checked = Qt.binding(function() { return win.disksShown }) }
+                }
+                QQC2.CheckBox {
+                    text: win.sectName(win.trad("Printers and devices ({n})"))
+                    checked: win.printersShown
+                    onToggled: { win.printersShown = checked; checked = Qt.binding(function() { return win.printersShown }) }
+                }
+                QQC2.CheckBox {
+                    text: win.sectName(win.trad("Network locations ({n})"))
+                    checked: win.netShown
+                    onToggled: { win.netShown = checked; checked = Qt.binding(function() { return win.netShown }) }
+                }
+                QQC2.CheckBox {
+                    text: win.sectName(win.trad("Quick access ({n})"))
+                    checked: win.quickShown
+                    onToggled: { win.quickShown = checked; checked = Qt.binding(function() { return win.quickShown }) }
+                }
+            }
+
+            Hairline { Layout.topMargin: 8; Layout.bottomMargin: 8 }
+
+            // 2 · Warnschwelle : Regler mit Tabellenziffern und Live-Vorschau von Balken und Warn-Pille
+            SectionLabel { text: win.trad("Warning threshold for free space") }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 12
+                QQC2.Slider {
+                    id: setThreshold
+                    objectName: "setThreshold"
+                    Layout.fillWidth: true
+                    from: 1
+                    to: 50
+                    stepSize: 1
+                    snapMode: QQC2.Slider.SnapAlways
+                    value: (backend && backend.warnThreshold) ? backend.warnThreshold : 20
+                    onMoved: backend.setWarnThreshold(Math.round(value))
+                    Accessible.name: win.trad("Warning threshold for free space")
+                    Accessible.description: Math.round(value) + " %"
+                }
+                QQC2.Label {
+                    Layout.preferredWidth: Math.round(40 * win.fontGrow)
+                    horizontalAlignment: Text.AlignRight
+                    font: win.infoFontT
+                    text: Math.round(setThreshold.value) + " %"
+                }
+            }
+            RowLayout {   // Vorschau : so sieht eine Karte genau an der Schwelle aus
+                id: setPreview
+                readonly property int belegt: 100 - Math.round(setThreshold.value)
+                Layout.fillWidth: true
+                spacing: 8
+                Accessible.role: Accessible.StaticText
+                Accessible.name: win.trad("Preview") + ": " + belegt + " %"
+                Rectangle {
+                    Layout.preferredWidth: Math.round(120 * win.fontGrow)
+                    Layout.preferredHeight: 4
+                    Layout.alignment: Qt.AlignVCenter
+                    radius: 2
+                    color: Qt.alpha(Kirigami.Theme.textColor, 0.10)
+                    Rectangle {
+                        width: parent.width * setPreview.belegt / 100
+                        height: parent.height
+                        radius: 2
+                        color: win.sysRed
+                        Behavior on width { NumberAnimation { duration: win.animMs; easing.type: Easing.OutCubic } }
+                    }
+                }
+                Rectangle {   // dieselbe Kapsel wie auf den Karten
+                    implicitHeight: previewPillText.implicitHeight + 4
+                    implicitWidth: previewPillRow.implicitWidth + 16
+                    radius: height / 2
+                    color: win.badgeFill(win.sysRed)
+                    Row {
+                        id: previewPillRow
+                        anchors.centerIn: parent
+                        spacing: 4
+                        Kirigami.Icon {
+                            source: "data-warning"
+                            isMask: true
+                            color: previewPillText.color
+                            width: 12
+                            height: 12
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                        QQC2.Label {
+                            id: previewPillText
+                            text: setPreview.belegt + " %"
+                            font.features: { "tnum": 1 }
+                            font.pointSize: win.badgeFont.pointSize
+                            font.weight: Font.DemiBold
+                            color: win.badgeText(win.sysRed)
+                        }
+                    }
+                }
+                Item { Layout.fillWidth: true }
+            }
+            QQC2.Label {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                font: win.kvLabelFont
+                color: win.textSecondary
+                text: win.trad("Red gauge and ⚠ symbol from this much free space or less.")
+            }
+
+            Hairline { Layout.topMargin: 8; Layout.bottomMargin: 8 }
+
+            // 3 · Benachrichtigungen
+            SectionLabel { text: win.trad("Notifications") }
+            QQC2.Switch {
+                id: setNotify
+                objectName: "setNotify"
+                Layout.fillWidth: true
+                text: win.trad("Desktop notifications")
+                checked: backend.notifications
+                onToggled: { backend.setNotifications(checked); checked = Qt.binding(function() { return backend.notifications }) }
+            }
+            QQC2.Label {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                font: win.kvLabelFont
+                color: win.textSecondary
+                text: win.trad("When a drive falls below the warning threshold or reports a SMART warning – at most once per drive and session.")
+            }
+            QQC2.Button {
+                id: setTestNotify
+                objectName: "setTestNotify"
+                text: win.trad("Send test notification")
+                icon.name: "preferences-desktop-notification"
+                onClicked: backend.sendTestNotification()
+            }
+            QQC2.CheckBox {   // miseAJour (1.1) : nur, wenn eine eigene Update-Adresse eingetragen ist
+                Layout.fillWidth: true
+                visible: (backend && backend.updateSupported)
+                text: win.trad("Check for a new version once a week")
+                checked: (backend && backend.updateCheck)
+                onToggled: backend.setUpdateCheck(checked)
+            }
+        }
+    }
+
+    // Trennen ohne Rechte (kein « user » in /etc/fstab) : einmal anbieten, mit Administratorrechten zu trennen
+    QQC2.Dialog {
+        id: adminUnmountDialog
+        property string mp: ""
+        property string name: ""
+        modal: true
+        anchors.centerIn: QQC2.Overlay.overlay
+        title: win.trad("Disconnect as administrator?")
+        width: 440
+        standardButtons: QQC2.Dialog.Ok | QQC2.Dialog.Cancel
+        onAboutToShow: {
+            const ok = standardButton(QQC2.Dialog.Ok)
+            if (ok)
+                ok.text = win.trad("Disconnect")
+        }
+        contentItem: QQC2.Label {
+            wrapMode: Text.Wrap
+            topPadding: 6
+            bottomPadding: 6
+            text: win.trad("“{name}” can only be disconnected by an administrator, because it is not set up for normal users (no “user” option in /etc/fstab).").replace("{name}", adminUnmountDialog.name)
+        }
+        onAccepted: backend.unmountNetworkAdmin(mp)
+    }
+    Connections {
+        target: backend
+        function onUnmountAdminOffered(mp, name) {
+            const e = win.fNets.find(function(n) { return n.mountpoint === mp })
+            adminUnmountDialog.mp = mp
+            adminUnmountDialog.name = (e && e.label) ? e.label : name
+            adminUnmountDialog.open()
         }
     }
 
@@ -7957,6 +8412,30 @@ QQC2.ApplicationWindow {
                                        + (st.cpuTemp != null ? "\\nCPU " + st.cpuTemp + " \u00B0C" : "") + (st.gpuTemp != null ? "   GPU " + st.gpuTemp + " \u00B0C" : "")
                 }
                 Item { Layout.fillWidth: true }
+                QQC2.ToolButton {   // Einstellungen (Strg+,) : 28 × 28, Symbol des Themas
+                    id: settingsBtn
+                    objectName: "settingsBtn"
+                    icon.name: "configure"
+                    icon.width: Kirigami.Units.iconSizes.small
+                    icon.height: Kirigami.Units.iconSizes.small
+                    implicitWidth: Math.round(28 * win.fontGrow)
+                    implicitHeight: implicitWidth
+                    flat: true
+                    focusPolicy: Qt.NoFocus   // per Tab erreichbar über win.ribbonStops (wie der Inspector-Schalter)
+                    onClicked: win.openSettings("")
+                    Keys.onTabPressed: win.ribbonMove(settingsBtn, 1)
+                    Keys.onBacktabPressed: win.ribbonMove(settingsBtn, -1)
+                    Keys.onReturnPressed: clicked()
+                    Keys.onEnterPressed: clicked()
+                    Keys.onSpacePressed: clicked()
+                    Keys.onEscapePressed: win.leaveWinButtons(true)
+                    Accessible.name: win.trad("Settings")
+                    Accessible.description: win.trad("Ctrl+,")
+                    QQC2.ToolTip.visible: hovered || visualFocus
+                    QQC2.ToolTip.delay: 400
+                    QQC2.ToolTip.text: win.trad("Settings") + " (" + win.trad("Ctrl+,") + ")"
+                    FocusRing { shown: settingsBtn.visualFocus; innerRadius: win.rControl }
+                }
                 QQC2.ToolButton {   // Inspector ein-/ausblenden (Strg+I), nur bei breiten Fenstern
                     id: inspToggle
                     visible: win.wideLayout
@@ -8171,7 +8650,7 @@ QQC2.ApplicationWindow {
                                     }
                                 }
                                 // warnschwelle : sechste Zelle (Spalte 2, unten). Ein echter Kontrollkasten (gleiche Maße, Schrift und Ausrichtung
-                                // wie die anderen), dessen Häkchen-Feld durch ein ⚠ ersetzt ist ; Klick öffnet das Regler-Fenster
+                                // wie die anderen), dessen Häkchen-Feld durch ein ⚠ ersetzt ist ; Klick öffnet die Einstellungen (Warnschwelle)
                                 QQC2.CheckBox {
                                     id: warnRow
                                     readonly property bool ribbonStop: true
@@ -8183,14 +8662,12 @@ QQC2.ApplicationWindow {
                                     checkable: false
                                     font: win.badgeFont
                                     text: win.trad("Warning threshold…")
-                                    // Ein Klick auf den Eintrag bei offenem Fenster schließt es schon als « Klick daneben » : kein sofortiges Wiederöffnen
-                                    onClicked: (Date.now() - warnPopup.closedAt < 250) ? undefined : warnPopup.open()
+                                    onClicked: win.openSettings("threshold")   // Warnschwelle steht in den Einstellungen
                                     Component.onCompleted: if (indicator) indicator.opacity = 0
-                                    // Hover wie bei den Karten : zarte Akzentfläche, Text in der Akzentfarbe ; offen = bleibt hervorgehoben
-                                    background: Rectangle {   // Hover neutral, offen im Akzent ; Fokus als Ring außen
+                                    background: Rectangle {   // Hover neutral ; Fokus als Ring außen
                                         radius: win.rControl
-                                        color: warnPopup.visible ? win.selFill(true) : win.hoverFill
-                                        opacity: (warnRow.hovered || warnPopup.visible) ? 1 : 0
+                                        color: win.hoverFill
+                                        opacity: warnRow.hovered ? 1 : 0
                                         Behavior on opacity { NumberAnimation { duration: win.animMs; easing.type: Easing.OutCubic } }
                                         FocusRing { shown: warnRow.visualFocus }
                                     }
@@ -8213,69 +8690,6 @@ QQC2.ApplicationWindow {
                                             source: "data-warning"
                                             isMask: true
                                             color: win.warnColor
-                                        }
-                                    }
-                                    QQC2.Popup {
-                                        id: warnPopup
-                                        // im Überlagerungs-Layer des Fensters : liegt über allem (auch der Systemübersicht), deckend
-                                        parent: QQC2.Overlay.overlay
-                                        z: 99
-                                        // modal ohne Abdunkeln : ein Klick irgendwo im Fenster (auch auf eine Karte oder den Eintrag selbst) schließt nur das Fenster
-                                        modal: true
-                                        dim: false
-                                        property double closedAt: 0
-                                        onClosed: closedAt = Date.now()
-                                        padding: Kirigami.Units.largeSpacing * 2
-                                        width: Kirigami.Units.gridUnit * 16
-                                        onAboutToShow: {
-                                            // kompakte Leiste : das Kästchen ist unsichtbar, das Fenster öffnet unter dem Knopf « … »
-                                            const quelle = warnRow.visible ? warnRow : compactMoreBtn
-                                            const p = quelle.mapToItem(QQC2.Overlay.overlay, 0, quelle.height + 6)
-                                            x = Math.max(8, Math.min(p.x, QQC2.Overlay.overlay.width - width - 8))
-                                            y = p.y
-                                        }
-                                        background: Rectangle {
-                                            radius: Kirigami.Units.smallSpacing
-                                            color: Kirigami.Theme.backgroundColor
-                                            border.width: 1
-                                            border.color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.25)
-                                        }
-                                        closePolicy: QQC2.Popup.CloseOnEscape | QQC2.Popup.CloseOnPressOutside
-                                        contentItem: ColumnLayout {
-                                            spacing: Kirigami.Units.largeSpacing
-                                            QQC2.Label {
-                                                Layout.fillWidth: true
-                                                wrapMode: Text.Wrap
-                                                font.bold: true
-                                                text: win.trad("Warning threshold for free space")
-                                            }
-                                            RowLayout {
-                                                Layout.fillWidth: true
-                                                spacing: Kirigami.Units.largeSpacing
-                                                QQC2.Slider {
-                                                    id: warnSlider
-                                                    Layout.fillWidth: true
-                                                    from: 1
-                                                    to: 50
-                                                    stepSize: 1
-                                                    snapMode: QQC2.Slider.SnapAlways
-                                                    value: (backend && backend.warnThreshold) ? backend.warnThreshold : 20
-                                                    onMoved: backend.setWarnThreshold(Math.round(value))
-                                                }
-                                                QQC2.Label {
-                                                    Layout.preferredWidth: Kirigami.Units.gridUnit * 2
-                                                    horizontalAlignment: Text.AlignRight
-                                                    font: win.infoFontT
-                                                    text: Math.round(warnSlider.value) + " %"
-                                                }
-                                            }
-                                            QQC2.Label {
-                                                Layout.fillWidth: true
-                                                wrapMode: Text.Wrap
-                                                opacity: 0.75
-                                                font: win.badgeFont
-                                                text: win.trad("Red gauge and ⚠ symbol from this much free space or less.")
-                                            }
                                         }
                                     }
                                 }
@@ -8704,53 +9118,14 @@ QQC2.ApplicationWindow {
                     }
                 }
             }
-            // « … » : Anzeigen-Schalter, Warnschwelle und die Wahl der Leiste (erst beim ersten Öffnen aufgebaut)
+            // « … » : Einstieg in die Einstellungen (alle App-Einstellungen stehen an einem Ort, Strg+,)
             LazyMenu {
                 id: compactMoreL
                 sourceComponent: QQC2.Menu {
-                    id: compactMore
-                    // ein angeklickter Eintrag löst seine checked-Bindung : nach dem Umschalten wieder an den Zustand binden
                     QQC2.MenuItem {
-                        text: win.sectName(win.trad("Folders ({n})"))
-                        checkable: true
-                        checked: win.foldersShown
-                        onToggled: { win.foldersShown = checked; checked = Qt.binding(function() { return win.foldersShown }) }
-                    }
-                    QQC2.MenuItem {
-                        text: win.sectName(win.trad("Devices and drives ({n})"))
-                        checkable: true
-                        checked: win.disksShown
-                        onToggled: { win.disksShown = checked; checked = Qt.binding(function() { return win.disksShown }) }
-                    }
-                    QQC2.MenuItem {
-                        text: win.sectName(win.trad("Network locations ({n})"))
-                        checkable: true
-                        checked: win.netShown
-                        onToggled: { win.netShown = checked; checked = Qt.binding(function() { return win.netShown }) }
-                    }
-                    QQC2.MenuItem {
-                        text: win.sectName(win.trad("Printers and devices ({n})"))
-                        checkable: true
-                        checked: win.printersShown
-                        onToggled: { win.printersShown = checked; checked = Qt.binding(function() { return win.printersShown }) }
-                    }
-                    QQC2.MenuItem {
-                        text: win.sectName(win.trad("Quick access ({n})"))
-                        checkable: true
-                        checked: win.quickShown
-                        onToggled: { win.quickShown = checked; checked = Qt.binding(function() { return win.quickShown }) }
-                    }
-                    QQC2.MenuSeparator {}
-                    QQC2.MenuItem {
-                        text: win.trad("Warning threshold…")
-                        icon.name: "dialog-warning"
-                        onTriggered: warnPopup.open()
-                    }
-                    QQC2.MenuItem {
-                        text: win.trad("Always use the compact toolbar")
-                        checkable: true
-                        checked: backend.compactToolbar
-                        onToggled: { backend.setCompactToolbar(checked); checked = Qt.binding(function() { return backend.compactToolbar }) }
+                        text: win.trad("Settings…")
+                        icon.name: "configure"
+                        onTriggered: win.openSettings("")
                     }
                 }
             }
@@ -8763,6 +9138,12 @@ QQC2.ApplicationWindow {
                         checkable: true
                         checked: backend.compactToolbar
                         onToggled: { backend.setCompactToolbar(checked); checked = Qt.binding(function() { return backend.compactToolbar }) }
+                    }
+                    QQC2.MenuSeparator {}
+                    QQC2.MenuItem {
+                        text: win.trad("Settings…")
+                        icon.name: "configure"
+                        onTriggered: win.openSettings("")
                     }
                 }
             }
@@ -10859,7 +11240,7 @@ QQC2.ApplicationWindow {
 """
 
 
-APP_VERSION = '2.2.1'
+APP_VERSION = '2.3.0'
 APP_AUTEUR = """Original Copyright (C) 2026 naykkalak
 Modified and maintained by Christian (2026), with help from his son Leon"""
 APP_LICENCE = 'GPL-3.0-or-later'

@@ -10,6 +10,24 @@ hidden and everything else works).
 
 ---
 
+## 2.3.0 – 2026-11-27
+
+### Added
+- **Settings dialog** (`Ctrl+,`, a 28 px gear next to the inspector toggle, and "…" in the compact toolbar). One compact, keyboard-friendly dialog (about 440 px, `Esc` closes it) with three groups: *Appearance* (application name, "Always use the compact toolbar", which sections are shown), *Warning threshold for free space* (slider 1–50 % with tabular figures and a live preview of the red bar and the warning capsule) and *Notifications*. All controls are in the Tab order and have screen-reader names; the header title lines up with the content.
+- **Desktop notifications** (off by default): once per drive and session when a drive or mounted share falls below the warning threshold, or a drive reports a SMART warning or failure. Sent with `notify-send`, or directly to `org.freedesktop.Notifications` over D-Bus when `notify-send` is missing; *Send test notification* checks the path.
+
+### Fixed
+- **Network shares mounted by IP address are recognised under their saved host name** (and the other way round). Both sides are resolved with `getaddrinfo` in the background thread that builds the list, waiting at most one second and caching the result for five minutes (one minute after a failure); identical names need no lookup at all.
+- **Disconnecting a share that is not set up for normal users** (no `user` option in `/etc/fstab`) now offers once to disconnect it as administrator (`pkexec umount`, only for a mount point that is currently a network file system) instead of showing only "permission denied". Cancelling the password prompt shows no error.
+- **Removing a network location deletes its password from KWallet** (`org.kde.KWallet.removeEntry` over D-Bus, kwalletd6 or kwalletd5) instead of only blanking it; without KWallet on D-Bus it still blanks it as before.
+
+### Changed
+- The settings that were spread over the ribbon's warning-threshold popup, the compact toolbar's "…" menu and the *About* window now live only in the settings dialog. **Warning threshold…** in the ribbon opens the dialog at the slider; the *Show* boxes in the full ribbon and the "Always use the compact toolbar" switch in the toolbar's right-click menu stay as shortcuts.
+- 17 new texts in all 13 languages; "Change name…" is no longer used.
+
+### Removed
+- The separate warning-threshold popup (`warnPopup`).
+
 ## 2.2.1 – 2026-11-27
 
 ### Added
@@ -727,23 +745,4 @@ and the duplicate user checks in `addNetwork`.
 
 ## Known limitations
 
-- Drive temperature of USB enclosures (and SMART from the background) needs `smartctl` without root; otherwise only the SMART
-  dialog shows it.
-- Not tested: AMD/Intel graphics and Wi-Fi details in the System information window, a real `pkexec` prompt for the
-  slot details, package installation on Fedora and Debian/Ubuntu.
-- *Disconnect* uses `umount`; without a matching `fstab` entry (`user`/`users` option) it reports a permission error.
-- A network share mounted by IP but configured by host name is still not matched.
-- `removeNetwork` only writes an empty password into KWallet; `kwallet-query` cannot delete entries.
-- There is no automated test suite in the repository. The Python logic was tested with simulated
-  `lsblk`/`udisksctl` output and the UI by hand on KDE Plasma (see the notes above for the QML check of the newest changes).
-- Up/Down arrow keys assume the same number of columns in the disk and network grids.
-
-## Suggested for the first release
-
-- `APP_VERSION` is `'2.0.0-beta.8.2'` (DriveDeck is a new major version after Fenestra This PC 1.x). For the final release set
-  `'2.0.0'` and tag `v2.0.0`.
-- Keep the licence file `COPYING` (GPL-3.0) from upstream in the repository.
-- Add this file as `CHANGELOG.md` and mention in the README that the project is a fork of
-  `naykkalak/fenestra-ce-pc`.
-
-- Development note: the changes in this fork were created with the help of AI assistants (Claude, Gemini) and tested by the maintainer.
+The current list is kept in the README (*Known limitations*).

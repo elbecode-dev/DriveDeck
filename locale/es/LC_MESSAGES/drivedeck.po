@@ -46,6 +46,9 @@ msgstr "Usar siempre la barra de herramientas compacta"
 msgid "Analyze storage"
 msgstr "Analizar almacenamiento"
 
+msgid "Appearance"
+msgstr "Apariencia"
+
 msgid "Application name:"
 msgstr "Nombre de la aplicación:"
 
@@ -106,6 +109,9 @@ msgstr "No se puede cambiar el nombre"
 msgid "Cannot save report"
 msgstr "No se puede guardar el informe"
 
+msgid "Cannot send notification"
+msgstr "No se puede enviar la notificación"
+
 msgid "Cannot set default printer"
 msgstr "No se puede establecer la impresora predeterminada"
 
@@ -117,9 +123,6 @@ msgstr "No se puede desmontar"
 
 msgid "Capacity: {size}"
 msgstr "Capacidad: {size}"
-
-msgid "Change name…"
-msgstr "Cambiar nombre…"
 
 msgid "Check for a new version once a week"
 msgstr "Buscar una nueva versión una vez por semana"
@@ -169,6 +172,9 @@ msgstr "No se pudo desmontar {label}:\n{detail}\n\nCompruebe que no haya ningún
 msgid "Critical"
 msgstr "Crítico"
 
+msgid "Ctrl+,"
+msgstr "Ctrl+,"
+
 msgid "Ctrl+I"
 msgstr "Ctrl+I"
 
@@ -190,6 +196,9 @@ msgstr "Predeterminada"
 msgid "Desktop"
 msgstr "Escritorio"
 
+msgid "Desktop notifications"
+msgstr "Notificaciones de escritorio"
+
 msgid "Details"
 msgstr "Detalles"
 
@@ -208,6 +217,9 @@ msgstr "Dispositivos y unidades ({n})"
 msgid "Disconnect"
 msgstr "Desconectar"
 
+msgid "Disconnect as administrator?"
+msgstr "¿Desconectar como administrador?"
+
 msgid "Disk failing – back up your files"
 msgstr "Disco defectuoso – haga una copia de sus archivos"
 
@@ -222,6 +234,9 @@ msgstr "Descargas"
 
 msgid "Drag folders here to pin them"
 msgstr "Arrastra carpetas aquí para anclarlas"
+
+msgid "Drive failing: {label}"
+msgstr "La unidad está fallando: {label}"
 
 msgid "DriveDeck runs “fstrim” on all mounted drives that support it. This needs administrator rights and can take a while."
 msgstr "DriveDeck ejecuta «fstrim» en todas las unidades montadas que lo admiten. Requiere permisos de administrador y puede tardar un poco."
@@ -400,6 +415,9 @@ msgstr "Navegación"
 msgid "Nearly worn out"
 msgstr "Casi desgastado"
 
+msgid "Neither “notify-send” nor the desktop notification service could be reached."
+msgstr "No se pudo contactar ni con «notify-send» ni con el servicio de notificaciones del escritorio."
+
 msgid "Network"
 msgstr "Red"
 
@@ -438,6 +456,12 @@ msgstr "Nota"
 
 msgid "Note: the external USB enclosure or bridge controller does not support SMART pass-through."
 msgstr "Nota: la carcasa USB externa o el controlador puente no admite el paso de SMART."
+
+msgid "Notifications"
+msgstr "Notificaciones"
+
+msgid "Notifications are working."
+msgstr "Las notificaciones funcionan."
 
 msgid "Offline"
 msgstr "Sin conexión"
@@ -495,6 +519,9 @@ msgstr "Ciclos de encendido"
 
 msgid "Power-on time"
 msgstr "Tiempo encendido"
+
+msgid "Preview"
+msgstr "Vista previa"
 
 msgid "Print test page"
 msgstr "Imprimir página de prueba"
@@ -616,6 +643,9 @@ msgstr "Estado SMART…"
 msgid "SMART unavailable"
 msgstr "SMART no disponible"
 
+msgid "SMART warning: {label}"
+msgstr "Aviso SMART: {label}"
+
 msgid "SSD optimization"
 msgstr "Optimización de SSD"
 
@@ -640,6 +670,9 @@ msgstr "Autoprueba"
 msgid "Self-test failed"
 msgstr "La autoprueba falló"
 
+msgid "Send test notification"
+msgstr "Enviar notificación de prueba"
+
 msgid "Server address:"
 msgstr "Dirección del servidor:"
 
@@ -651,6 +684,9 @@ msgstr "Establecer como impresora predeterminada"
 
 msgid "Settings"
 msgstr "Configuración"
+
+msgid "Settings…"
+msgstr "Configuración…"
 
 msgid "Share name (required):"
 msgstr "Nombre del recurso compartido (obligatorio):"
@@ -877,6 +913,9 @@ msgstr "Umbral de aviso…"
 msgid "Wear"
 msgstr "Desgaste"
 
+msgid "When a drive falls below the warning threshold or reports a SMART warning – at most once per drive and session."
+msgstr "Cuando una unidad baja del umbral de aviso o informa de un aviso SMART: como máximo una vez por unidad y sesión."
+
 msgid "Write"
 msgstr "Escritura"
 
@@ -928,8 +967,14 @@ msgstr "{free} libres"
 msgid "{free} free of {total}"
 msgstr "{free} libres de {total}"
 
+msgid "{free} free – below the warning threshold of {n} %"
+msgstr "{free} libres: por debajo del umbral de aviso del {n} %"
+
 msgid "{ink} (toner)"
 msgstr "{ink} (tóner)"
+
+msgid "{label} is almost full"
+msgstr "{label} está casi lleno"
 
 msgid "{label} was unmounted but could not be powered off:\n{detail}\n\nYou can still unplug it."
 msgstr "{label} se ha desmontado, pero no se ha podido apagar:\n{detail}\n\nAun así puede desconectarlo."
@@ -945,6 +990,9 @@ msgstr "{share} en {host}"
 
 msgid "{used} in use ({pct} %)"
 msgstr "{used} en uso ({pct} %)"
+
+msgid "“{name}” can only be disconnected by an administrator, because it is not set up for normal users (no “user” option in /etc/fstab)."
+msgstr "Solo un administrador puede desconectar «{name}», porque no está configurado para usuarios normales (sin la opción «user» en /etc/fstab)."
 
 msgid "“{name}” is not responding. Check that it is turned on and connected to the network."
 msgstr "«{name}» no responde. Compruebe que está encendido y conectado a la red."

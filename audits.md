@@ -319,7 +319,7 @@ stress run.
 | 4 | qmllint | Minor | ⏳ | 1014 *unqualified access* notes remain. They come from the architecture, not from wrong names (all 42 names were checked to be declared): `backend` is a context property (≈320), `win` is used inside inline components (≈260), delegates use the implicit `modelData`/`index` (≈220). The fix is `pragma ComponentBehavior: Bound`, `required property` in every delegate and a typed backend singleton, a larger refactor that was left for later. qmllint exits with 0. |
 | 5 | Layout | Major | ✅ | Drive card next to the "⚠ 88 %" pill: "109.9 GB free of …" was cut off in the German UI (113 px of 155 px needed, at every width). Shows "109.9 GB free" (new `freeShort` field) while the pill is visible; full text in the tooltip. |
 | 6 | Layout | Minor | ✅ | Compact telemetry at 1024 px was cut inside a number ("▲ 40,…", 237 px of 253 px). The network part is dropped when the full line does not fit (`TextMetrics`, no binding loop). |
-| 7 | Layout | Minor | ➖ | Ribbon width: at 2560 px (maximized on the test machine) the four groups are exactly centred (spacers 137/137 px, group centre 1280 = column centre 1280). With both panels the ribbon needs ~2200 px in English and ~2300 px in German; at 2005 and 1600 px it scrolls (291 / 696 px). Documented under *Known limitations*; a compact icon-only ribbon would be the fix. |
+| 7 | Layout | Minor | ➖ | Ribbon width: at 2560 px (maximized on the test machine) the four groups are exactly centred (spacers 137/137 px, group centre 1280 = column centre 1280). With both panels the ribbon needs ~2200 px in English and ~2300 px in German; at 2005 and 1600 px it scrolls (291 / 696 px). A compact icon-only ribbon would be the fix (done in 2.1.0: the compact toolbar). |
 | 8 | Typography | Minor | ✅ | Tabular figures were missing on five changing numbers: section counters, warning slider %, Properties pie %, ink % in the printer dialog, temperature in the Properties dialog. Everything else (temperatures, I/O, sizes, CPU/RAM, uptime, item count, inspector values) already used JetBrains Mono or `tnum`. Two-line ribbon labels ("Add a network location", "Analyze storage", and their longer German counterparts) wrap by design; no other text is cut off or wrapped at any tested width or mode. |
 | 9 | Locale | Minor | ✅ | `sizeShort()` (trash size) used `Qt.locale()`, all other sizes the interface language: "2,9 MB" next to "173.1 GB" when language and number format differ. Unified. Dates still follow the regional format on purpose. |
 | 10 | Screen reader | Major | ✅ | Window buttons were named in English on German systems ("Minimize"): `trad()` got a conditional expression, and the translation table only collects literals. Now one `trad("…")` per name; a scan of all `trad(` calls found no other case. |
@@ -499,6 +499,31 @@ afterwards).
 
 **Not verified:** contrast over very bright wallpapers behind the 93 % glass in dark themes (measured without blur);
 Orca; very large system fonts.
+
+## 5q. Network limitations, settings dialog, notifications (2.3.0)
+
+**Request:** fix the three known limitations (IP vs. host name, disconnect without an `fstab` entry, KWallet removal),
+bring all app settings into one dialog (`Ctrl+,`, gear button, "…" of the compact toolbar) and add optional desktop
+notifications; keep the single file, keyboard navigation, screen-reader names and 0 findings in `pyright` / `qmllint`.
+
+| Area | Implementation | Check |
+|---|---|---|
+| IP ↔ host name | `gleiche_freigabe()`: same share (case-insensitive) and same host as text, otherwise intersecting `host_adressen()` sets; `getaddrinfo` in a helper thread, at most 1 s, cached 5 min (1 min after a failure), no second lookup while one is still running, IPv6 zone ids stripped; only called from the network thread, and only when the share matches but the host text does not | 12 unit checks with a fake resolver, including a resolver that hangs (returns after 0.3 s) |
+| Disconnect without rights | `umount_braucht_root()` recognises "must be superuser", "only root", "operation not permitted", "permission denied"; the backend emits `unmountAdminOffered`, QML asks once, `unmountNetworkAdmin()` runs `pkexec umount` only for a mount point that is currently a network file system; 126/127 (cancelled) stay silent | unit checks; offscreen: prompt appears and no `pkexec` runs before the confirmation |
+| KWallet | `wallet_entfernen()`: `open` / `removeEntry` / `close` on `org.kde.KWallet` through `busctl --user` (kwalletd6, then kwalletd5); `wallet_loeschen()` falls back to blanking | unit checks of the call sequence and fallbacks; on the real desktop a probe entry in DriveDeck's own folder was written, removed and confirmed gone with `hasEntry` |
+| Notifications | `notifications` in `settings.json` (default off); `_warnungenPruefen()` runs on every disk and network update and once when switched on; one message per (reason, device) and session; `desktop_benachrichtigung()` tries `notify-send`, then `Notify` over D-Bus | unit checks of the fallback; a real test notification arrived on the desktop |
+| Settings dialog | gear `ToolButton` (28 px × `fontGrow`, tooltip, `Accessible.name`, focus ring) in the window's Tab chain right before the inspector toggle; `Ctrl+,`; "…" menu and toolbar context menu; dialog with its own header (title aligned with the 20 px content edge), opaque surface (it was 97 % first – card text showed through, and there is no blur behind a popup), hairlines between the groups | offscreen (Breeze Dark and Light): `Ctrl+,` and the gear open it, the name field has focus, Tab cycles through all eleven controls with names, test notification, switch and slider (keyboard) are saved, the name is applied, `Esc` closes, **Warning threshold…** focuses the slider; real-desktop screenshot in Vivid Violet Dark |
+
+**Checks:** `pyright` 0 errors; `qmllint` exit 0, 0 warnings outside *unqualified* (1131, 16 fewer than before because
+the threshold popup is gone); translation check: 334 strings used, none missing or unused in any of the 12 `.po` files,
+placeholders consistent, `msgfmt --check-format` clean; 23 unit checks and 20 offscreen checks passed, 0 QML messages
+from DriveDeck; 60 s stress run (about 5000 actions: `Ctrl+,`, Tab and arrow keys, `Esc`, window widths 1024–2560,
+inspector on/off, notifications on/off) with 0 QML messages, RSS 216–220 MB and exactly one notification for the one
+drive above the threshold.
+
+**Not verified:** a real `pkexec umount` of a share mounted through `/etc/fstab` without `user` (no such share on the test
+machine); a host name that resolves to several addresses on different networks; notifications on desktops other than
+Plasma.
 
 ---
 

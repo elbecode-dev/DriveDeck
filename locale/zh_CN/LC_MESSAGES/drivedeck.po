@@ -46,6 +46,9 @@ msgstr "始终使用紧凑工具栏"
 msgid "Analyze storage"
 msgstr "分析存储空间"
 
+msgid "Appearance"
+msgstr "外观"
+
 msgid "Application name:"
 msgstr "应用程序名称:"
 
@@ -106,6 +109,9 @@ msgstr "无法重命名"
 msgid "Cannot save report"
 msgstr "无法保存报告"
 
+msgid "Cannot send notification"
+msgstr "无法发送通知"
+
 msgid "Cannot set default printer"
 msgstr "无法设置默认打印机"
 
@@ -117,9 +123,6 @@ msgstr "无法卸载"
 
 msgid "Capacity: {size}"
 msgstr "容量: {size}"
-
-msgid "Change name…"
-msgstr "更改名称…"
 
 msgid "Check for a new version once a week"
 msgstr "每周检查一次新版本"
@@ -169,6 +172,9 @@ msgstr "无法卸载 {label}:\n{detail}\n\n请检查此驱动器上是否仍有�
 msgid "Critical"
 msgstr "严重"
 
+msgid "Ctrl+,"
+msgstr "Ctrl+,"
+
 msgid "Ctrl+I"
 msgstr "Ctrl+I"
 
@@ -190,6 +196,9 @@ msgstr "默认"
 msgid "Desktop"
 msgstr "桌面"
 
+msgid "Desktop notifications"
+msgstr "桌面通知"
+
 msgid "Details"
 msgstr "详细信息"
 
@@ -208,6 +217,9 @@ msgstr "设备和驱动器({n})"
 msgid "Disconnect"
 msgstr "断开连接"
 
+msgid "Disconnect as administrator?"
+msgstr "以管理员身份断开连接?"
+
 msgid "Disk failing – back up your files"
 msgstr "磁盘故障 – 请备份文件"
 
@@ -222,6 +234,9 @@ msgstr "下载"
 
 msgid "Drag folders here to pin them"
 msgstr "将文件夹拖到此处以固定"
+
+msgid "Drive failing: {label}"
+msgstr "驱动器故障:{label}"
 
 msgid "DriveDeck runs “fstrim” on all mounted drives that support it. This needs administrator rights and can take a while."
 msgstr "DriveDeck 会在所有支持的已挂载驱动器上运行“fstrim”。这需要管理员权限,可能需要一些时间。"
@@ -400,6 +415,9 @@ msgstr "导航"
 msgid "Nearly worn out"
 msgstr "即将耗尽"
 
+msgid "Neither “notify-send” nor the desktop notification service could be reached."
+msgstr "无法连接“notify-send”,也无法连接桌面通知服务。"
+
 msgid "Network"
 msgstr "网络"
 
@@ -438,6 +456,12 @@ msgstr "注意"
 
 msgid "Note: the external USB enclosure or bridge controller does not support SMART pass-through."
 msgstr "注意:外置 USB 硬盘盒或桥接控制器不支持 SMART 直通。"
+
+msgid "Notifications"
+msgstr "通知"
+
+msgid "Notifications are working."
+msgstr "通知工作正常。"
 
 msgid "Offline"
 msgstr "脱机"
@@ -495,6 +519,9 @@ msgstr "通电次数"
 
 msgid "Power-on time"
 msgstr "通电时间"
+
+msgid "Preview"
+msgstr "预览"
 
 msgid "Print test page"
 msgstr "打印测试页"
@@ -616,6 +643,9 @@ msgstr "SMART 状态…"
 msgid "SMART unavailable"
 msgstr "SMART 不可用"
 
+msgid "SMART warning: {label}"
+msgstr "SMART 警告:{label}"
+
 msgid "SSD optimization"
 msgstr "SSD 优化"
 
@@ -640,6 +670,9 @@ msgstr "自检"
 msgid "Self-test failed"
 msgstr "自检失败"
 
+msgid "Send test notification"
+msgstr "发送测试通知"
+
 msgid "Server address:"
 msgstr "服务器地址:"
 
@@ -651,6 +684,9 @@ msgstr "设为默认打印机"
 
 msgid "Settings"
 msgstr "设置"
+
+msgid "Settings…"
+msgstr "设置…"
 
 msgid "Share name (required):"
 msgstr "共享名称(必填):"
@@ -877,6 +913,9 @@ msgstr "警告阈值…"
 msgid "Wear"
 msgstr "磨损"
 
+msgid "When a drive falls below the warning threshold or reports a SMART warning – at most once per drive and session."
+msgstr "当驱动器低于警告阈值或报告 SMART 警告时通知 – 每个驱动器每次会话最多一次。"
+
 msgid "Write"
 msgstr "写入"
 
@@ -928,8 +967,14 @@ msgstr "可用 {free}"
 msgid "{free} free of {total}"
 msgstr "{total} 中有 {free} 可用"
 
+msgid "{free} free – below the warning threshold of {n} %"
+msgstr "可用 {free} – 低于 {n} % 的警告阈值"
+
 msgid "{ink} (toner)"
 msgstr "{ink}(碳粉)"
+
+msgid "{label} is almost full"
+msgstr "{label} 即将用满"
 
 msgid "{label} was unmounted but could not be powered off:\n{detail}\n\nYou can still unplug it."
 msgstr "{label} 已卸载,但无法断电:\n{detail}\n\n您仍然可以直接拔出。"
@@ -945,6 +990,9 @@ msgstr "{host} 上的 {share}"
 
 msgid "{used} in use ({pct} %)"
 msgstr "已用 {used}({pct} %)"
+
+msgid "“{name}” can only be disconnected by an administrator, because it is not set up for normal users (no “user” option in /etc/fstab)."
+msgstr "只有管理员才能断开“{name}”,因为它未设置为允许普通用户操作(/etc/fstab 中没有“user”选项)。"
 
 msgid "“{name}” is not responding. Check that it is turned on and connected to the network."
 msgstr "“{name}”没有响应。请检查它是否已开机并连接到网络。"

@@ -12,7 +12,7 @@ locations, printers and devices in one clean window, and it follows your Plasma 
 
 <p align="center"><img src="preview.png" alt="DriveDeck main window"></p>
 
-**Version 2.2.1** – feedback and bug reports are very welcome.
+**Version 2.3.0** – feedback and bug reports are very welcome.
 
 ---
 
@@ -68,9 +68,21 @@ small **live graph** of their read and write speed, and warn you when they are a
   nothing is selected, or details, SMART health and quick actions for the selected folder, drive, network location,
   printer or device.
 - **Screen readers:** cards, chips, sidebar rows, inspector details and buttons have localized names that Orca can read.
-- **Keyboard:** Tab goes main area → sidebar → ribbon (buttons and *Show* boxes) → inspector toggle → window buttons →
-  main area (Shift+Tab backwards, Esc back to the main area); `Ctrl+I` shows or hides the inspector.
+- **Keyboard:** Tab goes main area → sidebar → ribbon (buttons and *Show* boxes) → settings → inspector toggle → window
+  buttons → main area (Shift+Tab backwards, Esc back to the main area); `Ctrl+,` opens the settings, `Ctrl+I` shows or
+  hides the inspector.
 - Works with light and dark Plasma colour schemes.
+
+### New in 2.3.0
+
+- **Settings in one place.** A gear next to the inspector toggle, "…" in the compact toolbar or `Ctrl+,` open one
+  small dialog with the application name, the toolbar choice, the visible sections, the warning threshold (with a live
+  preview) and notifications.
+- **Desktop notifications (optional).** Once per drive and session when a drive falls below the warning threshold or
+  reports a SMART warning.
+- **Network fixes.** Shares mounted by IP address are recognised under their saved host name, shares that normal users
+  may not unmount can be disconnected as administrator after one question, and removing a location really deletes its
+  password from KWallet.
 
 ### New in 2.2.1
 
@@ -92,8 +104,8 @@ small **live graph** of their read and write speed, and warn you when they are a
 
 - **Compact toolbar.** When the four ribbon groups do not fit between the side panels (about 2175 px window width with
   both panels in German), the ribbon becomes a centred 48 px toolbar with the same commands as icons,
-  tooltips and screen-reader names. *Show* and the warning threshold move into the "…" menu. Right-click the toolbar (or
-  use "…") to keep the compact toolbar always. Wide windows keep the full ribbon.
+  tooltips and screen-reader names. "…" opens the settings (sections, warning threshold, "Always use the compact
+  toolbar"); right-clicking the toolbar also offers that switch. Wide windows keep the full ribbon.
 - **SMART health without a password.** For internal NVMe and SATA drives DriveDeck reads the key SMART values through
   udisks2: wear, spare capacity, power-on time, power cycles, unsafe shutdowns, data written and read, media errors or
   reallocated/pending sectors, temperature and the last self-test, with an overall "Good / Warning / Critical". They appear
@@ -152,9 +164,17 @@ small **live graph** of their read and write speed, and warn you when they are a
   **double click** by default, and with one click if your desktop explicitly uses single-click (KDE: *System Settings →
   Workspace Behavior → General Behavior*). You can also force it in `~/.config/drivedeck/settings.json` with
   `"click_mode": "double"` or `"single"`. *(Idea by Sadi58.)*
-- **Adjustable "almost full" warning.** In the ribbon group *Show*, **Warning threshold…** opens a slider (1 to 50 %
-  free space, default 20 %). The bars and ⚠ badges change at once and the value is remembered. *(Idea by
-  Sadi58.)*
+- **Adjustable "almost full" warning.** In the ribbon group *Show*, **Warning threshold…** opens the settings at a
+  slider (1 to 50 % free space, default 20 %) with a live preview of the red bar and the warning badge. The bars and ⚠
+  badges change at once and the value is remembered. *(Idea by Sadi58.)*
+- **Settings in one place.** The gear next to the inspector toggle, "…" in the compact toolbar or `Ctrl+,` open one
+  small dialog with everything that used to be spread over the ribbon, the "…" menu and the *About* window: the
+  application name, "Always use the compact toolbar", which sections are shown, the warning threshold and desktop
+  notifications. `Esc` closes it; every control is reachable with Tab and has a screen-reader name.
+- **Desktop notifications (optional).** When switched on in the settings, DriveDeck notifies you once per drive and
+  session when a drive or mounted share falls below the warning threshold, or when a drive reports a SMART warning or
+  failure (`notify-send`, or the desktop notification service over D-Bus). *Send test notification* checks that they
+  arrive. They are off by default.
 - **Unmount.** *Unmount* in a drive's right-click menu only logs the drive out and leaves it powered on, unlike
   *Safely remove*. It is not offered for system folders (`/`, `/boot`, `/home` …) or optical drives.
 - **System information (HWiNFO-style).** The *System information* button opens a window with six tabs: *Overview*, *CPU & Board*
@@ -285,16 +305,15 @@ PyQt6 from your distribution (for example `sudo apt install --reinstall python3-
 
 ## Known limitations
 
-- Disconnecting a network share uses the system `umount` command. If the share was not set up to be unmountable by
-  normal users, you will see a "permission denied" message.
-- A network share that is mounted by IP address but saved by host name is not recognised as the same one.
-- Removing a saved network location only blanks the stored password in KWallet. KWallet's command line tool cannot
-  delete entries.
 - Drive temperature of USB enclosures needs administrator rights (see *Disk temperature* above), so those cards show no
-  chip by default. The SMART dialog works for them.
+  temperature chip. *Read SMART…* in the inspector (one password prompt) shows their temperature and SMART values.
 - Tested on KDE Plasma 6 (CachyOS) with a Btrfs system disk and an NVIDIA GPU. Other setups should work, but have not been
-  tested by the fork maintainer. This includes AMD/Intel graphics and Wi-Fi details in the *System information* window, and
-  the package installation on Fedora and Debian/Ubuntu.
+  tested by the fork maintainer. This includes AMD/Intel graphics and Wi-Fi details in the *System information* window, the
+  administrator prompt for the RAM slot details, and the package installation on Fedora. A Debian-based installation has
+  been reported to work once PyQt6 loaded correctly ([#3](https://github.com/elbecode-dev/DriveDeck/issues/3)).
+- There is no automated test suite in the repository. Changes are checked with `pyright`, `qmllint`, scripted offscreen
+  runs of the window (layout, contrast, keyboard, a 60-second stress run) and by hand on KDE Plasma; see
+  [audits.md](audits.md).
 
 ---
 

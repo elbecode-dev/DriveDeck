@@ -46,6 +46,9 @@ msgstr "Всегда использовать компактную панель"
 msgid "Analyze storage"
 msgstr "Анализ дискового пространства"
 
+msgid "Appearance"
+msgstr "Внешний вид"
+
 msgid "Application name:"
 msgstr "Название приложения:"
 
@@ -106,6 +109,9 @@ msgstr "Не удаётся переименовать"
 msgid "Cannot save report"
 msgstr "Не удалось сохранить отчёт"
 
+msgid "Cannot send notification"
+msgstr "Не удалось отправить уведомление"
+
 msgid "Cannot set default printer"
 msgstr "Не удалось назначить принтер по умолчанию"
 
@@ -117,9 +123,6 @@ msgstr "Не удалось отмонтировать"
 
 msgid "Capacity: {size}"
 msgstr "Ёмкость: {size}"
-
-msgid "Change name…"
-msgstr "Изменить название…"
 
 msgid "Check for a new version once a week"
 msgstr "Проверять наличие новой версии раз в неделю"
@@ -169,6 +172,9 @@ msgstr "Не удалось размонтировать {label}:\n{detail}\n\n�
 msgid "Critical"
 msgstr "Критическое"
 
+msgid "Ctrl+,"
+msgstr "Ctrl+,"
+
 msgid "Ctrl+I"
 msgstr "Ctrl+I"
 
@@ -190,6 +196,9 @@ msgstr "По умолчанию"
 msgid "Desktop"
 msgstr "Рабочий стол"
 
+msgid "Desktop notifications"
+msgstr "Уведомления на рабочем столе"
+
 msgid "Details"
 msgstr "Подробности"
 
@@ -208,6 +217,9 @@ msgstr "Устройства и диски ({n})"
 msgid "Disconnect"
 msgstr "Отключить"
 
+msgid "Disconnect as administrator?"
+msgstr "Отключить с правами администратора?"
+
 msgid "Disk failing – back up your files"
 msgstr "Диск неисправен – сохраните свои файлы"
 
@@ -222,6 +234,9 @@ msgstr "Загрузки"
 
 msgid "Drag folders here to pin them"
 msgstr "Перетащите сюда папки, чтобы закрепить их"
+
+msgid "Drive failing: {label}"
+msgstr "Диск выходит из строя: {label}"
 
 msgid "DriveDeck runs “fstrim” on all mounted drives that support it. This needs administrator rights and can take a while."
 msgstr "DriveDeck выполняет «fstrim» на всех смонтированных дисках, которые это поддерживают. Нужны права администратора, это может занять некоторое время."
@@ -400,6 +415,9 @@ msgstr "Навигация"
 msgid "Nearly worn out"
 msgstr "Почти изношен"
 
+msgid "Neither “notify-send” nor the desktop notification service could be reached."
+msgstr "Не удалось обратиться ни к «notify-send», ни к службе уведомлений рабочего стола."
+
 msgid "Network"
 msgstr "Сеть"
 
@@ -438,6 +456,12 @@ msgstr "Примечание"
 
 msgid "Note: the external USB enclosure or bridge controller does not support SMART pass-through."
 msgstr "Примечание: внешний USB-корпус или контроллер-мост не поддерживает передачу SMART."
+
+msgid "Notifications"
+msgstr "Уведомления"
+
+msgid "Notifications are working."
+msgstr "Уведомления работают."
 
 msgid "Offline"
 msgstr "Не в сети"
@@ -495,6 +519,9 @@ msgstr "Циклы включения"
 
 msgid "Power-on time"
 msgstr "Время работы диска"
+
+msgid "Preview"
+msgstr "Предпросмотр"
 
 msgid "Print test page"
 msgstr "Напечатать пробную страницу"
@@ -616,6 +643,9 @@ msgstr "Состояние SMART…"
 msgid "SMART unavailable"
 msgstr "SMART недоступен"
 
+msgid "SMART warning: {label}"
+msgstr "Предупреждение SMART: {label}"
+
 msgid "SSD optimization"
 msgstr "Оптимизация SSD"
 
@@ -640,6 +670,9 @@ msgstr "Самотест"
 msgid "Self-test failed"
 msgstr "Самотест не пройден"
 
+msgid "Send test notification"
+msgstr "Отправить тестовое уведомление"
+
 msgid "Server address:"
 msgstr "Адрес сервера:"
 
@@ -651,6 +684,9 @@ msgstr "Использовать по умолчанию"
 
 msgid "Settings"
 msgstr "Настройки"
+
+msgid "Settings…"
+msgstr "Настройки…"
 
 msgid "Share name (required):"
 msgstr "Имя общего ресурса (обязательно):"
@@ -877,6 +913,9 @@ msgstr "Порог предупреждения…"
 msgid "Wear"
 msgstr "Износ"
 
+msgid "When a drive falls below the warning threshold or reports a SMART warning – at most once per drive and session."
+msgstr "Когда свободное место на диске опускается ниже порога или диск сообщает о предупреждении SMART – не чаще раза на диск за сеанс."
+
 msgid "Write"
 msgstr "Запись"
 
@@ -928,8 +967,14 @@ msgstr "{free} своб."
 msgid "{free} free of {total}"
 msgstr "{free} своб. из {total}"
 
+msgid "{free} free – below the warning threshold of {n} %"
+msgstr "свободно {free} – ниже порога предупреждения {n} %"
+
 msgid "{ink} (toner)"
 msgstr "{ink} (тонер)"
+
+msgid "{label} is almost full"
+msgstr "{label} почти заполнен"
 
 msgid "{label} was unmounted but could not be powered off:\n{detail}\n\nYou can still unplug it."
 msgstr "{label} размонтирован, но его не удалось отключить от питания:\n{detail}\n\nВы всё равно можете его отсоединить."
@@ -945,6 +990,9 @@ msgstr "{share} на {host}"
 
 msgid "{used} in use ({pct} %)"
 msgstr "занято {used} ({pct} %)"
+
+msgid "“{name}” can only be disconnected by an administrator, because it is not set up for normal users (no “user” option in /etc/fstab)."
+msgstr "Отключить «{name}» может только администратор: ресурс не настроен для обычных пользователей (нет параметра «user» в /etc/fstab)."
 
 msgid "“{name}” is not responding. Check that it is turned on and connected to the network."
 msgstr "«{name}» не отвечает. Убедитесь, что устройство включено и подключено к сети."
