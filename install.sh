@@ -164,6 +164,49 @@ if [ "${#pkgs[@]}" -gt 0 ] && [ "$DEPS" = 1 ]; then
         done
     fi
 fi
+# ---- PyQt6 installed but not importable : explain why -----------------------------------------------------------------
+# Thanks to 3Shadow3S (issue #3), who tracked down PyQt6 modules with a file name suffix Python does not load
+# (QtCore.cpython-312-abi3-x86_64-linux-gnu.so instead of QtCore.abi3.so) and found the symlink workaround.
+pyqt_diagnose() {
+    python3 -c "import PyQt6.QtCore" 2>/dev/null && return 0
+    local py dir err
+    py="$(command -v python3 || true)"
+    # where PyQt6 is, without importing its compiled modules (PyQt6/__init__.py is plain Python)
+    dir="$(python3 -c "import importlib.util as u; s = u.find_spec('PyQt6'); print(s.submodule_search_locations[0] if s and s.submodule_search_locations else '')" 2>/dev/null || true)"
+    [ -n "$dir" ] || return 0   # PyQt6 is simply not installed : the list above already says so
+    echo
+    echo "PyQt6 is installed in $dir, but $py cannot load it."
+    if [ -n "$py" ] && [ "$py" != /usr/bin/python3 ]; then
+        echo "  Note: python3 is $py, not the system Python (/usr/bin/python3). A conda, pyenv or venv Python does not see"
+        echo "  the distribution's PyQt6 packages: run ./install.sh from a shell where python3 is /usr/bin/python3."
+    fi
+    # Does the QtCore module carry a file name ending this Python accepts ?
+    local suffixes files ok=0 f s
+    suffixes="$(python3 -c "import importlib.machinery as m; print(' '.join(m.EXTENSION_SUFFIXES))" 2>/dev/null || true)"
+    files="$(cd "$dir" 2>/dev/null && ls -1 QtCore*.so 2>/dev/null || true)"
+    for f in $files; do
+        for s in $suffixes; do [ "${f%"$s"}" != "$f" ] && [ "${f%"$s"}" = QtCore ] && ok=1; done
+    done
+    if [ -n "$files" ] && [ "$ok" = 0 ]; then
+        echo "  Python $(python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])' 2>/dev/null || echo 3) only loads modules ending in: $suffixes"
+        echo "  but the PyQt6 files are named: $(echo $files | tr '\n' ' ')"
+        echo "  They probably come from another source (third-party repository or a manual build). Reinstall PyQt6 from"
+        echo "  your distribution, for example:"
+        case "$PM" in
+            apt)    echo "      sudo apt install --reinstall python3-pyqt6 python3-pyqt6.qtquick" ;;
+            dnf)    echo "      sudo dnf reinstall python3-pyqt6" ;;
+            pacman) echo "      sudo pacman -S python-pyqt6" ;;
+            *)      echo "      (reinstall the PyQt6 package of your distribution)" ;;
+        esac
+        echo "  Workaround if that does not help (found by 3Shadow3S; redo it after PyQt6 updates):"
+        echo "      cd \"$dir\" && for f in *.cpython-*-abi3-*.so; do sudo ln -sf \"\$f\" \"\${f%%.cpython-*}.abi3.so\"; done"
+    else
+        err="$(python3 -c "import PyQt6.QtCore" 2>&1 | tail -n 1 || true)"
+        echo "  Python reports: $err"
+        echo "  Reinstalling PyQt6 from your distribution usually fixes this."
+    fi
+}
+if [ "$missing_required" != 0 ]; then pyqt_diagnose; fi
 [ "$missing_required" = 0 ] || { echo "Install the required items above, then run ./install.sh again. Nothing was installed."; exit 1; }
 
 # ---- services DriveDeck uses when they exist : printers (CUPS) and printer discovery (Avahi) ------------------------------

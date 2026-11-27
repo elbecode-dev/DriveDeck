@@ -10,6 +10,11 @@ hidden and everything else works).
 
 ---
 
+## Unreleased
+
+### Added
+- **Installer: explains why PyQt6 cannot be loaded.** When PyQt6 is installed but `python3` cannot import it, `install.sh` now says why instead of only reporting it as missing: a `python3` that is not the system Python (conda, pyenv, venv), PyQt6 modules whose file names end in a suffix this Python does not load (for example `QtCore.cpython-312-abi3-x86_64-linux-gnu.so` instead of `QtCore.abi3.so`), or the import error itself. It suggests reinstalling PyQt6 from the distribution and, as a last resort, the symlink workaround. Thanks to **3Shadow3S** for tracking this down and sharing the workaround ([#3](https://github.com/elbecode-dev/DriveDeck/issues/3)).
+
 ## 2.2.0 – 2026-11-27
 
 ### Changed

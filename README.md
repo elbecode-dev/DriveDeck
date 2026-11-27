@@ -268,6 +268,10 @@ To remove it again: `bash uninstall.sh` (keeps your settings) or `bash uninstall
 
 **Updating:** pull the latest version and run `bash install.sh` again.
 
+**If the installer says PyQt6 is missing although it is installed,** it now explains the cause: usually a `python3`
+that is not the system Python (conda, pyenv, venv) or PyQt6 files from another source that Python cannot load. Reinstall
+PyQt6 from your distribution (for example `sudo apt install --reinstall python3-pyqt6 python3-pyqt6.qtquick`).
+
 ---
 
 ## Known limitations
@@ -313,6 +317,7 @@ Quality audits (stress, performance, code and UI) and what they found are summar
   Windows Modern for KDE Plasma 6 by Jeysef; Win11OS-kde by yeyushengfan258). These are **not** bundled with the
   program unless the original project bundles them.
 - DriveDeck (fork changes, new features, name and icon): Christian, 2026
+- Thanks to **3Shadow3S** for the PyQt6 file-name diagnosis behind the installer hint ([#3](https://github.com/elbecode-dev/DriveDeck/issues/3)).
 
 ## AI assistance
 
