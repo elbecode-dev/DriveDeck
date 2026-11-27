@@ -5509,15 +5509,15 @@ QQC2.ApplicationWindow {
             color: win.sideTint
         }
         Rectangle {
-            x: sm.linkeSeite ? parent.width - 1 : 0
-            width: 1
+            x: sm.linkeSeite ? parent.width - win.dividerW : 0
+            width: win.dividerW
             height: parent.height
             color: win.hairline
         }
     }
     component Hairline: Rectangle {
         Layout.fillWidth: true
-        implicitHeight: 1
+        implicitHeight: win.sectionLineW
         color: win.hairline
     }
     // Abschnittstitel : 11 px DemiBold, zurückgenommen (wie « Favoriten » im Finder) ; Farbstufe statt opacity (≥ 4,5 : 1)
@@ -5876,7 +5876,10 @@ QQC2.ApplicationWindow {
     readonly property real inspectorW: Math.round(300 * fontGrow)
     // Seitenspalten (Finder-Stil) : eine Luminanzstufe, 1-px-Haarlinien, feste Schriftgrößen in Pixeln
     readonly property color sideTint: darkTheme ? Qt.rgba(1, 1, 1, 0.045) : Qt.rgba(0, 0, 0, 0.03)
-    readonly property color hairline: darkTheme ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(0, 0, 0, 0.10)   // alle Trennlinien (Apple separatorColor)
+    // Trennlinien : halbtransparente, leicht kühle Glas-Tönung statt eines neutralen Strichs
+    readonly property color hairline: darkTheme ? Qt.rgba(0.80, 0.86, 0.96, 0.12) : Qt.rgba(0.10, 0.14, 0.22, 0.11)
+    readonly property real dividerW: 2      // Spaltentrenner und Kopflinien
+    readonly property real sectionLineW: 1.5   // innere Abschnittslinien (Inspector, Einstellungen, Ribbon-Gruppen)
     // Textstufen als Farbe statt opacity : gemessen ≥ 4,5 : 1 auf Breeze Hell/Dunkel und dunklen Schemata (WCAG AA, auch 11 px)
     readonly property color textSecondary: Qt.alpha(Kirigami.Theme.textColor, darkTheme ? 0.70 : 0.72)   // Werte, Untertitel, Größen
     readonly property color textTertiary: Qt.alpha(Kirigami.Theme.textColor, darkTheme ? 0.62 : 0.66)    // Abschnittsköpfe, Hinweise
@@ -6131,7 +6134,7 @@ QQC2.ApplicationWindow {
         QQC2.ToolTip.text: cb.title + (cb.sub !== "" ? " \u00B7 " + cb.sub : "")
     }
     component CompactSep: Rectangle {
-        implicitWidth: 1
+        implicitWidth: win.sectionLineW
         implicitHeight: Math.round(24 * win.fontGrow)
         Layout.leftMargin: Kirigami.Units.largeSpacing
         Layout.rightMargin: Kirigami.Units.largeSpacing
@@ -6255,7 +6258,7 @@ QQC2.ApplicationWindow {
     property var firstGrp: null
     property var firstSep: null
     // Breite der Seitenleiste : feste Spalte (sie läuft jetzt über die ganze Fensterhöhe, das Ribbon beginnt rechts davon)
-    readonly property real sideWidth: Math.round(240 * fontGrow)
+    readonly property real sideWidth: Math.round(248 * fontGrow)   // 248 : « Lokaler Datenträger » und die Größe passen auch mit 13-px-Schrift und 18-px-Symbol
     readonly property real leftColW: quickShown ? sideWidth : 0
     readonly property real rightColW: inspectorShown ? inspectorW : 0
     property string sideSelKey: ""   // zuletzt angeklickte Zeile der Seitenleiste (bleibt, bis eine andere angeklickt wird)
@@ -8509,7 +8512,7 @@ QQC2.ApplicationWindow {
                 anchors.bottom: parent.bottom
                 anchors.leftMargin: win.ribbonCompact ? 0 : Kirigami.Units.largeSpacing
                 anchors.rightMargin: win.ribbonCompact ? 0 : Kirigami.Units.largeSpacing
-                height: 1
+                height: win.dividerW
                 color: win.hairline
             }
 
@@ -8601,14 +8604,13 @@ QQC2.ApplicationWindow {
                         }
                         Rectangle {
                             id: navSep
-                            Layout.preferredWidth: 1
+                            Layout.preferredWidth: win.sectionLineW
                             Layout.fillHeight: true
                             Layout.topMargin: Kirigami.Units.largeSpacing
                             Layout.bottomMargin: Kirigami.Units.largeSpacing
                             Layout.leftMargin: Kirigami.Units.largeSpacing
                             Layout.rightMargin: Kirigami.Units.largeSpacing
-                            color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
-                                           Kirigami.Theme.textColor.b, 0.12)
+                            color: win.hairline
                             // Die Seitenleiste endet genau auf dieser ersten Trennlinie
                             Component.onCompleted: { win.firstGrp = navGrp; win.firstSep = navSep }
                         }
@@ -8710,14 +8712,13 @@ QQC2.ApplicationWindow {
                         }
                     }
                     Rectangle {
-                        Layout.preferredWidth: 1
+                        Layout.preferredWidth: win.sectionLineW
                         Layout.fillHeight: true
                         Layout.topMargin: Kirigami.Units.largeSpacing
                         Layout.bottomMargin: Kirigami.Units.largeSpacing
                         Layout.leftMargin: win.sepGap
                         Layout.rightMargin: win.sepGap
-                        color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
-                                       Kirigami.Theme.textColor.b, 0.2)
+                        color: win.hairline
                     }
 
                     // aktionenUndWerkzeuge : Werkzeuge und Schnellaktionen in einer Gruppe
@@ -8774,14 +8775,13 @@ QQC2.ApplicationWindow {
                         }
                     }
                     Rectangle {
-                        Layout.preferredWidth: 1
+                        Layout.preferredWidth: win.sectionLineW
                         Layout.fillHeight: true
                         Layout.topMargin: Kirigami.Units.largeSpacing
                         Layout.bottomMargin: Kirigami.Units.largeSpacing
                         Layout.leftMargin: win.sepGap
                         Layout.rightMargin: win.sepGap
-                        color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
-                                       Kirigami.Theme.textColor.b, 0.2)
+                        color: win.hairline
                     }
 
                     // systemZentrale : Distribution und Rechner, die drei System-Schaltflächen und die Telemetrie (füllt den Rest)
@@ -10463,7 +10463,7 @@ QQC2.ApplicationWindow {
             anchors.topMargin: win.titleBarH
             anchors.leftMargin: 16
             anchors.rightMargin: 16
-            height: win.compactBarH - 1
+            height: win.compactBarH - win.dividerW
             Accessible.role: Accessible.StaticText
             Accessible.name: win.title + " " + aboutInfo.version + ", " + win.itemCountText
             DragHandler {
@@ -10540,15 +10540,15 @@ QQC2.ApplicationWindow {
                 }
             }
         }
-        Hairline {   // auf topBarH - 1 wie die Linien der Mitte (kompakt) und des Inspectors ; volle Breite bis zur Spaltenlinie
+        Hairline {   // endet auf topBarH wie die Linien der Mitte (kompakt) und des Inspectors ; volle Breite bis zur Spaltenlinie
             id: heroLine
             objectName: "sideHeadLine"
             anchors.top: parent.top
-            anchors.topMargin: win.topBarH - 1
+            anchors.topMargin: win.topBarH - win.dividerW
             anchors.left: parent.left
             anchors.right: parent.right
-            anchors.rightMargin: 1
-            height: 1
+            anchors.rightMargin: win.dividerW   // die senkrechte Spaltenlinie nicht doppelt decken
+            height: win.dividerW
         }
 
         DropArea {   // Ordner aus Dolphin hineinziehen heftet sie an
@@ -10624,7 +10624,7 @@ QQC2.ApplicationWindow {
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             anchors.bottomMargin: 8
-            anchors.rightMargin: 1   // Haarlinie frei lassen
+            anchors.rightMargin: win.dividerW   // Spaltenlinie frei lassen
             clip: true
             model: win.sidebarRows
             cacheBuffer: 0   // keine Vorab-Erzeugung außerhalb des Sichtbereichs : beim Beenden bleiben so keine halb erzeugten Zeilen zurück
@@ -10652,7 +10652,7 @@ QQC2.ApplicationWindow {
                 // nicht eingehängt (Klick hängt ein) : Sekundärtext, Symbol blasser ; fehlender Ordner : Tertiärtext
                 readonly property bool fehlt: isPinRow && r.exists === false
                 readonly property bool gedimmt: fehlt || r.unmounted === true
-                height: r.type === "hint" ? 56 : Math.round(32 * win.fontGrow)
+                height: r.type === "hint" ? 56 : Math.round(34 * win.fontGrow)   // 34 px : Pille 32 px, 2 px Luft dazwischen
 
                 // Hover über die GANZE Zeile : ein HoverHandler hängt nicht davon ab, welches Kind (Beschriftung, Symbol …) unter der
                 // Maus liegt ; die Beschriftung fängt Hover-Ereignisse selbst ab, eine MouseArea darunter bekäme sie nicht.
@@ -10698,8 +10698,13 @@ QQC2.ApplicationWindow {
                     anchors.leftMargin: 16   // dieselbe Kante wie Kopfbereich und Haarlinie
                     anchors.rightMargin: 16
                     spacing: 4
-                    SectionLabel {
+                    QQC2.Label {   // Abschnitt : 11,5 px DemiBold (als Punktgröße : pixelSize kennt keine halben Pixel)
                         text: r.label || ""
+                        font.family: win.uiFont
+                        font.pointSize: 11.5 * 0.75 * win.fontGrow
+                        font.weight: Font.DemiBold
+                        color: win.textTertiary
+                        elide: Text.ElideRight
                         Layout.maximumWidth: parent.width - 60
                         Layout.alignment: Qt.AlignVCenter
                     }
@@ -10741,7 +10746,7 @@ QQC2.ApplicationWindow {
                         onClicked: pinDialog.open()
                     }
                 }
-                // Eintrag : Symbol 16 px, 8 px bis zum Text ; Laufwerke mit 2-px-Kapazitätslinie und Größe rechts
+                // Eintrag : Symbol 18 px, 8 px bis zum Text (13 px) ; Laufwerke mit 2-px-Kapazitätslinie und Größe rechts
                 RowLayout {
                     visible: !row.isHead && r.type !== "hint"
                     anchors.fill: parent
@@ -10750,8 +10755,8 @@ QQC2.ApplicationWindow {
                     spacing: 8
                     Kirigami.Icon {
                         source: r.icon || "folder"
-                        Layout.preferredWidth: 16
-                        Layout.preferredHeight: 16
+                        Layout.preferredWidth: Math.round(18 * win.fontGrow)
+                        Layout.preferredHeight: Math.round(18 * win.fontGrow)
                         Layout.alignment: Qt.AlignVCenter
                         opacity: row.gedimmt ? 0.5 : ((row.selected || rowHover.hovered) ? 1.0 : 0.85)
                         Behavior on opacity { NumberAnimation { duration: win.animMs; easing.type: Easing.OutCubic } }
@@ -10763,6 +10768,8 @@ QQC2.ApplicationWindow {
                         QQC2.Label {
                             Layout.fillWidth: true
                             text: r.label || ""
+                            font.family: win.uiFont
+                            font.pixelSize: win.px13
                             elide: Text.ElideRight
                             color: row.fehlt ? win.textTertiary : (r.unmounted === true ? win.textSecondary : Kirigami.Theme.textColor)
                         }
@@ -10921,10 +10928,10 @@ QQC2.ApplicationWindow {
             Item {   // unteres Kopfband : Kopf des Inspectors, mittig (Zeile der kompakten Leiste und des Seitenleisten-Kopfs)
                 id: inspKopf
                 readonly property var si: (backend && backend.sysInfo) ? backend.sysInfo : ({})
-                x: 17   // 16 px + Haarlinie
+                x: 16 + win.dividerW
                 y: win.titleBarH
-                width: parent.width - 33
-                height: win.compactBarH - 1
+                width: parent.width - 32 - win.dividerW
+                height: win.compactBarH - win.dividerW
             RowLayout {   // Modus A : Distribution, Rechnername, Update-Status
                 anchors.fill: parent
                 visible: win.inspectorItem === null
@@ -11001,13 +11008,13 @@ QQC2.ApplicationWindow {
                 }
             }
             }
-            Hairline {   // auf topBarH - 1 : bündig mit der Seitenleiste und (kompakt) der Linie unter der Symbolleiste
+            Hairline {   // endet auf topBarH : bündig mit der Seitenleiste und (kompakt) der Linie unter der Symbolleiste
                 objectName: "inspHeadLine"
                 anchors.left: parent.left
                 anchors.right: parent.right
-                anchors.leftMargin: 1   // die senkrechte Spaltenlinie nicht doppelt decken
-                y: win.topBarH - 1
-                height: 1
+                anchors.leftMargin: win.dividerW   // die senkrechte Spaltenlinie nicht doppelt decken
+                y: win.topBarH - win.dividerW
+                height: win.dividerW
             }
         }
         // Inhalt : eine ruhige Spalte mit 16 px Rand, Abschnitte durch 1-px-Haarlinien getrennt (keine Kacheln)
@@ -11017,7 +11024,7 @@ QQC2.ApplicationWindow {
             anchors.right: parent.right
             anchors.top: inspHead.bottom
             anchors.bottom: parent.bottom
-            anchors.leftMargin: 17   // 16 px + Haarlinie
+            anchors.leftMargin: 16 + win.dividerW   // 16 px + Spaltenlinie
             anchors.rightMargin: 16
             anchors.topMargin: 12
             anchors.bottomMargin: 12

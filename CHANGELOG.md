@@ -16,6 +16,10 @@ hidden and everything else works).
 - **Header hairlines line up across all three columns.** The line under the sidebar header ("This PC · 16 items") sat at 68 px, the one under the inspector header ("Gaming-Rig") at 100 px, and with the compact toolbar the line under the toolbar added a third height (99 px). All three now sit on one shared header height (`topBarH`, 88 px × font scale) that is made of two bands: the title band (`titleBarH` = `topBarH` − `compactBarH`, 40 px: window title, settings and inspector buttons, window buttons) and a band as tall as the compact toolbar (48 px: sidebar header, compact toolbar, inspector header – all on one row). With the compact toolbar the lines join into one continuous line from the left to the right window edge; with the full ribbon the two side lines stay level and the ribbon keeps its own line.
 - The window buttons in the inspector are centred on the window title; the inspector header (system overview and selected item) moved out of the scrolling area into the fixed header band, with a 40 px icon and a one-line title (the full name in a tooltip when it is cut).
 
+### Changed
+- **Stronger, glass-tinted dividers.** The column dividers and the header lines are now 2 px, the inner section lines (inspector, settings, ribbon groups, compact toolbar) 1.5 px, in a soft, slightly cool translucent tint instead of a neutral stroke: `rgba(0.80, 0.86, 0.96, 0.12)` on dark and `rgba(0.10, 0.14, 0.22, 0.11)` on light themes. The three header lines still end exactly on the shared header height.
+- **Larger, easier-to-read sidebar.** Entries use 13 px text and 18 px icons in 34 px rows; the section headings ("Quick access", "This PC") are 11.5 px semi-bold. The sidebar is 248 px wide (was 240) so that "Lokaler Datenträger" and its size still fit in German, Russian, French, Dutch and Polish.
+
 ## 2.3.0 – 2026-11-27
 
 ### Added

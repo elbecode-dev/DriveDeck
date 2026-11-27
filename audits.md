@@ -546,6 +546,30 @@ spans exactly from the sidebar's column line to the inspector's. `pyright` 0 err
 *unqualified* (1134); settings-dialog test 20/20; 60 s stress run 0 QML messages, RSS 223 MB; real-desktop screenshots of
 both modes in Vivid Violet Dark.
 
+## 5s. Glass dividers and a larger sidebar (2.3.1)
+
+**Request:** dividers 1.5–2 px with a translucent glass tint (dark `rgba(0.80, 0.86, 0.96, 0.12)`, light
+`rgba(0.10, 0.14, 0.22, 0.11)`) without losing the header alignment; sidebar entries 13 px with 18 px icons and 32–34 px
+rows, headings 11.5 px semi-bold, about 240 px wide, no truncation.
+
+**Implementation:** tokens `hairline` (the new tint, used by every divider), `dividerW` = 2 (column dividers in
+`SideMaterial`, the three header lines, the line under the ribbon/compact toolbar) and `sectionLineW` = 1.5 (`Hairline`,
+ribbon group separators, `CompactSep`). Header lines now cover `topBarH − dividerW … topBarH`; horizontal lines stop
+`dividerW` short of the vertical dividers, and the inspector content starts `16 + dividerW` from its divider. Sidebar rows
+34 px × font scale, icons 18 px, labels `px13`, headings 11.5 px via point size (pixel sizes are whole numbers only). The
+first measurement cut "Lokaler Datenträger" by 3 px in German, so the sidebar went from 240 to 248 px.
+
+**Checks:** line positions at 2560 px (ribbon), 1900 px and 2560 px (compact): top and bottom of all three header lines
+identical (0 px), 2 px thick, ending at `topBarH`; in compact mode the middle line spans exactly between the two
+vertical dividers. No sidebar text cut off in German, English, Russian, French, Dutch and Polish. The ribbon needs 3 px
+more for the wider group separators (1681 → 1684 px in German at font scale 1.09), so the compact toolbar still takes over
+well above 2000 px. `pyright` 0 errors, `qmllint` 0 warnings outside *unqualified* (1145); settings-dialog test 20/20;
+60 s stress run 0 QML messages, RSS 224 MB; screenshots in Breeze Dark and Light.
+
+**Noticed, not changed:** at font scale 1.09 (offscreen) the German drive card cuts "Lokaler Datenträger" and its
+free-space text by a few pixels, exactly as before this change: the cards are a fixed 340 px wide and do not grow with
+the font.
+
 ---
 
 ## 6. Not verified

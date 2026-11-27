@@ -52,7 +52,8 @@ small **live graph** of their read and write speed, and warn you when they are a
 
 ### A calmer look (2.0.0)
 
-- **Finder-style sidebar** (240 px): full-height column set apart by one hairline, 32 px rows with 16 px icons, quiet
+- **Finder-style sidebar** (248 px): full-height column set apart by a soft glass divider, 34 px rows with 18 px icons and
+  13 px text, quiet
   section headings, a slim capacity line and the size for each drive, eject on hover; unmounted drives have a dimmed icon
   and a secondary (still readable) label.
 - **Cards float freely** and only show a neutral surface on hover and an accent-tinted one when selected, like the
