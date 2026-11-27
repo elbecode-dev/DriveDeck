@@ -10,6 +10,12 @@ hidden and everything else works).
 
 ---
 
+## 2.3.1 – 2026-11-27
+
+### Fixed
+- **Header hairlines line up across all three columns.** The line under the sidebar header ("This PC · 16 items") sat at 68 px, the one under the inspector header ("Gaming-Rig") at 100 px, and with the compact toolbar the line under the toolbar added a third height (99 px). All three now sit on one shared header height (`topBarH`, 88 px × font scale) that is made of two bands: the title band (`titleBarH` = `topBarH` − `compactBarH`, 40 px: window title, settings and inspector buttons, window buttons) and a band as tall as the compact toolbar (48 px: sidebar header, compact toolbar, inspector header – all on one row). With the compact toolbar the lines join into one continuous line from the left to the right window edge; with the full ribbon the two side lines stay level and the ribbon keeps its own line.
+- The window buttons in the inspector are centred on the window title; the inspector header (system overview and selected item) moved out of the scrolling area into the fixed header band, with a 40 px icon and a one-line title (the full name in a tooltip when it is cut).
+
 ## 2.3.0 – 2026-11-27
 
 ### Added

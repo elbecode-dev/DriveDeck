@@ -5937,6 +5937,10 @@ QQC2.ApplicationWindow {
     readonly property real ribbonAvailW: barRoot.width - 2 * Kirigami.Units.largeSpacing
     readonly property bool ribbonCompact: (backend && backend.compactToolbar === true) || (ribbonNeedW > 0 && ribbonNeedW > ribbonAvailW + 0.5)
     readonly property real compactBarH: Math.round(48 * fontGrow)
+    // Gemeinsame Kopfhöhe der drei Spalten : oben das Titelband (Fenstertitel, Fensterknöpfe), darunter ein Band so hoch wie die
+    // kompakte Leiste (Kopf der Seitenleiste, kompakte Leiste, Kopf des Inspectors). Die Haarlinien liegen alle auf topBarH - 1.
+    readonly property real topBarH: Math.round(88 * fontGrow)
+    readonly property real titleBarH: topBarH - compactBarH
     function sizeShort(b) {   // Dezimalzeichen wie überall (trDecimal, Sprache der Oberfläche), nicht Qt.locale() : sonst « 2,9 MB » neben « 173.1 GB »
         if (b < 1048576)
             return Math.max(1, Math.round(b / 1024)) + " KB"
@@ -8341,7 +8345,7 @@ QQC2.ApplicationWindow {
             Kirigami.Theme.colorSet: Kirigami.Theme.Header
             Kirigami.Theme.inherit: false
             Layout.fillWidth: true
-            Layout.preferredHeight: 48
+            Layout.preferredHeight: win.titleBarH   // + kompakte Leiste = topBarH : Linie bündig mit den Seitenspalten
             DragHandler {   // Ziehen verschiebt das Fenster (Compositor-Bewegung)
                 target: null
                 acceptedButtons: Qt.LeftButton
@@ -8498,14 +8502,15 @@ QQC2.ApplicationWindow {
                     backend.launchTool("analyze", (sel !== null && sel.isUnmounted !== true
                                                    && sel.mountpoint.charAt(0) === "/") ? sel.mountpoint : "")
             }
-            Rectangle {   // feine Haarlinie unter dem Ribbon : trennt Werkzeuge und Inhalt auf der gemeinsamen Glasfläche
+            Rectangle {   // Haarlinie unter Ribbon bzw. kompakter Leiste ; kompakt ohne Einzug : eine Linie mit den Seitenspalten
+                objectName: "barLine"
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
-                anchors.leftMargin: Kirigami.Units.largeSpacing
-                anchors.rightMargin: Kirigami.Units.largeSpacing
+                anchors.leftMargin: win.ribbonCompact ? 0 : Kirigami.Units.largeSpacing
+                anchors.rightMargin: win.ribbonCompact ? 0 : Kirigami.Units.largeSpacing
                 height: 1
-                color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.10)
+                color: win.hairline
             }
 
             // ===== RUBAN ===== (seul mode de la barre)
@@ -10435,15 +10440,30 @@ QQC2.ApplicationWindow {
         SideMaterial { linkeSeite: true }
         // Kopf : App-Symbol, Name mit Versions-Plakette, Status mit Elementanzahl ; ersetzt oben links die Titelleiste
         // (ziehen verschiebt das Fenster, Doppelklick maximiert)
-        Item {
+        Item {   // Titelband der Seitenleiste : frei (wie die Ampel-Zone im Finder), ziehen verschiebt das Fenster
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: win.titleBarH
+            DragHandler {
+                target: null
+                acceptedButtons: Qt.LeftButton
+                onActiveChanged: if (active) win.startSystemMove()
+            }
+            TapHandler {
+                acceptedButtons: Qt.LeftButton
+                onDoubleTapped: win.toggleMax()
+            }
+        }
+        Item {   // im unteren Kopfband, mittig : dieselbe Zeile wie die kompakte Leiste und der Kopf des Inspectors
             id: heroCard
             anchors.top: parent.top
             anchors.left: parent.left
             anchors.right: parent.right
-            anchors.topMargin: 12
+            anchors.topMargin: win.titleBarH
             anchors.leftMargin: 16
             anchors.rightMargin: 16
-            height: Math.round(40 * win.fontGrow)
+            height: win.compactBarH - 1
             Accessible.role: Accessible.StaticText
             Accessible.name: win.title + " " + aboutInfo.version + ", " + win.itemCountText
             DragHandler {
@@ -10520,14 +10540,14 @@ QQC2.ApplicationWindow {
                 }
             }
         }
-        Hairline {
+        Hairline {   // auf topBarH - 1 wie die Linien der Mitte (kompakt) und des Inspectors ; volle Breite bis zur Spaltenlinie
             id: heroLine
-            anchors.top: heroCard.bottom
-            anchors.topMargin: 12
+            objectName: "sideHeadLine"
+            anchors.top: parent.top
+            anchors.topMargin: win.topBarH - 1
             anchors.left: parent.left
             anchors.right: parent.right
-            anchors.leftMargin: 16
-            anchors.rightMargin: 16
+            anchors.rightMargin: 1
             height: 1
         }
 
@@ -10880,7 +10900,7 @@ QQC2.ApplicationWindow {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
-            height: 36
+            height: win.topBarH
             DragHandler {
                 target: null
                 acceptedButtons: Qt.LeftButton
@@ -10890,13 +10910,104 @@ QQC2.ApplicationWindow {
                 acceptedButtons: Qt.LeftButton
                 onDoubleTapped: win.toggleMax()
             }
-            Item {
+            Item {   // Fensterknöpfe mittig im Titelband : auf einer Höhe mit dem Fenstertitel der Mitte
                 id: inspWinSlot
                 anchors.right: parent.right
                 anchors.rightMargin: 16
-                anchors.verticalCenter: parent.verticalCenter
+                y: Math.round((win.titleBarH - height) / 2)
                 width: winBtnRow.implicitWidth
                 height: winBtnRow.implicitHeight
+            }
+            Item {   // unteres Kopfband : Kopf des Inspectors, mittig (Zeile der kompakten Leiste und des Seitenleisten-Kopfs)
+                id: inspKopf
+                readonly property var si: (backend && backend.sysInfo) ? backend.sysInfo : ({})
+                x: 17   // 16 px + Haarlinie
+                y: win.titleBarH
+                width: parent.width - 33
+                height: win.compactBarH - 1
+            RowLayout {   // Modus A : Distribution, Rechnername, Update-Status
+                anchors.fill: parent
+                visible: win.inspectorItem === null
+                spacing: 12
+                DistroLogo {
+                    groesse: 40
+                    logo: inspKopf.si.logoFile ? ("file://" + inspKopf.si.logoFile) : (inspKopf.si.logoName || "")
+                    Layout.alignment: Qt.AlignVCenter
+                }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 2
+                    QQC2.Label {
+                        Layout.fillWidth: true
+                        text: inspKopf.si.host || ""
+                        font.family: win.uiFont
+                        font.weight: Font.DemiBold
+                        font.pixelSize: win.px15
+                        elide: Text.ElideRight
+                    }
+                    QQC2.Label {
+                        Layout.fillWidth: true
+                        text: (inspKopf.si.os || "") + (inspKopf.si.osVersion ? " " + inspKopf.si.osVersion : "")
+                        font: win.kvLabelFont
+                        color: win.textSecondary
+                        elide: Text.ElideRight
+                    }
+                }
+                // Update-Status (checkupdates) : grün « Aktuell » oder bernstein « 3 Updates »
+                StatusBadge {
+                    readonly property var u: (backend && backend.pkgUpdates) ? backend.pkgUpdates : ({})
+                    readonly property bool neu: u.state === "updates"
+                    Layout.alignment: Qt.AlignVCenter
+                    text: u.state === "ok" ? win.trad("Up to date")
+                          : (neu ? (u.count === 1 ? win.trad("1 update") : win.trad("{n} updates").replace("{n}", u.count)) : "")
+                    tone: neu ? win.sysOrange : win.sysGreen
+                }
+            }
+            RowLayout {   // Modus B : Symbol 40 px, Titel 15 px, Untertitel 12 px
+                id: detHead
+                anchors.fill: parent
+                visible: win.inspectorItem !== null
+                spacing: 12
+                Kirigami.Icon {
+                    source: win.inspectorItem ? (win.inspectorItem.d.icon || "folder") : ""
+                    Layout.preferredWidth: 40
+                    Layout.preferredHeight: 40
+                    Layout.alignment: Qt.AlignVCenter
+                }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignVCenter
+                    spacing: 2
+                    QQC2.Label {
+                        Layout.fillWidth: true
+                        text: win.inspectorItem ? (win.inspectorItem.d.label || "") : ""
+                        font.family: win.uiFont
+                        font.weight: Font.DemiBold
+                        font.pixelSize: win.px15
+                        elide: Text.ElideRight   // eine Zeile (feste Kopfhöhe) ; der volle Name im Tooltip
+                        HoverHandler { id: detTitleHover }
+                        QQC2.ToolTip.visible: detTitleHover.hovered && truncated
+                        QQC2.ToolTip.delay: 400
+                        QQC2.ToolTip.text: text
+                    }
+                    QQC2.Label {
+                        Layout.fillWidth: true
+                        visible: text !== ""
+                        text: win.inspStatus(win.inspectorItem)
+                        font: win.kvLabelFont
+                        color: win.textSecondary
+                        elide: Text.ElideRight
+                    }
+                }
+            }
+            }
+            Hairline {   // auf topBarH - 1 : bündig mit der Seitenleiste und (kompakt) der Linie unter der Symbolleiste
+                objectName: "inspHeadLine"
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.leftMargin: 1   // die senkrechte Spaltenlinie nicht doppelt decken
+                y: win.topBarH - 1
+                height: 1
             }
         }
         // Inhalt : eine ruhige Spalte mit 16 px Rand, Abschnitte durch 1-px-Haarlinien getrennt (keine Kacheln)
@@ -10908,7 +11019,7 @@ QQC2.ApplicationWindow {
             anchors.bottom: parent.bottom
             anchors.leftMargin: 17   // 16 px + Haarlinie
             anchors.rightMargin: 16
-            anchors.topMargin: 8
+            anchors.topMargin: 12
             anchors.bottomMargin: 12
             contentWidth: availableWidth
             clip: true
@@ -10926,44 +11037,6 @@ QQC2.ApplicationWindow {
                     readonly property var si: (backend && backend.sysInfo) ? backend.sysInfo : ({})
                     Accessible.role: Accessible.StaticText
                     Accessible.name: win.trad("System overview")
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 12
-                        DistroLogo {
-                            groesse: 44
-                            logo: heroCol.si.logoFile ? ("file://" + heroCol.si.logoFile) : (heroCol.si.logoName || "")
-                            Layout.alignment: Qt.AlignVCenter
-                        }
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 2
-                            QQC2.Label {
-                                Layout.fillWidth: true
-                                text: heroCol.si.host || ""
-                                font.family: win.uiFont
-                                font.weight: Font.DemiBold
-                                font.pixelSize: win.px15
-                                elide: Text.ElideRight
-                            }
-                            QQC2.Label {
-                                Layout.fillWidth: true
-                                text: (heroCol.si.os || "") + (heroCol.si.osVersion ? " " + heroCol.si.osVersion : "")
-                                font: win.kvLabelFont
-                                color: win.textSecondary
-                                elide: Text.ElideRight
-                            }
-                        }
-                        // Update-Status (checkupdates) : grün « Aktuell » oder bernstein « 3 Updates »
-                        StatusBadge {
-                            readonly property var u: (backend && backend.pkgUpdates) ? backend.pkgUpdates : ({})
-                            readonly property bool neu: u.state === "updates"
-                            Layout.alignment: Qt.AlignTop
-                            text: u.state === "ok" ? win.trad("Up to date")
-                                  : (neu ? (u.count === 1 ? win.trad("1 update") : win.trad("{n} updates").replace("{n}", u.count)) : "")
-                            tone: neu ? win.sysOrange : win.sysGreen
-                        }
-                    }
-                    Hairline {}
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 0   // KvRow : fester 20-px-Takt
@@ -10987,42 +11060,7 @@ QQC2.ApplicationWindow {
                     Layout.fillWidth: true
                     spacing: 12
                     readonly property var it: parent.it
-                    RowLayout {   // Kopf : Symbol 44 px, Titel 15 px, Untertitel 12 px
-                        id: detHead
-                        Layout.fillWidth: true
-                        spacing: 12
-                        Kirigami.Icon {
-                            source: detCol.it ? (detCol.it.d.icon || "folder") : ""
-                            Layout.preferredWidth: 44
-                            Layout.preferredHeight: 44
-                            Layout.alignment: Qt.AlignVCenter
-                        }
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            Layout.alignment: Qt.AlignVCenter
-                            spacing: 2
-                            QQC2.Label {
-                                Layout.fillWidth: true
-                                text: detCol.it ? (detCol.it.d.label || "") : ""
-                                font.family: win.uiFont
-                                font.weight: Font.DemiBold
-                                font.pixelSize: win.px15
-                                wrapMode: Text.Wrap
-                                maximumLineCount: 2
-                                elide: Text.ElideRight
-                            }
-                            QQC2.Label {
-                                Layout.fillWidth: true
-                                visible: text !== ""
-                                text: win.inspStatus(detCol.it)
-                                font: win.kvLabelFont
-                                color: win.textSecondary
-                                elide: Text.ElideRight
-                            }
-                        }
-                    }
                     // Details
-                    Hairline { visible: kvRep.count > 0 }
                     SectionLabel { visible: kvRep.count > 0; text: win.trad("Details") }
                     ColumnLayout {
                         visible: kvRep.count > 0
@@ -11240,7 +11278,7 @@ QQC2.ApplicationWindow {
 """
 
 
-APP_VERSION = '2.3.0'
+APP_VERSION = '2.3.1'
 APP_AUTEUR = """Original Copyright (C) 2026 naykkalak
 Modified and maintained by Christian (2026), with help from his son Leon"""
 APP_LICENCE = 'GPL-3.0-or-later'

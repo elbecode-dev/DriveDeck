@@ -525,6 +525,27 @@ drive above the threshold.
 machine); a host name that resolves to several addresses on different networks; notifications on desktops other than
 Plasma.
 
+## 5r. Header hairline alignment (2.3.1)
+
+**Report (two screenshots):** the hairline under the sidebar header and the one under the inspector header were at
+different heights; with the compact toolbar a third height appeared under the toolbar.
+
+**Measured before (offscreen, font scale 1.09):** sidebar line y = 68, inspector line y = 100, line under the toolbar
+y = 99 (compact) or 180 (ribbon); the side lines were inset by 16 px.
+
+**Fix:** one header height `topBarH` = round(88 × fontGrow) for both side columns, split into `titleBarH` =
+`topBarH` − `compactBarH` (title bar of the middle column) and a band of `compactBarH`. The middle title bar uses
+`titleBarH`, so title bar + compact toolbar end exactly at `topBarH`. Side headers centre their content in the lower band,
+the inspector's window buttons in the upper band; all three lines are at `topBarH` − 1 and run the full column width
+(1 px short of the vertical column lines so the junction is not drawn twice). A requested height of 68–72 px was not
+possible: the compact toolbar alone is 48 px and the title band needs room for the 28 px settings button.
+
+**Check after:** y of the three lines at 2560 px (ribbon), 1900 and 1500 px (compact automatically) and 2560 px
+(compact forced), nothing selected and a drive selected: **0 px difference** in every case; in compact mode the middle line
+spans exactly from the sidebar's column line to the inspector's. `pyright` 0 errors, `qmllint` 0 warnings outside
+*unqualified* (1134); settings-dialog test 20/20; 60 s stress run 0 QML messages, RSS 223 MB; real-desktop screenshots of
+both modes in Vivid Violet Dark.
+
 ---
 
 ## 6. Not verified
