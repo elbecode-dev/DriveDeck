@@ -91,11 +91,26 @@ msgstr "BIOS / UEFI"
 msgid "BIOS automatic"
 msgstr "BIOS-automatiek"
 
+msgid "BIOS date"
+msgstr "BIOS-datum"
+
+msgid "BIOS release"
+msgstr "BIOS-release"
+
+msgid "BIOS vendor"
+msgstr "BIOS-fabrikant"
+
+msgid "BIOS version"
+msgstr "BIOS-versie"
+
 msgid "Bad sectors"
 msgstr "Slechte sectoren"
 
 msgid "Black"
 msgstr "Zwart"
+
+msgid "Board revision"
+msgstr "Bordrevisie"
 
 msgid "Boost"
 msgstr "Boost"
@@ -166,6 +181,9 @@ msgstr "Kan programma niet starten"
 msgid "Cannot unmount"
 msgstr "Kan niet ontkoppelen"
 
+msgid "Capacity"
+msgstr "Capaciteit"
+
 msgid "Capacity: {size}"
 msgstr "Capaciteit: {size}"
 
@@ -195,6 +213,9 @@ msgstr "Pictogrammen van de opdrachtbalk: Fluent UI System Icons, © Microsoft C
 
 msgid "Compatibility"
 msgstr "Compatibiliteit"
+
+msgid "Compatibility profile"
+msgstr "Compatibiliteitsprofiel"
 
 msgid "Compiler"
 msgstr "Compiler"
@@ -228,6 +249,9 @@ msgstr "Specificaties kopiëren"
 
 msgid "Core profile"
 msgstr "Core-profiel"
+
+msgid "Cores / threads"
+msgstr "Kernen / threads"
 
 msgid "Could not save the list:\n{error}"
 msgstr "De lijst kon niet worden opgeslagen:\n{error}"
@@ -277,6 +301,9 @@ msgstr "Standaardgateway"
 msgid "Desktop"
 msgstr "Bureaublad"
 
+msgid "Desktop & graphics APIs"
+msgstr "Bureaublad & grafische API's"
+
 msgid "Desktop notifications"
 msgstr "Bureaubladmeldingen"
 
@@ -310,6 +337,9 @@ msgstr "Weergavenaam (optioneel):"
 msgid "Display server"
 msgstr "Weergaveserver"
 
+msgid "Displays"
+msgstr "Beeldschermen"
+
 msgid "Distribution"
 msgstr "Distributie"
 
@@ -333,6 +363,9 @@ msgstr "Station faalt: {label}"
 
 msgid "DriveDeck runs “fstrim” on all mounted drives that support it. This needs administrator rights and can take a while."
 msgstr "DriveDeck voert ‘fstrim’ uit op alle gekoppelde stations die dit ondersteunen. Hiervoor zijn beheerdersrechten nodig en het kan even duren."
+
+msgid "Driver"
+msgstr "Stuurprogramma"
 
 msgid "Eject"
 msgstr "Uitwerpen"
@@ -378,6 +411,9 @@ msgstr "Bestandssysteem:"
 
 msgid "Film"
 msgstr "Film"
+
+msgid "Firmware"
+msgstr "Firmware"
 
 msgid "Flatbed"
 msgstr "Glasplaat"
@@ -442,6 +478,9 @@ msgstr "IPv4-adres"
 msgid "IPv6 address"
 msgstr "IPv6-adres"
 
+msgid "In use"
+msgstr "In gebruik"
+
 msgid "Incorrect username or password."
 msgstr "Gebruikersnaam of wachtwoord onjuist."
 
@@ -475,6 +514,9 @@ msgstr "JSON-rapport"
 msgid "KWallet could not save the password: the gauge will not be shown."
 msgstr "KWallet kon het wachtwoord niet opslaan: de ruimtebalk wordt niet getoond."
 
+msgid "Kernel"
+msgstr "Kernel"
+
 msgid "Kernel driver"
 msgstr "Kernelstuurprogramma"
 
@@ -489,6 +531,9 @@ msgstr "L1 data"
 
 msgid "L1 instruction"
 msgstr "L1 instructies"
+
+msgid "L3 cache"
+msgstr "L3-cache"
 
 msgid "License: {license}"
 msgstr "Licentie: {license}"
@@ -510,6 +555,9 @@ msgstr "Waterkoeling"
 
 msgid "List"
 msgstr "Weergeven"
+
+msgid "Load"
+msgstr "Belasting"
 
 msgid "Loaded modules"
 msgstr "Geladen modules"
@@ -703,6 +751,9 @@ msgstr "Instellingen openen"
 msgid "Open with {app}"
 msgstr "Openen met {app}"
 
+msgid "OpenGL vendor"
+msgstr "OpenGL-leverancier"
+
 msgid "Operating system"
 msgstr "Besturingssysteem"
 
@@ -762,6 +813,9 @@ msgstr "Energiebeheer"
 
 msgid "Power-on time"
 msgstr "Ingeschakelde tijd"
+
+msgid "Preferred"
+msgstr "Voorkeur"
 
 msgid "Preview"
 msgstr "Voorbeeld"
@@ -931,6 +985,9 @@ msgstr "SSD-optimalisatie mislukt"
 msgid "Safely remove"
 msgstr "Veilig verwijderen"
 
+msgid "Scale {p}"
+msgstr "Schaal {p}"
+
 msgid "Scaling driver"
 msgstr "Schaalstuurprogramma"
 
@@ -1005,6 +1062,9 @@ msgstr "Grootte"
 
 msgid "Slots"
 msgstr "Sleuven"
+
+msgid "Slots in use"
+msgstr "Bezette sleuven"
 
 msgid "Slots, type, speed, manufacturer"
 msgstr "Sleuven, type, snelheid, fabrikant"
@@ -1279,6 +1339,9 @@ msgstr "Virtualisatie"
 msgid "Volume name"
 msgstr "Volumenaam"
 
+msgid "Vulkan device"
+msgstr "Vulkan-apparaat"
+
 msgid "Warning"
 msgstr "Waarschuwing"
 
@@ -1314,6 +1377,9 @@ msgstr "dag"
 
 msgid "days"
 msgstr "dagen"
+
+msgid "device API {v}"
+msgstr "Apparaat-API {v}"
 
 msgid "disabled"
 msgstr "uitgeschakeld"
@@ -1354,6 +1420,9 @@ msgstr "max."
 msgid "min {min} · max {max}"
 msgstr "min {min} · max {max}"
 
+msgid "native {mode}"
+msgstr "native {mode}"
+
 msgid "needs administrator rights"
 msgstr "vereist beheerdersrechten"
 
@@ -1369,6 +1438,9 @@ msgstr "niet gemeld door het stuurprogramma"
 msgid "not exposed by the kernel"
 msgstr "niet gemeld door de kernel"
 
+msgid "now {link}"
+msgstr "nu {link}"
+
 msgid "off"
 msgstr "uit"
 
@@ -1381,11 +1453,20 @@ msgstr "alleen voor ‘Weergeven’, wordt nooit opgeslagen"
 msgid "port {port}"
 msgstr "poort {port}"
 
+msgid "preferred mode"
+msgstr "voorkeursmodus"
+
 msgid "rank {n}"
 msgstr "rank {n}"
 
+msgid "running {clock}"
+msgstr "draait op {clock}"
+
 msgid "running…"
 msgstr "actief…"
+
+msgid "scale {p}"
+msgstr "schaal {p}"
 
 msgid "unknown error"
 msgstr "onbekende fout"
@@ -1437,6 +1518,9 @@ msgstr "{name} (modules)"
 
 msgid "{n} items"
 msgstr "{n} items"
+
+msgid "{n} of {m}"
+msgstr "{n} van {m}"
 
 msgid "{n} updates"
 msgstr "{n} updates"

@@ -3168,10 +3168,12 @@ def _lire_specs():
     frisch gelesen, alles andere nur beim ersten Mal. Läuft im Hintergrund : lspci braucht einige Millisekunden."""
     if not _SPECS_FEST:
         modell, kerne, threads, ghz = _cpu_info()
+        ghz_t = ("%.2f GHz" % ghz).replace(".", DECIMAL) if ghz else ""
         cpu = [modell, tr("{cores} cores / {threads} threads").format(cores=kerne, threads=threads)
-               + ((" · %.2f GHz" % ghz).replace(".", DECIMAL) if ghz else "")]
+               + ((" · " + ghz_t) if ghz_t else "")]
+        gpu_roh = pci_geraete(("VGA compatible controller", "3D controller", "Display controller"))
         gpus = [" ".join(x for x in (h, g) if x) + ((" · " + tr("driver {name}").format(name=d)) if d else "")
-                for h, g, d in pci_geraete(("VGA compatible controller", "3D controller", "Display controller"))]
+                for h, g, d in gpu_roh]
         if not gpus and shutil.which("nvidia-smi"):   # Rückfall ohne lspci
             try:
                 out = subprocess.run(["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
@@ -3179,6 +3181,21 @@ def _lire_specs():
                 gpus = ["NVIDIA " + n.strip().removeprefix("NVIDIA ") for n in out.splitlines() if n.strip()]
             except (OSError, subprocess.SubprocessError):
                 pass
+        gpu_kpis = []   # Übersicht : Videospeicher und Treiberversion der ersten Grafikkarte (nvidia-smi bzw. sysfs)
+        if gpu_roh:
+            vram = treiber = ""
+            if "nvidia" in (gpu_roh[0][2] or "").lower() and shutil.which("nvidia-smi"):
+                z = (_ausgabe(["nvidia-smi", "--query-gpu=memory.total,driver_version", "--format=csv,noheader,nounits"],
+                              timeout=5).splitlines() or [""])[0].split(",")
+                if len(z) == 2 and z[0].strip().isdigit():
+                    vram, treiber = "%d GB" % round(int(z[0]) / 1024), "nvidia " + z[1].strip()
+            else:
+                vt = next((_lese(p) for p in sorted(glob.glob("/sys/class/drm/card*/device/mem_info_vram_total"))
+                           if _lese(p).isdigit()), "")
+                vram = ("%d GB" % round(int(vt) / 2 ** 30)) if vt else ""
+                v = modul_version(gpu_roh[0][2], tief=False) if gpu_roh[0][2] else ""
+                treiber = (gpu_roh[0][2] + " " + v).strip() if gpu_roh[0][2] else ""
+            gpu_kpis = [{"k": tr(k), "v": v} for k, v in (("VRAM", vram), ("Driver", treiber)) if v]
         board = " ".join(x for x in (_hersteller(_dmi("board_vendor")), _dmi("board_name")) if x)
         bios = " · ".join(x for x in (("BIOS " + _dmi("bios_version")) if _dmi("bios_version") else "", _dmi("bios_date")) if x)
         audio = [" ".join(x for x in (h, g) if x)
@@ -3191,22 +3208,32 @@ def _lire_specs():
                                                            os.environ.get("XDG_SESSION_TYPE", ""))
         system = [_os_name(), " · ".join(x for x in ("Kernel " + u.release, u.machine, sitzung,
                                                       os.environ.get("XDG_CURRENT_DESKTOP", "")) if x)]
+        kpi = lambda k, v: {"k": tr(k), "v": v} if v else None
         _SPECS_FEST.extend([
-            {"key": "cpu", "en": "CPU", "title": tr("Processor"), "icon": disk_icon(["cpu", "computer"]), "lines": cpu},
+            {"key": "cpu", "en": "CPU", "title": tr("Processor"), "icon": disk_icon(["cpu", "computer"]), "lines": cpu,
+             "hero": _cpu_kurz(modell), "kpis": [x for x in (kpi("Cores / threads", "%dC / %dT" % (kerne, threads) if kerne else ""),
+                                                           kpi("Max. clock", ghz_t)) if x]},
             {"key": "gpu", "en": "GPU", "title": tr("Graphics"), "icon": disk_icon(["video-card", "video-display", "computer"]),
-             "lines": gpus or ["–"]},
-            {"key": "board", "en": "Mainboard", "title": tr("Mainboard"), "icon": disk_icon(["cpu", "computer"]),
-             "lines": [x for x in (board, bios) if x] or ["–"]},
+             "lines": gpus or ["–"], "hero": " ".join(x for x in gpu_roh[0][:2] if x) if gpu_roh else "",
+             "rest": gpus[1:], "kpis": gpu_kpis},
+            {"key": "board", "en": "Mainboard", "title": tr("Mainboard"), "icon": disk_icon(["computer", "cpu"]),
+             "lines": [x for x in (board, bios) if x] or ["–"], "hero": _ohne_klammer(_dmi("board_name")),
+             "sub": _hersteller(_dmi("board_vendor")), "badges": [_chipsatz(_dmi("board_name"))] if _chipsatz(_dmi("board_name")) else [],
+             "kpis": [x for x in (kpi("BIOS", _dmi("bios_version")), kpi("BIOS date", _datum_lokal(_dmi("bios_date")))) if x]},
             None,   # Platz für den Arbeitsspeicher
             {"key": "audio", "en": "Sound", "title": tr("Sound"), "icon": disk_icon(["audio-card", "audio-speakers", "computer"]),
              "lines": audio or ["–"]},
             {"key": "os", "en": "OS", "title": tr("System"), "icon": disk_icon(["computer", "preferences-system"]),
-             "lines": system}])
+             "lines": system, "hero": _os_name(),
+             "badges": [x for x in (sitzung, os.environ.get("XDG_CURRENT_DESKTOP", "")) if x],
+             "kpis": [x for x in (kpi("Kernel", u.release), kpi("Architecture", u.machine)) if x]}])
     try:
         gesamt, frei = lire_ram()
         ram = {"key": "ram", "en": "RAM", "title": tr("Memory"), "icon": disk_icon(["memory", "drive-harddisk", "computer"]),
                "lines": [taille(gesamt), tr("{used} in use ({pct} %)").format(used=taille(gesamt - frei),
-                                                                              pct=round(100 * (gesamt - frei) / gesamt))]}
+                                                                              pct=round(100 * (gesamt - frei) / gesamt))],
+               "heroCard": True, "kpis": [{"k": tr("Installed"), "v": taille(gesamt)}, {"k": tr("In use"), "v": taille(gesamt - frei)},
+                                          {"k": tr("Load"), "v": "%d %%" % round(100 * (gesamt - frei) / gesamt)}]}
     except (OSError, KeyError, ZeroDivisionError):
         ram = {"key": "ram", "en": "RAM", "title": tr("Memory"), "icon": "computer", "lines": ["–"]}
     return [ram if z is None else z for z in _SPECS_FEST]
@@ -3244,18 +3271,24 @@ def _verbinde(*teile, trenner=" · "):
     return trenner.join(t[0] for t in teile), trenner.join(t[1] for t in teile)
 
 
-def _gruppe(titel, *paare, en=None, breit=False, spalten=None):
+def _gruppe(titel, *paare, en=None, breit=False, spalten=None, hero=False, badges=None, icon="", akzent=False):
     """{title, en, wide, items:[{k, en, v, ven}]} ohne leere Werte ; None, wenn nichts übrig bleibt. Titel und Schlüssel werden
     übersetzt (die englischen Originale bleiben für den Bericht zum Weitergeben) ; ein Paar darf als Drittes den englischen
     Schlüssel tragen, ein Wert darf ein Paar (übersetzt, englisch) sein. breit : Karte über die volle Breite ; spalten : Kopf
-    einer Tabelle (dann ist jeder Wert eine Liste von Zellen)."""
+    einer Tabelle (dann ist jeder Wert eine Liste von Zellen).
+    Hauptkarten (hero) : ein Paar darf ein dict mit der Darstellung tragen – role « hero » (Produktname im Kopf), « sub »
+    (Unterzeile), « kpi » (Kachel), « mon » (Bildschirm-Kachel, Daten in « mon ») ; d : gekürzte Anzeige (v bleibt vollständig
+    für Kopieren, Suche und Bericht), tl : Kachel-Beschriftung (englisch, wird übersetzt), ts : Unterzeile der Kachel.
+    badges : kurze Plaketten neben dem Titel ; akzent : Kacheln in der Akzentfarbe (Grafik-APIs)."""
     items = []
     for p in paare:
         k, v = p[0], p[1]
+        extra = next((x for x in p[2:] if isinstance(x, dict)), None) or {}
+        ken = next((x for x in p[2:] if isinstance(x, str)), k)
         if isinstance(v, list):   # Tabellenzeile
             if not any(str(z).strip() for z in v):
                 continue
-            items.append({"k": tr(k), "en": p[2] if len(p) > 2 else k, "cells": [str(z) for z in v],
+            items.append({"k": tr(k), "en": ken, "cells": [str(z) for z in v],
                           "v": "  ".join(str(z) for z in v), "ven": "  ".join(str(z) for z in v)})
             continue
         if isinstance(v, tuple):
@@ -3267,13 +3300,62 @@ def _gruppe(titel, *paare, en=None, breit=False, spalten=None):
             anz = tr(ven) if ven in _KURZWERTE else ven
         if anz == "":
             continue
-        items.append({"k": tr(k), "en": p[2] if len(p) > 2 else k, "v": anz, "ven": ven})
+        it = {"k": tr(k), "en": ken, "v": anz, "ven": ven}
+        for f in ("role", "ts", "mon"):
+            if extra.get(f):
+                it[f] = extra[f]
+        if extra.get("d") and extra["d"] != anz:
+            it["d"] = extra["d"]
+        if extra.get("tl"):
+            it["tl"] = tr(extra["tl"])
+        items.append(it)
     if not items:
         return None
     g = {"title": tr(titel), "en": en or titel, "items": items, "wide": breit}
     if spalten:
         g["cols"] = [tr(x) for x in spalten]
+    if hero:
+        g["hero"] = True
+    if badges and any(badges):
+        g["badges"] = [b for b in badges if b]
+    if icon:
+        g["icon"] = icon
+    if akzent:
+        g["accent"] = True
     return g
+
+
+def _cpu_kurz(m):
+    """Produktname ohne Zusätze : « AMD Ryzen 9 5900X 12-Core Processor » -> « AMD Ryzen 9 5900X »,
+    « Intel(R) Core(TM) i7-8700K CPU @ 3.70GHz » -> « Intel Core i7-8700K »."""
+    m = re.sub(r"\((R|TM|tm)\)", "", m or "")
+    m = re.sub(r"\s+\d+-Core Processor\s*$", "", m)
+    m = re.sub(r"\s+(CPU|Processor)\b.*$", "", m)
+    m = re.sub(r"\s+with Radeon.*$", "", m)
+    return re.sub(r"\s+", " ", m).strip()
+
+
+def _mal(t):
+    """« PCIe 4.0 x16 » -> « PCIe 4.0 ×16 » (nur die Anzeige)."""
+    return re.sub(r"\bx(\d+)\b", "×\\1", t or "")
+
+
+def _ohne_klammer(t):
+    """« 64 MiB (2 instances) » -> « 64 MiB » ; « MPG X570 … (MS-7B93) » -> « MPG X570 … »."""
+    return re.sub(r"\s*\([^)]*\)\s*$", "", t or "").strip()
+
+
+def _datum_lokal(t):
+    """BIOS-Datum « 09/25/2025 » im Format der Sprache (25.09.2025) ; sonst unverändert."""
+    m = re.match(r"^(\d{2})/(\d{2})/(\d{4})$", t or "")
+    if not m:
+        return t
+    from PyQt6.QtCore import QDate, QLocale
+    fmt = QLocale().dateFormat(QLocale.FormatType.ShortFormat)
+    if "yyyy" not in fmt:
+        fmt = fmt.replace("yy", "yyyy")
+    d = QDate(int(m.group(3)), int(m.group(1)), int(m.group(2)))
+    return QLocale().toString(d, fmt) if d.isValid() else t
 
 
 def _lese(pfad):
@@ -3447,19 +3529,36 @@ def sammle_cpu():
         socket_ = tr("needs administrator rights")
     boost = _lese("/sys/devices/system/cpu/cpufreq/boost")
     khz = lambda p: ("%.2f GHz" % (int(_lese(p)) / 1e6)).replace(".", DECIMAL) if _lese(p).isdigit() else ""
+    modell = ci.get("model name") or lc.get("Model name", "")
+    try:
+        kerne = int(lc.get("Socket(s)", "1")) * int(lc.get("Core(s) per socket", ""))
+    except ValueError:
+        kerne = 0
+    threads = lc.get("CPU(s)", "")
+    s_kurz = re.match(r"^(\S+)", re.sub(r"^Socket\s+", "", socket_))
+    sockel_badge = s_kurz.group(1) if s_kurz and re.search(r"\d", s_kurz.group(1)) else ""
+    l3 = lc.get("L3 cache", "")
     return [
-        _gruppe("Processor", ("Model", ci.get("model name")), ("Vendor", lc.get("Vendor ID")),
-                ("Architecture", lc.get("Architecture")), ("Family / Model / Stepping", fms),
+        _gruppe("Processor", ("Model", modell, {"role": "hero", "d": _cpu_kurz(modell)}),
+                ("Vendor", lc.get("Vendor ID"), {"role": "sub"}), ("Architecture", lc.get("Architecture"), {"role": "sub"}),
+                ("Family / Model / Stepping", fms,
+                 {"role": "sub", "d": "Family %s · Model %s · Stepping %s" % (fam, mod, step) if fms else ""}),
+                ("Cores / threads", _zw("{cores} cores / {threads} threads", cores=kerne, threads=threads) if kerne and threads else "",
+                 {"role": "kpi", "d": "%dC / %sT" % (kerne, threads)}),
+                ("Max. clock", mhz(lc.get("CPU max MHz")), {"role": "kpi"}),
+                ("L3 cache", l3, {"role": "kpi", "d": _ohne_klammer(l3)}),
+                ("Scaling driver", _lese(cpu + "scaling_driver"), {"role": "kpi", "tl": "Driver"}),
                 ("Microcode", ci.get("microcode")), ("Socket", socket_),
                 ("Sockets · cores per socket · threads per core",
-                 " · ".join(x for x in (lc.get("Socket(s)"), lc.get("Core(s) per socket"), lc.get("Thread(s) per core")) if x)),
-                ("Logical CPUs", lc.get("CPU(s)")), ("Max. clock", mhz(lc.get("CPU max MHz"))),
+                 " · ".join(x for x in (lc.get("Socket(s)"), lc.get("Core(s) per socket"), lc.get("Thread(s) per core")) if x)
+                 if lc.get("Socket(s)", "1") != "1" else ""),
                 ("Min. clock", mhz(lc.get("CPU min MHz"))),
                 ("Instruction sets", ", ".join(n for k, n in _FAEHIGKEITEN if k in flags)),
-                ("Virtualization", lc.get("Virtualization"))),
+                ("Virtualization", lc.get("Virtualization")),
+                hero=True, badges=[sockel_badge], icon=disk_icon(["cpu", "computer"])),
         _gruppe("Cache", ("L1 data", lc.get("L1d cache")), ("L1 instruction", lc.get("L1i cache")),
-                ("L2", lc.get("L2 cache")), ("L3", lc.get("L3 cache"))),
-        _gruppe("Power management", ("Scaling driver", _lese(cpu + "scaling_driver")),
+                ("L2", lc.get("L2 cache"))),
+        _gruppe("Power management",
                 ("Governor", _lese(cpu + "scaling_governor")),
                 ("Energy performance preference", _lese(cpu + "energy_performance_preference")),
                 ("Available governors", _lese(cpu + "scaling_available_governors").replace(" ", ", ")),
@@ -3468,16 +3567,30 @@ def sammle_cpu():
     ]
 
 
+_GEHAEUSE = {"3": "Desktop", "4": "Low Profile Desktop", "5": "Pizza Box", "6": "Mini Tower", "7": "Tower", "8": "Portable",
+             "9": "Laptop", "10": "Notebook", "13": "All in One", "14": "Sub Notebook", "17": "Main Server Chassis",
+             "23": "Rack Mount Chassis", "30": "Tablet", "31": "Convertible", "32": "Detachable", "35": "Mini PC", "36": "Stick PC"}
+
+
 def sammle_board():
     vendor, name = _dmi("board_vendor"), _dmi("board_name")
+    chipsatz = _chipsatz(name)
+    boot = _secure_boot()
+    teile = (boot[0] if isinstance(boot, tuple) else boot).split(" · ", 1)
+    datum = _dmi("bios_date")
     return [
-        _gruppe("Mainboard", ("Manufacturer", vendor), ("Model", name), ("Version", _dmi("board_version")),
-                ("Chipset (from the model name)", _chipsatz(name))),
-        _gruppe("BIOS / UEFI", ("Vendor", _dmi("bios_vendor")), ("Version", _dmi("bios_version")),
-                ("Date", _dmi("bios_date")), ("Release", _dmi("bios_release")), ("Boot mode", _secure_boot()),
-                ("AGESA / firmware", _agesa())),
+        _gruppe("Mainboard", ("Model", name, {"role": "hero", "d": _ohne_klammer(name)}),
+                ("Manufacturer", vendor, {"role": "sub", "d": _hersteller(vendor)}),
+                ("BIOS version", _dmi("bios_version"), {"role": "kpi", "tl": "BIOS"}),
+                ("BIOS date", datum, {"role": "kpi", "d": _datum_lokal(datum)}),
+                ("Boot mode", boot, {"role": "kpi", "d": teile[0], "ts": teile[1] if len(teile) > 1 else ""}),
+                ("Board revision", _dmi("board_version")), ("Chipset (from the model name)", chipsatz),
+                ("BIOS vendor", _dmi("bios_vendor")), ("BIOS release", _dmi("bios_release")),
+                ("AGESA / firmware", _agesa()),
+                hero=True, badges=[chipsatz], icon=disk_icon(["computer", "cpu"])),
         _gruppe("System", ("Manufacturer", _dmi("sys_vendor")), ("Product", _dmi("product_name")),
-                ("Family", _dmi("product_family")), ("Chassis type", _dmi("chassis_type"))),
+                ("Family", _dmi("product_family")),
+                ("Chassis type", _GEHAEUSE.get(_dmi("chassis_type"), _dmi("chassis_type")))),
     ]
 
 
@@ -3499,28 +3612,39 @@ def sammle_gpu():
         hersteller = k["hersteller"]
         vram = vram_typ = ""
         treiber_v = modul_version(k["treiber"]) if k["treiber"] else ""
-        mehr = []
+        mehr, kpis = [], []
         if "nvidia" in k["treiber"].lower() and nvidia_runde < len(smi) and len(smi[nvidia_runde]) >= 6:
             drv, mem, vbios, watt, mclk, memclk = smi[nvidia_runde]
             nvidia_runde += 1
             treiber_v = drv or treiber_v
             vram = ("%s GB (%s MiB)" % (round(int(mem) / 1024, 1), mem)) if mem.isdigit() else ""
-            mehr = [("VBIOS", vbios), ("Power limit", (watt.split(".")[0] + " W") if watt not in ("", "[N/A]") else ""),
-                    ("Max. GPU clock", (mclk + " MHz") if mclk.isdigit() else ""),
-                    ("Max. memory clock", (memclk + " MHz") if memclk.isdigit() else "")]
+            kpis = [("Max. GPU clock", (mclk + " MHz") if mclk.isdigit() else "", {"role": "kpi"}),
+                    ("Power limit", (watt.split(".")[0] + " W") if watt not in ("", "[N/A]") else "", {"role": "kpi"})]
+            mehr = [("VBIOS", vbios), ("Max. memory clock", (memclk + " MHz") if memclk.isdigit() else "")]
             if nv_version:
-                mehr.append(("Kernel module", re.sub(r"\s+", " ", nv_version[0]).replace("NVRM version: ", "")))
+                roh = re.sub(r"\s+", " ", nv_version[0]).replace("NVRM version: ", "")
+                m = re.search(r"NVIDIA UNIX (Open )?Kernel Module for \S+\s+(\S+)", roh)
+                kurz = (m.group(2) + " · " + ("Open Kernel Module" if m.group(1) else "Kernel Module")) if m else ""
+                mehr.append(("Kernel module", roh, {"d": kurz}))
         else:   # amdgpu u. a. : der Treiber meldet den Videospeicher in sysfs
             vt = _lese("/sys/bus/pci/devices/0000:%s/mem_info_vram_total" % k["slot"]) if k["slot"].count(":") == 1 else ""
             vram = ("%s GB" % round(int(vt) / 2 ** 30, 1)) if vt.isdigit() else ""
+        typ_kurz = ""
         if _VRAM_GDDR6X.search(k["modell"]):
             vram_typ = _zw("{type} (from the model name)", type="GDDR6X")
+            typ_kurz = "GDDR6X"
         pmax, paktuell = pcie_info(k["slot"])
-        res.append(_gruppe(titel, ("Model", (hersteller + " " + k["modell"]).strip()), ("Subsystem", k["unter"]),
-                           ("VRAM", vram), ("VRAM type", vram_typ or "not exposed by the driver"),
-                           ("Kernel driver", (k["treiber"] + (" " + treiber_v if treiber_v else "")).strip()),
+        vram_kachel = (re.sub(r"\.0 GB", " GB", vram.split(" (")[0]) + " " + typ_kurz).strip() if vram else ""
+        jetzt = _zw("now {link}", link=_mal(paktuell.replace("PCIe ", "")))[0] if paktuell and paktuell != pmax else ""
+        res.append(_gruppe(titel, ("Model", (hersteller + " " + k["modell"]).strip(), {"role": "hero"}),
+                           ("Subsystem", k["unter"], {"role": "sub"}),
+                           ("Kernel driver", (k["treiber"] + (" " + treiber_v if treiber_v else "")).strip(), {"role": "sub"}),
+                           ("VRAM", vram, {"role": "kpi", "d": vram_kachel}), *kpis,
+                           ("PCIe link (max.)", pmax, {"role": "kpi", "d": _mal(pmax), "tl": "PCIe link", "ts": jetzt}),
+                           ("VRAM type", vram_typ or "not exposed by the driver"),
                            ("Available modules", ", ".join(k["module"])), *mehr,
-                           ("PCIe link (max.)", pmax), ("PCIe link (now)", _zw("{link} – idle power state may lower it", link=paktuell) if paktuell and paktuell != pmax else paktuell)))
+                           ("PCIe link (now)", _zw("{link} – idle power state may lower it", link=paktuell) if paktuell and paktuell != pmax else ""),
+                           hero=True, badges=[k["slot"]], icon=disk_icon(["video-card", "video-display", "computer"])))
     return res
 
 
@@ -3552,20 +3676,107 @@ def sammle_display():
             def feld(n, b=b):
                 mm = re.search(r"^\s*%s\s*=\s*(.+)$" % n, b, re.M)
                 return mm.group(1).strip() if mm else ""
-            vulkan.append((feld("deviceName"), "API %s · %s %s" % (feld("apiVersion"), feld("driverName"), feld("driverInfo"))))
-    ausgaenge = []
-    for d in sorted(glob.glob("/sys/class/drm/card*-*")):
-        if _lese(d + "/status") == "connected":
-            modes = (_lire_texte(d + "/modes") or "").split("\n")[0].strip()
-            ausgaenge.append((os.path.basename(d).split("-", 1)[1], _zw("{mode} (preferred mode)", mode=modes) if modes else "connected"))
+            vulkan.append(("Vulkan device", "%s · API %s · %s %s" % (feld("deviceName"), feld("apiVersion"), feld("driverName"), feld("driverInfo"))))
+    def ver_treiber(t):   # « 4.6.0 NVIDIA 620.73.04 » / « OpenGL ES 3.2 Mesa 24.1 » / « 4.6 (Core Profile) Mesa 24.1 »
+        m = re.match(r"^(?:OpenGL ES\s+)?(\d+(?:\.\d+)*)\s*(.*)$", t or "")
+        return (m.group(1), re.sub(r"^\((?:Core|Compatibility) Profile\)\s*", "", m.group(2)).strip()) if m else ("", "")
+    core = gl.get("OpenGL core profile version string") or gl.get("OpenGL version string", "")
+    es = gl.get("OpenGL ES profile version string", "")
+    gv, gt = ver_treiber(core)
+    ev, et = ver_treiber(es)
+    vk_treiber = re.sub(r"^.*? · API \S+ · ", "", vulkan[0][1]) if vulkan else ""
+    vk_api = re.search(r" · API (\S+) · ", vulkan[0][1]) if vulkan else None
+    kopf = ("Plasma", plasma, {"role": "hero", "d": ("KDE " + plasma) if "KDE" in desktop else plasma}) if plasma \
+        else ("Desktop", desktop, {"role": "hero"})
+    monitore = []
+    for b in bildschirme():
+        teile = [_zw("{w} × {h}", w=b["w"], h=b["h"]), b["hz"], b["name"], b["inch"],
+                 _zw("scale {p}", p=b["scale"]) if b["scale"] else "",
+                 _zw("preferred mode") if b["pref"] else (_zw("native {mode}", mode=b["nativ"]) if b["nativ"] else "")]
+        monitore.append((b["port"], _verbinde(*teile), {"role": "mon", "mon": {
+            "res": "%s × %s" % (b["w"], b["h"]), "name": b["name"], "inch": b["inch"], "port": b["port"], "hz": b["hz"],
+            "scale": tr("Scale {p}").replace("{p}", b["scale"]) if b["scale"] else "", "pref": b["pref"]}}))
     return [
-        _gruppe("Display server", ("Session type", sitzung), ("Desktop", desktop), ("Compositor", kwin), ("Plasma", plasma)),
-        _gruppe("OpenGL", ("Renderer", gl.get("OpenGL renderer string")), ("Vendor", gl.get("OpenGL vendor string")),
-                ("Core profile", gl.get("OpenGL core profile version string")),
-                ("Compatibility", gl.get("OpenGL version string")), ("OpenGL ES", gl.get("OpenGL ES profile version string"))),
-        _gruppe("Vulkan", ("Instance version", vk), *vulkan),
-        _gruppe("Outputs", *ausgaenge),
+        _gruppe("Desktop & graphics APIs", kopf, ("Compositor", kwin, {"role": "sub"}),
+                ("OpenGL", core, {"role": "kpi", "d": "OpenGL " + gv if gv else "", "tl": gt,
+                                  "ts": tr("Core profile") if gl.get("OpenGL core profile version string") else ""}),
+                ("OpenGL ES", es, {"role": "kpi", "d": "OpenGL ES " + ev if ev else "", "tl": et}),
+                ("Vulkan", vk, {"role": "kpi", "d": "Vulkan " + vk if vk else "", "tl": vk_treiber,
+                                "ts": _zw("device API {v}", v=vk_api.group(1))[0] if vk_api else ""}),
+                ("Session type", sitzung), ("Desktop", desktop if plasma else ""),
+                ("Renderer", gl.get("OpenGL renderer string")), ("OpenGL vendor", gl.get("OpenGL vendor string")),
+                ("Compatibility profile", gl.get("OpenGL version string") if gl.get("OpenGL version string") != core else ""),
+                *vulkan,
+                hero=True, badges=[sitzung], akzent=True, icon=disk_icon(["preferences-desktop-display", "video-display", "computer"])),
+        _gruppe("Displays", *monitore, breit=True, hero=True),
     ]
+
+
+def _edid(port):
+    """(Monitorname, Diagonale in Zoll) aus den EDID-Daten eines DRM-Ausgangs ; ("", 0.0) ohne Daten."""
+    for p in glob.glob("/sys/class/drm/card*-%s/edid" % port):
+        try:
+            with open(p, "rb") as f:
+                e = f.read(256)
+        except OSError:
+            continue
+        if len(e) < 128 or e[:8] != b"\x00\xff\xff\xff\xff\xff\xff\x00":
+            continue
+        name = ""
+        for i in range(54, 126, 18):
+            b = e[i:i + 18]
+            if b[0:3] == b"\x00\x00\x00" and b[3] == 0xFC:
+                name = b[5:18].split(b"\n")[0].decode("ascii", "ignore").strip()
+        zoll = 0.0
+        if e[54] or e[55]:   # erster ausführlicher Zeitablauf : Bildgröße in mm (genauer als die cm-Angabe)
+            wmm, hmm = e[66] | ((e[68] & 0xF0) << 4), e[67] | ((e[68] & 0x0F) << 8)
+            if wmm and hmm:
+                zoll = (wmm ** 2 + hmm ** 2) ** 0.5 / 25.4
+        if not zoll and e[21] and e[22]:
+            zoll = (e[21] ** 2 + e[22] ** 2) ** 0.5 / 2.54
+        return name, zoll
+    return "", 0.0
+
+
+def bildschirme():
+    """Aktive Bildschirme [{port, w, h, hz, scale, name, inch, pref, nativ}] : unter Plasma aus « kscreen-doctor -j »
+    (Bildwiederholrate, Skalierung, bevorzugter Modus), sonst aus der DRM-Modusliste ; Name und Diagonale aus der EDID."""
+    res = []
+    daten = None
+    if shutil.which("kscreen-doctor"):
+        try:
+            daten = json.loads(_ausgabe(["kscreen-doctor", "-j"], timeout=4) or "null")
+        except ValueError:
+            daten = None
+    for o in (daten or {}).get("outputs", []) if isinstance(daten, dict) else []:
+        if not (o.get("enabled") and o.get("connected")):
+            continue
+        modes = {str(m.get("id")): m for m in o.get("modes", [])}
+        cm = modes.get(str(o.get("currentModeId")), {})
+        pm = modes.get(str((o.get("preferredModes") or [""])[0]), {})
+        groesse = cm.get("size") or {}
+        pg = pm.get("size") or {}
+        if not groesse.get("width"):
+            continue
+        hz = float(cm.get("refreshRate") or 0)
+        skala = float(o.get("scale") or 1)
+        res.append({"port": o.get("name", ""), "w": groesse["width"], "h": groesse["height"],
+                    "hz": ("%d Hz" % round(hz)) if hz else "", "scale": ("%d %%" % round(skala * 100)),
+                    "pref": not pg.get("width") or (pg.get("width"), pg.get("height")) == (groesse["width"], groesse["height"]),
+                    "nativ": "%s × %s" % (pg.get("width"), pg.get("height")) if pg.get("width") else ""})
+    if not res:   # ohne KScreen : verbundene DRM-Ausgänge, die erste Zeile von « modes » ist der bevorzugte Modus
+        for d in sorted(glob.glob("/sys/class/drm/card*-*")):
+            if _lese(d + "/status") != "connected":
+                continue
+            m = re.match(r"^(\d+)x(\d+)", (_lire_texte(d + "/modes") or "").split("\n")[0].strip())
+            if m:
+                res.append({"port": os.path.basename(d).split("-", 1)[1], "w": int(m.group(1)), "h": int(m.group(2)),
+                            "hz": "", "scale": "", "pref": True, "nativ": ""})
+    for b in res:
+        name, zoll = _edid(b["port"])
+        b["name"] = name
+        b["inch"] = ("%.1f″" % zoll).replace(".", DECIMAL).replace(DECIMAL + "0″", "″") if zoll >= 5 else ""
+    return res
 
 
 def sammle_ram():
@@ -3575,8 +3786,23 @@ def sammle_ram():
         if ligne.startswith("SwapTotal:"):
             swap = int(ligne.split()[1]) * 1024
     zram = "zram" in (_lire_texte("/proc/swaps") or "")
-    gruppen = [_gruppe("Memory", ("Installed (usable)", taille(gesamt)), ("Swap", (taille(swap) + (" (zram)" if zram else "")) if swap else "none"))]
     d = _DMI["daten"]
+    kpis, zeilen, badges = [], [], []
+    if d:
+        belegt = [m for m in d["memory"] if m.get("Size", "").lower() not in ("no module installed", "")]
+        erste = belegt[0] if belegt else {}
+        a = d["array"]
+        lauf = erste.get("Configured Memory Speed", erste.get("Configured Clock Speed", ""))
+        badges = [erste.get("Type", "") if erste.get("Type", "") not in ("", "Unknown") else ""]
+        kpis = [("Speed", erste.get("Speed"), {"role": "kpi", "ts": _zw("running {clock}", clock=lauf)[0] if lauf and lauf != erste.get("Speed") else ""}),
+                ("Slots in use", _zw("{n} of {m}", n=len(belegt), m=a.get("Number Of Devices", len(d["memory"]))),
+                 {"role": "kpi", "d": "%d / %s" % (len(belegt), a.get("Number Of Devices", len(d["memory"])))})]
+        zeilen = [("Type", erste.get("Type")), ("Max. capacity", a.get("Maximum Capacity")),
+                  ("Error correction", a.get("Error Correction Type"))]
+    gruppen = [_gruppe("Memory", ("Installed (usable)", taille(gesamt), {"role": "kpi", "tl": "Installed"}),
+                       ("Swap", (taille(swap) + (" (zram)" if zram else "")) if swap else "none",
+                        {"role": "kpi", "d": taille(swap) if swap else "", "ts": "zram" if zram else ""}),
+                       *kpis, *zeilen, hero=True, badges=badges, icon=disk_icon(["memory", "drive-harddisk", "computer"]))]
     if d:
         slots = []
         erste = next((m for m in d["memory"] if m.get("Size", "").lower() not in ("no module installed", "")), {})
@@ -3592,11 +3818,6 @@ def sammle_ram():
                           _verbinde(*[x for x in (groesse, m.get("Type"), tempo, m.get("Manufacturer"), m.get("Part Number", "").strip(),
                                                   m.get("Form Factor"), _zw("rank {n}", n=m["Rank"]) if m.get("Rank") else "")
                                       if x and x not in ("Unknown",)])))
-        a = d["array"]
-        gruppen.append(_gruppe("Memory controller", ("Type", erste.get("Type")), ("Speed", erste.get("Speed")),
-                               ("Running at", erste.get("Configured Memory Speed", erste.get("Configured Clock Speed"))),
-                               ("Slots", a.get("Number Of Devices")), ("Max. capacity", a.get("Maximum Capacity")),
-                               ("Error correction", a.get("Error Correction Type"))))
         gruppen.append(_gruppe("Memory modules", *slots, breit=True))
     else:
         gruppen.append(_gruppe("Memory modules", ("Slots, type, speed, manufacturer",
@@ -3716,11 +3937,21 @@ def sammle_busse():
         if not os.path.isdir(basis + "/nvme"):
             andere.append((k["slot"], _verbinde((k["hersteller"] + " " + k["modell"]).strip(), k["treiber"], _pcie_link_text(k["slot"]))))
             continue
+        kap = 0
+        for f in glob.glob(basis + "/nvme/nvme*/nvme*n*/size"):
+            kap += int(_lese(f) or 0) * 512 if _lese(f).isdigit() else 0
+        fw = sorted({_lese(f) for f in glob.glob(basis + "/nvme/nvme*/firmware_rev")} - {""})
+        link = _pcie_link_text(k["slot"])
         gruppen.append(_gruppe(tr("NVMe controller {slot}").replace("{slot}", k["slot"]),
-                               ("Drive", ", ".join(laufwerke)),
-                               ("Model", (k["hersteller"] + " " + k["modell"]).strip()),
-                               ("Kernel driver", k["treiber"]), ("PCIe link", _pcie_link_text(k["slot"])),
-                               en="NVMe controller " + k["slot"]))
+                               ("Drive", ", ".join(laufwerke), {"role": "hero"}),
+                               ("Model", (k["hersteller"] + " " + k["modell"]).strip(), {"role": "sub"}),
+                               ("Capacity", taille(kap) if kap else "", {"role": "kpi"}),
+                               ("PCIe link", link, {"role": "kpi", "d": _mal(link.split(" (")[0]),
+                                                    "ts": _mal(link.split(" (", 1)[1].rstrip(")")) if " (" in link else ""}),
+                               ("Kernel driver", k["treiber"], {"role": "kpi", "tl": "Driver"}),
+                               ("Firmware", ", ".join(fw)),
+                               en="NVMe controller " + k["slot"], hero=True, badges=[k["slot"]],
+                               icon=disk_icon(["drive-harddisk-solidstate", "drive-harddisk"])))
     gruppen.append(_gruppe("SATA and RAID controllers", *andere))
     sata = []
     for link in sorted(glob.glob("/sys/class/ata_link/link*"), key=lambda x: int(re.sub(r"\D", "", x) or 0)):
@@ -3817,6 +4048,30 @@ def hwmon_lesen():
     rang = ("CPU", "GPU", "Memory", "Mainboard", "Liquid cooler", "NVMe drive", "SATA drive")
     res.sort(key=lambda r: next((i for i, x in enumerate(rang) if r[2].startswith(x)), len(rang)))
     return res
+
+
+_SENSOR_NAMEN: dict[str, str] = {}   # Produktnamen für die Sensor-Karten : einmal je Sitzung gelesen
+
+
+def sensor_titel(titel, en):
+    """(Titel, [Plakette]) einer Sensor-Karte : der Produktname, wo er bekannt ist (CPU, Hauptplatine, Laufwerk, GPU), daneben
+    der Chip bzw. die Quelle als Plakette – « CPU · k10temp » -> (« AMD Ryzen 9 5900X », [« k10temp »])."""
+    art, _, rest = en.partition(" · ")
+    if not rest:
+        return titel, []
+    if art in ("NVMe drive", "SATA drive"):
+        return rest, [art.split()[0]]
+    if art == "GPU" and " " in rest:   # NVIDIA über nvidia-smi : der Name steht schon im Titel
+        return rest, ["nvidia-smi"]
+    if art == "CPU":
+        if "cpu" not in _SENSOR_NAMEN:
+            _SENSOR_NAMEN["cpu"] = _cpu_kurz(_cpu_info()[0])
+        return _SENSOR_NAMEN["cpu"] or tr("CPU"), [rest]
+    if art == "Mainboard":
+        if "board" not in _SENSOR_NAMEN:
+            _SENSOR_NAMEN["board"] = _ohne_klammer(_dmi("board_name"))
+        return _SENSOR_NAMEN["board"] or tr("Mainboard"), [rest]
+    return tr(art), [rest]
 
 
 def sensor_text(wert, einheit):
@@ -4174,7 +4429,8 @@ def lade_bericht(neu=False):
         kat = lambda i, en, ic, gr: {"id": i, "en": en, "title": tr(en), "icon": disk_icon(ic), "groups": gr}
         _BERICHT[0] = {
             "categories": [
-                kat("cpu", "CPU & Board", ["cpu", "computer"], ergebnis["cpu"] + ergebnis["board"]),
+                kat("cpu", "CPU & Board", ["cpu", "computer"],   # Prozessor neben der Hauptplatine, danach die Nebenkarten
+                    ergebnis["cpu"][:1] + ergebnis["board"][:1] + ergebnis["cpu"][1:] + ergebnis["board"][1:]),
                 kat("gpu", "GPU & Display", ["video-card", "video-display"], ergebnis["gpu"] + ergebnis["display"]),
                 kat("ram", "Memory", ["memory", "drive-harddisk"], ergebnis["ram"]),
                 kat("storage", "Storage & buses", ["drive-harddisk", "media-flash", "drive-removable-media"], ergebnis["busse"]),
@@ -5168,6 +5424,10 @@ class Backend(QObject):
             breit = len(items) > 6   # z. B. Super-I/O der Hauptplatine : volle Breite, Temperaturen links, Lüfter rechts
             g = {"title": titel, "en": en, "items": items, "wide": breit,
                  "split": breit and items[0]["col"] == 0 and items[-1]["col"] == 1}
+            g["title"], g["badges"] = sensor_titel(titel, en)
+            if not breit and len(items) <= 4:   # kleine Karten : jede Messung als Kachel (Wert, Name, min/max)
+                for it in items:
+                    it["role"] = "kpi"
             if en.startswith("Mainboard") and schluessel.startswith("hwmon"):
                 regel = luefter_regelung("/sys/class/hwmon/" + schluessel.split(":")[0])
                 if regel:
@@ -6236,6 +6496,31 @@ QQC2.ApplicationWindow {
         }
     }
     // kompakte Status-Plakette : Kapsel in entsättigter Systemfarbe, ohne Kontur ; im Hellen dunklere Schrift (≥ 4,5 : 1)
+    // Glas-Pille : Plaketten der Hardware-Karten (Sockel, Slot, Sitzung …) ; Akzent wie die Trefferzahl der Kategorien
+    component GlassPill: Rectangle {
+        id: gp
+        property string text: ""
+        property bool akzent: false
+        visible: text !== ""
+        radius: height / 2
+        implicitHeight: Math.round(20 * win.fontGrow)
+        implicitWidth: gpText.implicitWidth + 16
+        color: akzent ? Qt.alpha(Kirigami.Theme.highlightColor, 0.16) : Qt.alpha(Kirigami.Theme.textColor, 0.07)
+        border.width: 1
+        border.color: akzent ? Qt.alpha(Kirigami.Theme.highlightColor, 0.34) : win.hairline
+        Accessible.role: Accessible.StaticText
+        Accessible.name: gp.text
+        QQC2.Label {
+            id: gpText
+            anchors.centerIn: parent
+            text: gp.text
+            font.family: win.uiFont
+            font.pixelSize: win.px11
+            font.weight: Font.DemiBold
+            font.features: { "tnum": 1 }
+            color: gp.akzent ? win.accentInk : win.textSecondary
+        }
+    }
     component StatusBadge: Rectangle {
         id: sbd
         property string text: ""
@@ -6649,6 +6934,8 @@ QQC2.ApplicationWindow {
     readonly property color sideTint: darkTheme ? Qt.rgba(1, 1, 1, 0.045) : Qt.rgba(0, 0, 0, 0.03)
     // Trennlinien : halbtransparente, leicht kühle Glas-Tönung statt eines neutralen Strichs
     readonly property color hairline: darkTheme ? Qt.rgba(0.80, 0.86, 0.96, 0.12) : Qt.rgba(0.10, 0.14, 0.22, 0.11)
+    // Akzent als Schrift auf Glas (Plaketten, Versions-Kacheln) : mit Weiß bzw. Schwarz gemischt, damit sie lesbar bleibt
+    readonly property color accentInk: Qt.tint(Kirigami.Theme.highlightColor, darkTheme ? Qt.rgba(1, 1, 1, 0.6) : Qt.rgba(0, 0, 0, 0.5))
     readonly property real dividerW: 2      // Spaltentrenner und Kopflinien
     readonly property real sectionLineW: 1.5   // innere Abschnittslinien (Inspector, Einstellungen, Ribbon-Gruppen)
     // Textstufen als Farbe statt opacity : gemessen ≥ 4,5 : 1 auf Breeze Hell/Dunkel und dunklen Schemata (WCAG AA, auch 11 px)
@@ -8531,12 +8818,22 @@ QQC2.ApplicationWindow {
         // die unqualified-Prüfung von qmllint für den Rest der Datei ab
         function gruppenVon(id) {
             const res = []
-            if (id === "overview") {
+            if (id === "overview") {   // Hauptkarten : Produktname, Unterzeile und Kacheln, sonst Zeilen
                 for (let i = 0; i < overview.length; i++) {
+                    const z = overview[i]
                     const items = []
-                    for (let j = 0; j < overview[i].lines.length; j++)
-                        items.push({ k: "", v: overview[i].lines[j], sub: "" })
-                    res.push({ title: overview[i].title, icon: overview[i].icon, items: items })
+                    const held = (z.hero || "") !== "" || z.heroCard === true
+                    if ((z.hero || "") !== "")
+                        items.push({ k: z.title, v: z.lines[0], d: z.hero, sub: "", role: "hero" })
+                    if ((z.sub || "") !== "")
+                        items.push({ k: "", v: z.sub, sub: "", role: "sub" })
+                    const kp = z.kpis || []
+                    for (let j = 0; j < kp.length; j++)
+                        items.push({ k: kp[j].k, v: kp[j].v, sub: "", role: "kpi" })
+                    const rest = held ? (z.rest || []) : z.lines
+                    for (let j = 0; j < rest.length; j++)
+                        items.push({ k: "", v: rest[j], sub: "" })
+                    res.push({ title: z.title, icon: z.icon, items: items, hero: held, badges: z.badges || [] })
                 }
                 return res
             }
@@ -8568,7 +8865,8 @@ QQC2.ApplicationWindow {
                     }
                 }
                 if (items.length > 0)
-                    res.push({ title: g.title, icon: g.icon, items: items, wide: g.wide === true, split: g.split === true, cols: g.cols || [] })
+                    res.push({ title: g.title, icon: g.icon, items: items, wide: g.wide === true, split: g.split === true, cols: g.cols || [],
+                               hero: g.hero === true, badges: g.badges || [], accent: g.accent === true })
             }
             return res
         }
@@ -8589,7 +8887,8 @@ QQC2.ApplicationWindow {
             let n = 0
             for (let i = 0; i < gs.length; i++) {
                 res.push({ title: gs[i].title, icon: gs[i].icon, items: gs[i].items, base: n, wide: gs[i].wide === true,
-                          split: gs[i].split === true, cols: gs[i].cols || [] })
+                          split: gs[i].split === true, cols: gs[i].cols || [], hero: gs[i].hero === true,
+                          badges: gs[i].badges || [], accent: gs[i].accent === true })
                 n += gs[i].items.length
             }
             return res
@@ -8621,6 +8920,30 @@ QQC2.ApplicationWindow {
             }
             if (offen !== null)
                 res.push([offen])
+            return res
+        }
+        // Detailzeilen der Hauptkarten im 2-Spalten-Raster : kurze Werte paarweise, lange über beide Spalten (eine frei
+        // gebliebene rechte Zelle nimmt der nächste kurze Wert) ; [Zeile, Spalte, Spanne] je Eintrag, Kopf/Kacheln : [0, 0, 1]
+        function raster(items, zeichen) {
+            const res = []
+            let zeile = 0
+            let loch = -1
+            for (let i = 0; i < items.length; i++) {
+                const it = items[i]
+                if ((it.role || "") !== "") {
+                    res.push([0, 0, 1])
+                } else if ((it.d || it.v || "").length > zeichen) {
+                    res.push([zeile, 0, 2])
+                    zeile++
+                } else if (loch >= 0) {
+                    res.push([loch, 1, 1])
+                    loch = -1
+                } else {
+                    res.push([zeile, 0, 1])
+                    loch = zeile
+                    zeile++
+                }
+            }
             return res
         }
         function kopieren(it) {
@@ -8930,8 +9253,30 @@ QQC2.ApplicationWindow {
                                             id: hwKarte
                                             required property int index
                                             readonly property var modelData: hwKartenZeile.modelData[index]
-                                                                             || ({ title: "", items: [], cols: [], base: 0 })
+                                                                             || ({ title: "", items: [], cols: [], base: 0, badges: [] })
                                             readonly property bool tabelle: hwKarte.modelData.cols.length > 0
+                                            readonly property bool held: hwKarte.modelData.hero === true   // Hauptkarte : Hero-Kopf
+                                            // Einträge nach Darstellung : Kopf, Unterzeile, Kacheln, Bildschirme, Zeilen (Indizes in items)
+                                            readonly property var rollen: {
+                                                const r = { hero: -1, sub: [], kpi: [], mon: [], zeilen: 0 }
+                                                const its = hwKarte.modelData.items
+                                                for (let i = 0; i < its.length; i++) {
+                                                    const ro = its[i].role || ""
+                                                    if (ro === "hero") {
+                                                        if (r.hero < 0)
+                                                            r.hero = i
+                                                    } else if (ro === "sub") {
+                                                        r.sub.push(i)
+                                                    } else if (ro === "kpi") {
+                                                        r.kpi.push(i)
+                                                    } else if (ro === "mon") {
+                                                        r.mon.push(i)
+                                                    } else {
+                                                        r.zeilen++
+                                                    }
+                                                }
+                                                return r
+                                            }
                                             Layout.fillWidth: true
                                             Layout.fillHeight: true
                                             Layout.preferredWidth: 1   // gleich breite Karten
@@ -8948,7 +9293,8 @@ QQC2.ApplicationWindow {
                                                 anchors.top: parent.top
                                                 anchors.margins: 12
                                                 spacing: 2
-                                                RowLayout {   // Kartentitel : 13 px DemiBold, normale Schreibweise
+                                                RowLayout {   // Kartentitel : 13 px DemiBold, normale Schreibweise ; Hauptkarten haben den Hero-Kopf
+                                                    visible: !hwKarte.held
                                                     Layout.fillWidth: true
                                                     Layout.leftMargin: 8
                                                     Layout.bottomMargin: 6
@@ -8960,7 +9306,8 @@ QQC2.ApplicationWindow {
                                                         Layout.preferredHeight: 18
                                                     }
                                                     QQC2.Label {
-                                                        Layout.fillWidth: true
+                                                        Layout.fillWidth: hwKarte.tabelle
+                                                        Layout.maximumWidth: hwKarte.tabelle ? 100000 : Math.max(60, hwKarte.width - 150)   // Plakette direkt dahinter
                                                         text: hwKarte.modelData.title
                                                         font.family: win.uiFont
                                                         font.pixelSize: win.px13
@@ -8968,6 +9315,14 @@ QQC2.ApplicationWindow {
                                                         elide: Text.ElideRight
                                                         Accessible.role: Accessible.Heading
                                                     }
+                                                    Repeater {   // Chip bzw. Quelle (Sensoren) : neutrale Glas-Pille
+                                                        model: hwKarte.modelData.badges || []
+                                                        delegate: GlassPill {
+                                                            required property var modelData
+                                                            text: modelData
+                                                        }
+                                                    }
+                                                    Item { visible: !hwKarte.tabelle; Layout.fillWidth: true }
                                                     Repeater {   // Tabellenkopf (z. B. Download, Upload, Gesamt)
                                                         model: hwKarte.modelData.cols
                                                         delegate: QQC2.Label {
@@ -8981,9 +9336,324 @@ QQC2.ApplicationWindow {
                                                     }
                                                     Item { visible: hwKarte.tabelle; Layout.preferredWidth: 8 }
                                                 }
+                                                Rectangle {   // Hero-Kopf der Hauptkarten : Gerätesymbol, Produktname 16 px fett, Plaketten, Unterzeile
+                                                    id: hwHero
+                                                    visible: hwKarte.held
+                                                    Layout.fillWidth: true
+                                                    Layout.leftMargin: 2
+                                                    Layout.rightMargin: 2
+                                                    Layout.bottomMargin: 4
+                                                    implicitHeight: hwHeroRow.implicitHeight + 10
+                                                    radius: win.rCard
+                                                    readonly property var heldItem: hwKarte.rollen.hero >= 0 ? hwKarte.modelData.items[hwKarte.rollen.hero] : null
+                                                    readonly property string unterzeile: {
+                                                        const t = []
+                                                        for (let i = 0; i < hwKarte.rollen.sub.length; i++) {
+                                                            const it = hwKarte.modelData.items[hwKarte.rollen.sub[i]]
+                                                            if (it)
+                                                                t.push(it.d || it.v)
+                                                        }
+                                                        return t.join(" · ")
+                                                    }
+                                                    readonly property int rel: hwWin.cur - hwKarte.modelData.base
+                                                    readonly property bool gewaehlt: hwInhalt.activeFocus && hwWin.cur >= 0
+                                                                                     && ((hwKarte.rollen.hero >= 0 && rel === hwKarte.rollen.hero)
+                                                                                         || hwKarte.rollen.sub.indexOf(rel) >= 0)
+                                                    color: gewaehlt ? win.selFill(true) : (hwHeroHover.hovered && heldItem !== null ? win.hoverFill : "transparent")
+                                                    Behavior on color { ColorAnimation { duration: win.animMs; easing.type: Easing.OutCubic } }
+                                                    onGewaehltChanged: if (gewaehlt) hwInhalt.zeigen(hwHero)
+                                                    Accessible.role: Accessible.Heading
+                                                    Accessible.name: hwHeroTitel.text + (unterzeile !== "" ? ", " + unterzeile : "")
+                                                    RowLayout {
+                                                        id: hwHeroRow
+                                                        anchors.left: parent.left
+                                                        anchors.right: parent.right
+                                                        anchors.leftMargin: 6
+                                                        anchors.rightMargin: 6
+                                                        anchors.verticalCenter: parent.verticalCenter
+                                                        spacing: 12
+                                                        Rectangle {   // Gerätesymbol auf einer ruhigen Glasfläche
+                                                            visible: (hwKarte.modelData.icon || "") !== ""
+                                                            Layout.preferredWidth: Math.round(36 * win.fontGrow)
+                                                            Layout.preferredHeight: Math.round(36 * win.fontGrow)
+                                                            Layout.alignment: Qt.AlignTop
+                                                            radius: 10
+                                                            color: Qt.alpha(Kirigami.Theme.textColor, 0.06)
+                                                            border.width: 1
+                                                            border.color: win.hairline
+                                                            Kirigami.Icon {
+                                                                anchors.centerIn: parent
+                                                                width: Math.round(22 * win.fontGrow)
+                                                                height: Math.round(22 * win.fontGrow)
+                                                                source: hwKarte.modelData.icon || ""
+                                                            }
+                                                        }
+                                                        ColumnLayout {
+                                                            Layout.fillWidth: true
+                                                            spacing: 1
+                                                            RowLayout {
+                                                                Layout.fillWidth: true
+                                                                spacing: 8
+                                                                QQC2.Label {
+                                                                    id: hwHeroTitel
+                                                                    Layout.maximumWidth: Math.max(80, hwKarte.width - Math.round(190 * win.fontGrow))   // Plaketten direkt neben dem Namen
+                                                                    text: hwHero.heldItem !== null ? (hwHero.heldItem.d || hwHero.heldItem.v) : hwKarte.modelData.title
+                                                                    font.family: win.uiFont
+                                                                    font.pixelSize: Math.round(16 * win.fontGrow)
+                                                                    font.weight: Font.Bold
+                                                                    elide: Text.ElideRight
+                                                                }
+                                                                Repeater {
+                                                                    model: hwKarte.modelData.badges || []
+                                                                    delegate: GlassPill {
+                                                                        required property var modelData
+                                                                        text: modelData
+                                                                        akzent: true
+                                                                    }
+                                                                }
+                                                                Item { Layout.fillWidth: true }
+                                                            }
+                                                            QQC2.Label {
+                                                                visible: text !== ""
+                                                                Layout.fillWidth: true
+                                                                text: hwHero.unterzeile
+                                                                font.family: win.uiFont
+                                                                font.pixelSize: win.px12
+                                                                color: win.textSecondary
+                                                                elide: Text.ElideRight
+                                                            }
+                                                        }
+                                                    }
+                                                    HoverHandler { id: hwHeroHover; cursorShape: hwHero.heldItem !== null ? Qt.PointingHandCursor : Qt.ArrowCursor }
+                                                    TapHandler {
+                                                        enabled: hwHero.heldItem !== null
+                                                        onTapped: {
+                                                            hwWin.cur = hwKarte.modelData.base + hwKarte.rollen.hero
+                                                            hwWin.kopieren(hwHero.heldItem)
+                                                        }
+                                                    }
+                                                    QQC2.ToolTip.visible: hwHeroHover.hovered && hwHero.heldItem !== null
+                                                    QQC2.ToolTip.delay: 900
+                                                    QQC2.ToolTip.text: hwHero.heldItem !== null ? hwHero.heldItem.k + ": " + hwHero.heldItem.v + "\n" + win.trad("Click to copy") : ""
+                                                }
+                                                GridLayout {   // KPI-Kacheln : großer Wert (Tabellenziffern), darunter Name und ggf. eine Unterzeile
+                                                    id: hwKpis
+                                                    visible: hwKarte.rollen.kpi.length > 0
+                                                    Layout.fillWidth: true
+                                                    Layout.leftMargin: 8
+                                                    Layout.rightMargin: 8
+                                                    Layout.topMargin: hwKarte.held ? 2 : 0
+                                                    Layout.bottomMargin: 8
+                                                    readonly property int kachelMin: Math.round(116 * win.fontGrow)
+                                                    // so viele Spalten, wie passen ; reicht eine Zeile nicht, gleichmäßig umbrechen (4 Kacheln : 2 + 2 statt 3 + 1)
+                                                    readonly property int passen: Math.max(1, Math.floor((hwKarte.width - 40 + 8) / (kachelMin + 8)))
+                                                    readonly property int anzahl: Math.max(1, hwKarte.rollen.kpi.length)
+                                                    columns: passen >= anzahl ? anzahl : Math.ceil(anzahl / Math.ceil(anzahl / passen))
+                                                    columnSpacing: 8
+                                                    rowSpacing: 8
+                                                    Repeater {
+                                                        model: hwKarte.rollen.kpi.length
+                                                        delegate: Rectangle {
+                                                            id: hwKachel
+                                                            required property int index
+                                                            readonly property int idx: hwKarte.rollen.kpi[index] ?? 0
+                                                            readonly property var it: hwKarte.modelData.items[idx] || ({ k: "", v: "" })
+                                                            readonly property int flat: hwKarte.modelData.base + idx
+                                                            readonly property bool gewaehlt: hwInhalt.activeFocus && hwWin.cur === flat
+                                                            readonly property bool akzent: hwKarte.modelData.accent === true
+                                                            readonly property string unten: it.ts || it.sub || ""
+                                                            Layout.fillWidth: true
+                                                            Layout.fillHeight: true
+                                                            Layout.preferredWidth: 1
+                                                            implicitHeight: hwKachelCol.implicitHeight + 18
+                                                            radius: win.rCard
+                                                            color: gewaehlt ? win.selFill(true)
+                                                                   : hwKachelHover.hovered ? Qt.alpha(Kirigami.Theme.textColor, win.darkTheme ? 0.09 : 0.075)
+                                                                   : akzent ? Qt.alpha(Kirigami.Theme.highlightColor, 0.10)
+                                                                   : Qt.alpha(Kirigami.Theme.textColor, win.darkTheme ? 0.055 : 0.045)
+                                                            border.width: 1
+                                                            border.color: gewaehlt ? Qt.alpha(Kirigami.Theme.highlightColor, 0.55)
+                                                                          : akzent ? Qt.alpha(Kirigami.Theme.highlightColor, 0.28) : win.hairline
+                                                            Behavior on color { ColorAnimation { duration: win.animMs; easing.type: Easing.OutCubic } }
+                                                            onGewaehltChanged: if (gewaehlt) hwInhalt.zeigen(hwKachel)
+                                                            Accessible.role: Accessible.StaticText
+                                                            Accessible.name: (it.tl || it.k) + ": " + (it.d || it.v) + (unten !== "" ? ", " + unten : "")
+                                                            ColumnLayout {
+                                                                id: hwKachelCol
+                                                                anchors.left: parent.left
+                                                                anchors.right: parent.right
+                                                                anchors.top: parent.top
+                                                                anchors.leftMargin: 10
+                                                                anchors.rightMargin: 6
+                                                                anchors.topMargin: 9
+                                                                spacing: 1
+                                                                QQC2.Label {
+                                                                    Layout.fillWidth: true
+                                                                    text: hwKachel.it.d || hwKachel.it.v
+                                                                    font.family: win.uiFont
+                                                                    font.pixelSize: win.px14
+                                                                    font.weight: Font.DemiBold
+                                                                    font.features: { "tnum": 1 }
+                                                                    color: hwKachel.akzent ? win.accentInk : Kirigami.Theme.textColor
+                                                                    // knapp zu lang (« amd-pstate-epp » in einer Viertel-Karte) : erst bis 12 px verkleinern, dann kürzen
+                                                                    fontSizeMode: Text.HorizontalFit
+                                                                    minimumPixelSize: win.px12
+                                                                    elide: Text.ElideRight
+                                                                }
+                                                                QQC2.Label {
+                                                                    Layout.fillWidth: true
+                                                                    text: hwKachel.it.tl || hwKachel.it.k
+                                                                    font.family: win.uiFont
+                                                                    font.pixelSize: win.px11
+                                                                    color: win.textSecondary
+                                                                    elide: Text.ElideRight
+                                                                }
+                                                                QQC2.Label {
+                                                                    visible: hwKachel.unten !== ""
+                                                                    Layout.fillWidth: true
+                                                                    text: hwKachel.unten
+                                                                    font.family: win.uiFont
+                                                                    font.pixelSize: win.px11
+                                                                    font.features: { "tnum": 1 }
+                                                                    color: win.textTertiary
+                                                                    wrapMode: Text.Wrap
+                                                                    maximumLineCount: 2
+                                                                    elide: Text.ElideRight
+                                                                }
+                                                            }
+                                                            HoverHandler { id: hwKachelHover; cursorShape: Qt.PointingHandCursor }
+                                                            TapHandler {
+                                                                onTapped: {
+                                                                    hwWin.cur = hwKachel.flat
+                                                                    hwWin.kopieren(hwKachel.it)
+                                                                }
+                                                            }
+                                                            QQC2.ToolTip.visible: hwKachelHover.hovered
+                                                            QQC2.ToolTip.delay: 900
+                                                            QQC2.ToolTip.text: hwKachel.it.k + ": " + hwKachel.it.v + "\n" + win.trad("Click to copy")
+                                                        }
+                                                    }
+                                                }
+                                                GridLayout {   // Bildschirme : Symbol, Auflösung groß, « Bevorzugt », Name und Diagonale, Anschluss/Hz/Skalierung als Pillen
+                                                    visible: hwKarte.rollen.mon.length > 0
+                                                    Layout.fillWidth: true
+                                                    Layout.leftMargin: 8
+                                                    Layout.rightMargin: 8
+                                                    Layout.bottomMargin: 4
+                                                    columns: Math.max(1, Math.min(hwKarte.rollen.mon.length, Math.floor((hwKarte.width - 40 + 8) / Math.round(348 * win.fontGrow))))
+                                                    columnSpacing: 8
+                                                    rowSpacing: 8
+                                                    Repeater {
+                                                        model: hwKarte.rollen.mon.length
+                                                        delegate: Rectangle {
+                                                            id: hwMon
+                                                            required property int index
+                                                            readonly property int idx: hwKarte.rollen.mon[index] ?? 0
+                                                            readonly property var it: hwKarte.modelData.items[idx] || ({ k: "", v: "" })
+                                                            readonly property var m: it.mon || ({})
+                                                            readonly property int flat: hwKarte.modelData.base + idx
+                                                            readonly property bool gewaehlt: hwInhalt.activeFocus && hwWin.cur === flat
+                                                            readonly property var pillen: {
+                                                                const r = []
+                                                                const alle = [m.port, m.hz, m.scale]
+                                                                for (let i = 0; i < alle.length; i++)
+                                                                    if (alle[i])
+                                                                        r.push(alle[i])
+                                                                return r
+                                                            }
+                                                            Layout.fillWidth: true
+                                                            Layout.preferredWidth: 1
+                                                            implicitHeight: hwMonRow.implicitHeight + 22
+                                                            radius: win.rCard
+                                                            color: gewaehlt ? win.selFill(true)
+                                                                   : hwMonHover.hovered ? Qt.alpha(Kirigami.Theme.textColor, win.darkTheme ? 0.09 : 0.075)
+                                                                   : Qt.alpha(Kirigami.Theme.textColor, win.darkTheme ? 0.055 : 0.045)
+                                                            border.width: 1
+                                                            border.color: gewaehlt ? Qt.alpha(Kirigami.Theme.highlightColor, 0.55) : win.hairline
+                                                            Behavior on color { ColorAnimation { duration: win.animMs; easing.type: Easing.OutCubic } }
+                                                            onGewaehltChanged: if (gewaehlt) hwInhalt.zeigen(hwMon)
+                                                            Accessible.role: Accessible.StaticText
+                                                            Accessible.name: it.k + ": " + it.v
+                                                            RowLayout {
+                                                                id: hwMonRow
+                                                                anchors.left: parent.left
+                                                                anchors.right: parent.right
+                                                                anchors.leftMargin: 12
+                                                                anchors.rightMargin: 12
+                                                                anchors.verticalCenter: parent.verticalCenter
+                                                                spacing: 14
+                                                                Kirigami.Icon {
+                                                                    source: "video-display"
+                                                                    Layout.preferredWidth: Math.round(40 * win.fontGrow)
+                                                                    Layout.preferredHeight: Math.round(40 * win.fontGrow)
+                                                                    Layout.alignment: Qt.AlignTop
+                                                                }
+                                                                ColumnLayout {
+                                                                    Layout.fillWidth: true
+                                                                    spacing: 3
+                                                                    RowLayout {
+                                                                        Layout.fillWidth: true
+                                                                        spacing: 8
+                                                                        QQC2.Label {
+                                                                            text: hwMon.m.res || hwMon.it.v
+                                                                            font.family: win.uiFont
+                                                                            font.pixelSize: Math.round(16 * win.fontGrow)
+                                                                            font.weight: Font.Bold
+                                                                            font.features: { "tnum": 1 }
+                                                                        }
+                                                                        GlassPill {
+                                                                            text: hwMon.m.pref === true ? win.trad("Preferred") : ""
+                                                                            akzent: true
+                                                                        }
+                                                                        Item { Layout.fillWidth: true }
+                                                                    }
+                                                                    QQC2.Label {
+                                                                        visible: text !== ""
+                                                                        Layout.fillWidth: true
+                                                                        text: hwMon.m.name && hwMon.m.inch ? hwMon.m.name + " · " + hwMon.m.inch : (hwMon.m.name || hwMon.m.inch || "")
+                                                                        font.family: win.uiFont
+                                                                        font.pixelSize: win.px12
+                                                                        color: win.textSecondary
+                                                                        elide: Text.ElideRight
+                                                                    }
+                                                                    Flow {
+                                                                        Layout.fillWidth: true
+                                                                        Layout.topMargin: 3
+                                                                        spacing: 6
+                                                                        Repeater {
+                                                                            model: hwMon.pillen
+                                                                            delegate: GlassPill {
+                                                                                required property var modelData
+                                                                                text: modelData
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                            HoverHandler { id: hwMonHover; cursorShape: Qt.PointingHandCursor }
+                                                            TapHandler {
+                                                                onTapped: {
+                                                                    hwWin.cur = hwMon.flat
+                                                                    hwWin.kopieren(hwMon.it)
+                                                                }
+                                                            }
+                                                            QQC2.ToolTip.visible: hwMonHover.hovered
+                                                            QQC2.ToolTip.delay: 900
+                                                            QQC2.ToolTip.text: hwMon.it.v + "\n" + win.trad("Click to copy")
+                                                        }
+                                                    }
+                                                }
                                                 GridLayout {   // Zeilen ; geteilte Karten (Hauptplatine) : Temperaturen links, Lüfter rechts
                                                     id: hwKarteGrid
                                                     readonly property bool geteilt: hwKarte.modelData.split === true && hwInhalt.zweiSpaltig
+                                                    // Hauptkarten : Details im 2-Spalten-Raster, sobald die Karte breit genug ist
+                                                    readonly property bool raster: hwKarte.held && !geteilt && hwKarte.width >= Math.round(440 * win.fontGrow)
+                                                    // Spaltenbreite aus der Kartenbreite (nicht aus dem Raster selbst : keine Bindungsschleife) ; Schlüssel
+                                                    // höchstens 42 %, und ein Wert, der in der halben Spalte nicht Platz hat, bekommt beide Spalten
+                                                    readonly property real spalteW: (hwKarte.width - 24 - columnSpacing) / 2
+                                                    readonly property int rasterKey: Math.min(Math.round(spalteW * 0.42), Math.round(200 * win.fontGrow))
+                                                    readonly property int zeichen: Math.max(12, Math.floor((spalteW - rasterKey - 28) / (7.2 * win.fontGrow)))
+                                                    readonly property var pos: raster ? hwWin.raster(hwKarte.modelData.items, zeichen) : []
                                                     readonly property int links: zaehlen(0)
                                                     readonly property int rechts: zaehlen(1)
                                                     function zaehlen(c) {
@@ -8993,8 +9663,9 @@ QQC2.ApplicationWindow {
                                                             if ((its[i].col || 0) === c) n++
                                                         return n
                                                     }
+                                                    visible: hwKarte.rollen.zeilen > 0
                                                     Layout.fillWidth: true
-                                                    columns: geteilt ? 2 : 1
+                                                    columns: geteilt || raster ? 2 : 1
                                                     columnSpacing: 16
                                                     rowSpacing: 2
                                                     Repeater {   // Spaltenköpfe der geteilten Karte
@@ -9026,16 +9697,18 @@ QQC2.ApplicationWindow {
                                                         readonly property var zellen: modelData.cells || []
                                                         readonly property int spalte: modelData.col || 0
                                                         // geteilt : halbe Spalte (auch die Zeile darunter, damit ihr Wert mit der linken Spalte fluchtet)
-                                                        readonly property int schluesselW: hwKarteGrid.geteilt
-                                                                                           ? Math.min(Math.round((hwKarteGrid.width - hwKarteGrid.columnSpacing) / 4), Math.round(220 * win.fontGrow))
+                                                        readonly property int schluesselW: hwKarteGrid.raster ? hwKarteGrid.rasterKey
+                                                                                           : hwKarteGrid.geteilt ? Math.min(Math.round((hwKarteGrid.width - hwKarteGrid.columnSpacing) / 4), Math.round(220 * win.fontGrow))
                                                                                            : Math.min(Math.round(hwKarte.width * 0.38), Math.round(280 * win.fontGrow))
                                                         // geteilt : Zeile 0 sind die Köpfe ; die Zeile über beide Spalten (Lüfterregelung) folgt unten
-                                                        Layout.row: !hwKarteGrid.geteilt ? index
+                                                        readonly property var zelle: hwKarteGrid.pos[index] || [0, 0, 1]
+                                                        visible: (modelData.role || "") === ""   // Kopf, Kacheln und Bildschirme stehen oben
+                                                        Layout.row: hwKarteGrid.raster ? zelle[0] : !hwKarteGrid.geteilt ? index
                                                                     : spalte === 0 ? 1 + index
                                                                     : spalte === 1 ? 1 + index - hwKarteGrid.links
                                                                     : 1 + Math.max(hwKarteGrid.links, hwKarteGrid.rechts) + index - hwKarteGrid.links - hwKarteGrid.rechts
-                                                        Layout.column: hwKarteGrid.geteilt && spalte === 1 ? 1 : 0
-                                                        Layout.columnSpan: hwKarteGrid.geteilt && spalte === 2 ? 2 : 1
+                                                        Layout.column: hwKarteGrid.raster ? zelle[1] : hwKarteGrid.geteilt && spalte === 1 ? 1 : 0
+                                                        Layout.columnSpan: hwKarteGrid.raster ? zelle[2] : hwKarteGrid.geteilt && spalte === 2 ? 2 : 1
                                                         Layout.topMargin: hwKarteGrid.geteilt && spalte === 2 ? 8 : 0
                                                         Layout.preferredWidth: 1   // beide Spalten gleich breit
                                                         Layout.alignment: Qt.AlignTop
@@ -9073,7 +9746,7 @@ QQC2.ApplicationWindow {
                                                                 spacing: 0
                                                                 QQC2.Label {
                                                                     Layout.fillWidth: true
-                                                                    text: hwZeile.modelData.v
+                                                                    text: hwZeile.modelData.d || hwZeile.modelData.v   // gekürzt ; vollständig im Tooltip und beim Kopieren
                                                                     font.family: win.uiFont
                                                                     font.pixelSize: win.px13
                                                                     font.weight: hwZeile.modelData.k === "" && hwZeile.index === 0 ? Font.DemiBold : Font.Normal
@@ -9114,7 +9787,7 @@ QQC2.ApplicationWindow {
                                                         }
                                                         QQC2.ToolTip.visible: hwZeileHover.hovered
                                                         QQC2.ToolTip.delay: 900
-                                                        QQC2.ToolTip.text: win.trad("Click to copy")
+                                                        QQC2.ToolTip.text: (hwZeile.modelData.d ? hwZeile.modelData.v + "\n" : "") + win.trad("Click to copy")
                                                     }
                                                 }
                                                 }
@@ -9138,20 +9811,29 @@ QQC2.ApplicationWindow {
                 Layout.rightMargin: 16
                 spacing: 8
                 QQC2.Button {   // Speicherbänke brauchen Root : nur auf Wunsch, mit Rückfrage von Plasma
+                    id: hwRootKnopf
                     visible: (hwWin.aktTab.id === "cpu" || hwWin.aktTab.id === "ram") && hwWin.report.needsRoot === true
                     icon.name: "dialog-password"
                     text: win.trad("Read slot details (administrator)")
+                    // schmales Fenster (ab 820 px) : nur das Symbol, sonst ist die Fußzeile breiter als das Fenster (Deutsch, Polnisch …)
+                    display: hwWin.width < Math.round(1100 * win.fontGrow) ? QQC2.AbstractButton.IconOnly : QQC2.AbstractButton.TextBesideIcon
+                    Accessible.name: text
                     onClicked: backend.readPrivileged()
+                    QQC2.ToolTip.visible: hovered && display === QQC2.AbstractButton.IconOnly
+                    QQC2.ToolTip.delay: 600
+                    QQC2.ToolTip.text: text
                 }
-                QQC2.Label {   // Rückmeldung nach dem Kopieren
+                QQC2.Label {   // Rückmeldung nach dem Kopieren ; darf schrumpfen (unsichtbar nimmt sie sonst Platz weg)
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
                     text: "✓ " + win.trad("Copied to clipboard")
                     color: win.sysGreen
+                    elide: Text.ElideRight
                     opacity: hwWin.copied ? 1 : 0
                     Behavior on opacity { NumberAnimation { duration: win.animMs; easing.type: Easing.OutCubic } }
                     Accessible.role: Accessible.StaticText
                     Accessible.name: hwWin.copied ? text : ""
                 }
-                Item { Layout.fillWidth: true }
                 QQC2.Button {
                     text: win.trad("Copy specs")
                     icon.name: "edit-copy"

@@ -91,11 +91,26 @@ msgstr "BIOS / UEFI"
 msgid "BIOS automatic"
 msgstr "BIOS otomatiği"
 
+msgid "BIOS date"
+msgstr "BIOS tarihi"
+
+msgid "BIOS release"
+msgstr "BIOS yayını"
+
+msgid "BIOS vendor"
+msgstr "BIOS üreticisi"
+
+msgid "BIOS version"
+msgstr "BIOS sürümü"
+
 msgid "Bad sectors"
 msgstr "Bozuk sektörler"
 
 msgid "Black"
 msgstr "Siyah"
+
+msgid "Board revision"
+msgstr "Kart revizyonu"
 
 msgid "Boost"
 msgstr "Boost"
@@ -166,6 +181,9 @@ msgstr "Araç başlatılamıyor"
 msgid "Cannot unmount"
 msgstr "Ayrılamıyor"
 
+msgid "Capacity"
+msgstr "Kapasite"
+
 msgid "Capacity: {size}"
 msgstr "Kapasite: {size}"
 
@@ -195,6 +213,9 @@ msgstr "Komut çubuğu simgeleri: Fluent UI System Icons, © Microsoft Corporati
 
 msgid "Compatibility"
 msgstr "Uyumluluk"
+
+msgid "Compatibility profile"
+msgstr "Uyumluluk profili"
 
 msgid "Compiler"
 msgstr "Derleyici"
@@ -228,6 +249,9 @@ msgstr "Özellikleri kopyala"
 
 msgid "Core profile"
 msgstr "Core profili"
+
+msgid "Cores / threads"
+msgstr "Çekirdek / iş parçacığı"
 
 msgid "Could not save the list:\n{error}"
 msgstr "Liste kaydedilemedi:\n{error}"
@@ -277,6 +301,9 @@ msgstr "Varsayılan ağ geçidi"
 msgid "Desktop"
 msgstr "Masaüstü"
 
+msgid "Desktop & graphics APIs"
+msgstr "Masaüstü ve grafik API'leri"
+
 msgid "Desktop notifications"
 msgstr "Masaüstü bildirimleri"
 
@@ -310,6 +337,9 @@ msgstr "Görünen ad (isteğe bağlı):"
 msgid "Display server"
 msgstr "Görüntü sunucusu"
 
+msgid "Displays"
+msgstr "Ekranlar"
+
 msgid "Distribution"
 msgstr "Dağıtım"
 
@@ -333,6 +363,9 @@ msgstr "Sürücü arızalanıyor: {label}"
 
 msgid "DriveDeck runs “fstrim” on all mounted drives that support it. This needs administrator rights and can take a while."
 msgstr "DriveDeck, destekleyen tüm bağlı sürücülerde “fstrim” çalıştırır. Bu, yönetici hakları gerektirir ve biraz sürebilir."
+
+msgid "Driver"
+msgstr "Sürücü"
 
 msgid "Eject"
 msgstr "Çıkar"
@@ -378,6 +411,9 @@ msgstr "Dosya sistemi:"
 
 msgid "Film"
 msgstr "Film"
+
+msgid "Firmware"
+msgstr "Donanım yazılımı"
 
 msgid "Flatbed"
 msgstr "Düz yatak"
@@ -442,6 +478,9 @@ msgstr "IPv4 adresi"
 msgid "IPv6 address"
 msgstr "IPv6 adresi"
 
+msgid "In use"
+msgstr "Kullanımda"
+
 msgid "Incorrect username or password."
 msgstr "Kullanıcı adı veya parola hatalı."
 
@@ -475,6 +514,9 @@ msgstr "JSON raporu"
 msgid "KWallet could not save the password: the gauge will not be shown."
 msgstr "KWallet parolayı kaydedemedi: boş alan göstergesi gösterilmeyecek."
 
+msgid "Kernel"
+msgstr "Çekirdek"
+
 msgid "Kernel driver"
 msgstr "Çekirdek sürücüsü"
 
@@ -489,6 +531,9 @@ msgstr "L1 veri"
 
 msgid "L1 instruction"
 msgstr "L1 komut"
+
+msgid "L3 cache"
+msgstr "L3 önbelleği"
 
 msgid "License: {license}"
 msgstr "Lisans: {license}"
@@ -510,6 +555,9 @@ msgstr "Sıvı soğutucu"
 
 msgid "List"
 msgstr "Listele"
+
+msgid "Load"
+msgstr "Yük"
 
 msgid "Loaded modules"
 msgstr "Yüklü modüller"
@@ -703,6 +751,9 @@ msgstr "Ayarları aç"
 msgid "Open with {app}"
 msgstr "{app} ile aç"
 
+msgid "OpenGL vendor"
+msgstr "OpenGL üreticisi"
+
 msgid "Operating system"
 msgstr "İşletim sistemi"
 
@@ -762,6 +813,9 @@ msgstr "Güç yönetimi"
 
 msgid "Power-on time"
 msgstr "Açık kalma süresi"
+
+msgid "Preferred"
+msgstr "Tercih edilen"
 
 msgid "Preview"
 msgstr "Önizleme"
@@ -931,6 +985,9 @@ msgstr "SSD iyileştirme başarısız"
 msgid "Safely remove"
 msgstr "Güvenle kaldır"
 
+msgid "Scale {p}"
+msgstr "Ölçek {p}"
+
 msgid "Scaling driver"
 msgstr "Ölçekleme sürücüsü"
 
@@ -1005,6 +1062,9 @@ msgstr "Boyut"
 
 msgid "Slots"
 msgstr "Yuvalar"
+
+msgid "Slots in use"
+msgstr "Dolu yuvalar"
 
 msgid "Slots, type, speed, manufacturer"
 msgstr "Yuvalar, tür, hız, üretici"
@@ -1279,6 +1339,9 @@ msgstr "Sanallaştırma"
 msgid "Volume name"
 msgstr "Birim adı"
 
+msgid "Vulkan device"
+msgstr "Vulkan aygıtı"
+
 msgid "Warning"
 msgstr "Uyarı"
 
@@ -1314,6 +1377,9 @@ msgstr "gün"
 
 msgid "days"
 msgstr "gün"
+
+msgid "device API {v}"
+msgstr "Aygıt API'si {v}"
 
 msgid "disabled"
 msgstr "devre dışı"
@@ -1354,6 +1420,9 @@ msgstr "maks."
 msgid "min {min} · max {max}"
 msgstr "min {min} · maks {max}"
 
+msgid "native {mode}"
+msgstr "yerel {mode}"
+
 msgid "needs administrator rights"
 msgstr "yönetici hakları gerektirir"
 
@@ -1369,6 +1438,9 @@ msgstr "sürücü bildirmiyor"
 msgid "not exposed by the kernel"
 msgstr "çekirdek bildirmiyor"
 
+msgid "now {link}"
+msgstr "şu an {link}"
+
 msgid "off"
 msgstr "kapalı"
 
@@ -1381,11 +1453,20 @@ msgstr "yalnızca “Listele” için, hiçbir zaman kaydedilmez"
 msgid "port {port}"
 msgstr "bağlantı noktası {port}"
 
+msgid "preferred mode"
+msgstr "tercih edilen kip"
+
 msgid "rank {n}"
 msgstr "rank {n}"
 
+msgid "running {clock}"
+msgstr "{clock} hızında çalışıyor"
+
 msgid "running…"
 msgstr "çalışıyor…"
+
+msgid "scale {p}"
+msgstr "ölçek {p}"
 
 msgid "unknown error"
 msgstr "bilinmeyen hata"
@@ -1437,6 +1518,9 @@ msgstr "{name} (modüller)"
 
 msgid "{n} items"
 msgstr "{n} öğe"
+
+msgid "{n} of {m}"
+msgstr "{n} / {m}"
 
 msgid "{n} updates"
 msgstr "{n} güncelleme"

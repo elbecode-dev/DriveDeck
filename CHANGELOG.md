@@ -10,6 +10,25 @@ hidden and everything else works).
 
 ---
 
+## Unreleased
+
+### Changed
+- **Glanceable hardware window.** The main cards of every hardware tab (overview, CPU & board, GPU & display, memory, storage & buses, sensors & fans) now lead with what matters:
+  - **Hero header:** a 36 px device symbol on a glass tile, the product name itself as the title (16 px bold – "AMD Ryzen 9 5900X", "NVIDIA GeForce RTX 4080 SUPER", "MPG X570 GAMING PRO CARBON WIFI", "KDE Plasma 6.8.3", the NVMe drive), an accent glass badge right next to it (socket, chipset, PCI slot, session type) and a muted subline (vendor, architecture, family/model/stepping, subsystem, driver).
+  - **KPI tiles:** 3–4 compact tiles under the header with the value in 14 px semi-bold tabular figures and the label in 11 px below, for example cores/threads, max. clock, L3 cache and frequency driver for the CPU; VRAM with type, max. GPU clock, power limit and PCIe link (with the current link when it is lower) for the GPU; BIOS version, BIOS date and boot mode for the board; capacity, PCIe link and driver for NVMe drives. A value that is just too long shrinks to 12 px before it is cut. In a narrow card the tiles wrap evenly (2 + 2, not 3 + 1).
+  - **2-column details:** the remaining rows of a main card sit in two columns; a value that does not fit half a card gets both columns.
+  - **Shortened strings:** long technical values are shown short, for example the NVIDIA kernel module as "620.73.04 · Open Kernel Module". The full string stays in the tooltip, in click-to-copy and in the exported report.
+  - **Graphics APIs:** OpenGL, OpenGL ES and Vulkan are shown as accent tiles ("OpenGL 4.6.0", "OpenGL ES 3.2", "Vulkan 1.4.363") with the driver and the profile or device API below. They sit in one card with the display server ("Desktop & graphics APIs") next to the GPU.
+  - **Displays:** every active screen is a tile with a monitor symbol, the resolution in large type, a "Preferred" badge when it runs at its native resolution, the monitor name and diagonal (read from its EDID), and the connector, refresh rate and scaling as pills. Refresh rate and scaling come from `kscreen-doctor -j` under Plasma; without it the window falls back to the DRM mode list.
+  - **Sensors:** each card is titled with the product (CPU model, mainboard model, drive model, GPU) and has the chip or source as a badge ("k10temp", "nct6797", "NVMe", "nvidia-smi"). Small cards (up to four readings) show every reading as a tile with its session minimum and maximum; the mainboard card keeps its two columns.
+  - **Overview:** processor, graphics card (now with VRAM and driver version), mainboard, memory (installed, in use, load) and system (distribution, kernel, architecture, session badges) use the same header and tiles.
+- **Merged cards:** BIOS/UEFI is part of the mainboard card, L3 cache and the frequency driver are part of the processor card, and the memory controller is part of the memory card. In the CPU tab the processor sits next to the mainboard.
+- Chassis types are shown by name ("Desktop" instead of "3").
+- Click-to-copy, keyboard navigation (header, subline, tiles and rows in order), the global search (`Ctrl+F`) and the 1.5 px glass lines are unchanged. 28 new texts are translated into all 12 languages.
+
+### Fixed
+- **Footer of the hardware window at minimum width:** in German and other long languages the footer was wider than the window between 820 and about 1040 px, so the whole window content was pushed past the right edge. Below 1100 px the slot-details button now shows only its icon (with a tooltip), and the "Copied to clipboard" message may shrink.
+
 ## 2.4.0 – 2026-11-28
 
 ### Added

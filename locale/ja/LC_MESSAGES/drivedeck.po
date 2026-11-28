@@ -91,11 +91,26 @@ msgstr "BIOS / UEFI"
 msgid "BIOS automatic"
 msgstr "BIOS 自動制御"
 
+msgid "BIOS date"
+msgstr "BIOS の日付"
+
+msgid "BIOS release"
+msgstr "BIOS リリース"
+
+msgid "BIOS vendor"
+msgstr "BIOS ベンダー"
+
+msgid "BIOS version"
+msgstr "BIOS バージョン"
+
 msgid "Bad sectors"
 msgstr "不良セクター"
 
 msgid "Black"
 msgstr "ブラック"
+
+msgid "Board revision"
+msgstr "ボードのリビジョン"
 
 msgid "Boost"
 msgstr "ブースト"
@@ -166,6 +181,9 @@ msgstr "ツールを起動できません"
 msgid "Cannot unmount"
 msgstr "アンマウントできません"
 
+msgid "Capacity"
+msgstr "容量"
+
 msgid "Capacity: {size}"
 msgstr "容量: {size}"
 
@@ -194,6 +212,9 @@ msgid "Command bar icons: Fluent UI System Icons, © Microsoft Corporation, MIT 
 msgstr "コマンド バーのアイコン: Fluent UI System Icons、© Microsoft Corporation、MIT ライセンス。"
 
 msgid "Compatibility"
+msgstr "互換プロファイル"
+
+msgid "Compatibility profile"
 msgstr "互換プロファイル"
 
 msgid "Compiler"
@@ -228,6 +249,9 @@ msgstr "仕様をコピー"
 
 msgid "Core profile"
 msgstr "コアプロファイル"
+
+msgid "Cores / threads"
+msgstr "コア / スレッド"
 
 msgid "Could not save the list:\n{error}"
 msgstr "一覧を保存できませんでした:\n{error}"
@@ -277,6 +301,9 @@ msgstr "デフォルトゲートウェイ"
 msgid "Desktop"
 msgstr "デスクトップ"
 
+msgid "Desktop & graphics APIs"
+msgstr "デスクトップとグラフィックス API"
+
 msgid "Desktop notifications"
 msgstr "デスクトップ通知"
 
@@ -310,6 +337,9 @@ msgstr "表示名 (省略可):"
 msgid "Display server"
 msgstr "ディスプレイサーバー"
 
+msgid "Displays"
+msgstr "ディスプレイ"
+
 msgid "Distribution"
 msgstr "ディストリビューション"
 
@@ -333,6 +363,9 @@ msgstr "ドライブの故障: {label}"
 
 msgid "DriveDeck runs “fstrim” on all mounted drives that support it. This needs administrator rights and can take a while."
 msgstr "DriveDeck は対応するすべてのマウント済みドライブで「fstrim」を実行します。管理者権限が必要で、しばらく時間がかかることがあります。"
+
+msgid "Driver"
+msgstr "ドライバー"
 
 msgid "Eject"
 msgstr "取り出し"
@@ -378,6 +411,9 @@ msgstr "ファイル システム:"
 
 msgid "Film"
 msgstr "フィルム"
+
+msgid "Firmware"
+msgstr "ファームウェア"
 
 msgid "Flatbed"
 msgstr "フラットベッド"
@@ -442,6 +478,9 @@ msgstr "IPv4 アドレス"
 msgid "IPv6 address"
 msgstr "IPv6 アドレス"
 
+msgid "In use"
+msgstr "使用中"
+
 msgid "Incorrect username or password."
 msgstr "ユーザー名またはパスワードが正しくありません。"
 
@@ -475,6 +514,9 @@ msgstr "JSON レポート"
 msgid "KWallet could not save the password: the gauge will not be shown."
 msgstr "KWallet がパスワードを保存できませんでした。空き容量のバーは表示されません。"
 
+msgid "Kernel"
+msgstr "カーネル"
+
 msgid "Kernel driver"
 msgstr "カーネルドライバー"
 
@@ -489,6 +531,9 @@ msgstr "L1 データ"
 
 msgid "L1 instruction"
 msgstr "L1 命令"
+
+msgid "L3 cache"
+msgstr "L3 キャッシュ"
 
 msgid "License: {license}"
 msgstr "ライセンス: {license}"
@@ -510,6 +555,9 @@ msgstr "水冷クーラー"
 
 msgid "List"
 msgstr "一覧表示"
+
+msgid "Load"
+msgstr "負荷"
 
 msgid "Loaded modules"
 msgstr "読み込み済みモジュール"
@@ -703,6 +751,9 @@ msgstr "設定を開く"
 msgid "Open with {app}"
 msgstr "{app} で開く"
 
+msgid "OpenGL vendor"
+msgstr "OpenGL ベンダー"
+
 msgid "Operating system"
 msgstr "オペレーティングシステム"
 
@@ -762,6 +813,9 @@ msgstr "電源管理"
 
 msgid "Power-on time"
 msgstr "通電時間"
+
+msgid "Preferred"
+msgstr "推奨"
 
 msgid "Preview"
 msgstr "プレビュー"
@@ -931,6 +985,9 @@ msgstr "SSD の最適化に失敗しました"
 msgid "Safely remove"
 msgstr "安全に取り外す"
 
+msgid "Scale {p}"
+msgstr "スケール {p}"
+
 msgid "Scaling driver"
 msgstr "スケーリングドライバー"
 
@@ -1005,6 +1062,9 @@ msgstr "サイズ"
 
 msgid "Slots"
 msgstr "スロット"
+
+msgid "Slots in use"
+msgstr "使用中のスロット"
 
 msgid "Slots, type, speed, manufacturer"
 msgstr "スロット、種類、速度、メーカー"
@@ -1279,6 +1339,9 @@ msgstr "仮想化"
 msgid "Volume name"
 msgstr "ボリューム名"
 
+msgid "Vulkan device"
+msgstr "Vulkan デバイス"
+
 msgid "Warning"
 msgstr "警告"
 
@@ -1314,6 +1377,9 @@ msgstr "日"
 
 msgid "days"
 msgstr "日"
+
+msgid "device API {v}"
+msgstr "デバイス API {v}"
 
 msgid "disabled"
 msgstr "無効"
@@ -1354,6 +1420,9 @@ msgstr "最大"
 msgid "min {min} · max {max}"
 msgstr "最小 {min} · 最大 {max}"
 
+msgid "native {mode}"
+msgstr "ネイティブ {mode}"
+
 msgid "needs administrator rights"
 msgstr "管理者権限が必要"
 
@@ -1369,6 +1438,9 @@ msgstr "ドライバーは報告していません"
 msgid "not exposed by the kernel"
 msgstr "カーネルは報告していません"
 
+msgid "now {link}"
+msgstr "現在 {link}"
+
 msgid "off"
 msgstr "オフ"
 
@@ -1381,11 +1453,20 @@ msgstr "「一覧表示」専用で、保存されません"
 msgid "port {port}"
 msgstr "ポート {port}"
 
+msgid "preferred mode"
+msgstr "推奨モード"
+
 msgid "rank {n}"
 msgstr "ランク {n}"
 
+msgid "running {clock}"
+msgstr "{clock} で動作"
+
 msgid "running…"
 msgstr "実行中…"
+
+msgid "scale {p}"
+msgstr "スケール {p}"
 
 msgid "unknown error"
 msgstr "不明なエラー"
@@ -1437,6 +1518,9 @@ msgstr "{name} (モジュール)"
 
 msgid "{n} items"
 msgstr "{n} 項目"
+
+msgid "{n} of {m}"
+msgstr "{n} / {m}"
 
 msgid "{n} updates"
 msgstr "{n} 件の更新"

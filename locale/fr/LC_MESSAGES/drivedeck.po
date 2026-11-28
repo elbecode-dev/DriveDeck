@@ -91,11 +91,26 @@ msgstr "BIOS / UEFI"
 msgid "BIOS automatic"
 msgstr "Automatique (BIOS)"
 
+msgid "BIOS date"
+msgstr "Date du BIOS"
+
+msgid "BIOS release"
+msgstr "Révision du BIOS"
+
+msgid "BIOS vendor"
+msgstr "Fabricant du BIOS"
+
+msgid "BIOS version"
+msgstr "Version du BIOS"
+
 msgid "Bad sectors"
 msgstr "Secteurs défectueux"
 
 msgid "Black"
 msgstr "Noir"
+
+msgid "Board revision"
+msgstr "Révision de la carte"
 
 msgid "Boost"
 msgstr "Boost"
@@ -166,6 +181,9 @@ msgstr "Impossible de lancer l'outil"
 msgid "Cannot unmount"
 msgstr "Impossible de démonter"
 
+msgid "Capacity"
+msgstr "Capacité"
+
 msgid "Capacity: {size}"
 msgstr "Capacité : {size}"
 
@@ -195,6 +213,9 @@ msgstr "Icônes de la barre de commandes : Fluent UI System Icons, © Microsoft 
 
 msgid "Compatibility"
 msgstr "Compatibilité"
+
+msgid "Compatibility profile"
+msgstr "Profil de compatibilité"
 
 msgid "Compiler"
 msgstr "Compilateur"
@@ -228,6 +249,9 @@ msgstr "Copier les caractéristiques"
 
 msgid "Core profile"
 msgstr "Profil core"
+
+msgid "Cores / threads"
+msgstr "Cœurs / threads"
 
 msgid "Could not save the list:\n{error}"
 msgstr "Impossible d'enregistrer la liste :\n{error}"
@@ -277,6 +301,9 @@ msgstr "Passerelle par défaut"
 msgid "Desktop"
 msgstr "Bureau"
 
+msgid "Desktop & graphics APIs"
+msgstr "Bureau et API graphiques"
+
 msgid "Desktop notifications"
 msgstr "Notifications du bureau"
 
@@ -310,6 +337,9 @@ msgstr "Nom affiché (facultatif) :"
 msgid "Display server"
 msgstr "Serveur d'affichage"
 
+msgid "Displays"
+msgstr "Écrans"
+
 msgid "Distribution"
 msgstr "Distribution"
 
@@ -333,6 +363,9 @@ msgstr "Le lecteur est défaillant : {label}"
 
 msgid "DriveDeck runs “fstrim” on all mounted drives that support it. This needs administrator rights and can take a while."
 msgstr "DriveDeck exécute « fstrim » sur tous les lecteurs montés qui le prennent en charge. Cela nécessite des droits d'administrateur et peut prendre un moment."
+
+msgid "Driver"
+msgstr "Pilote"
 
 msgid "Eject"
 msgstr "Éjecter"
@@ -378,6 +411,9 @@ msgstr "Système de fichiers :"
 
 msgid "Film"
 msgstr "Film"
+
+msgid "Firmware"
+msgstr "Micrologiciel"
 
 msgid "Flatbed"
 msgstr "Vitre"
@@ -442,6 +478,9 @@ msgstr "Adresse IPv4"
 msgid "IPv6 address"
 msgstr "Adresse IPv6"
 
+msgid "In use"
+msgstr "Utilisée"
+
 msgid "Incorrect username or password."
 msgstr "Identifiant ou mot de passe refusé."
 
@@ -475,6 +514,9 @@ msgstr "Rapport JSON"
 msgid "KWallet could not save the password: the gauge will not be shown."
 msgstr "KWallet n'a pas pu enregistrer le mot de passe : la jauge ne sera pas affichée."
 
+msgid "Kernel"
+msgstr "Noyau"
+
 msgid "Kernel driver"
 msgstr "Pilote noyau"
 
@@ -489,6 +531,9 @@ msgstr "L1 données"
 
 msgid "L1 instruction"
 msgstr "L1 instructions"
+
+msgid "L3 cache"
+msgstr "Cache L3"
 
 msgid "License: {license}"
 msgstr "Licence : {license}"
@@ -510,6 +555,9 @@ msgstr "Refroidissement liquide"
 
 msgid "List"
 msgstr "Lister"
+
+msgid "Load"
+msgstr "Charge"
 
 msgid "Loaded modules"
 msgstr "Modules chargés"
@@ -703,6 +751,9 @@ msgstr "Ouvrir les paramètres"
 msgid "Open with {app}"
 msgstr "Ouvrir avec {app}"
 
+msgid "OpenGL vendor"
+msgstr "Fabricant OpenGL"
+
 msgid "Operating system"
 msgstr "Système d'exploitation"
 
@@ -762,6 +813,9 @@ msgstr "Gestion de l'énergie"
 
 msgid "Power-on time"
 msgstr "Durée sous tension"
+
+msgid "Preferred"
+msgstr "Préférée"
 
 msgid "Preview"
 msgstr "Aperçu"
@@ -931,6 +985,9 @@ msgstr "Échec de l'optimisation SSD"
 msgid "Safely remove"
 msgstr "Enlever en toute sécurité"
 
+msgid "Scale {p}"
+msgstr "Échelle {p}"
+
 msgid "Scaling driver"
 msgstr "Pilote de fréquence"
 
@@ -1005,6 +1062,9 @@ msgstr "Taille"
 
 msgid "Slots"
 msgstr "Emplacements"
+
+msgid "Slots in use"
+msgstr "Emplacements occupés"
 
 msgid "Slots, type, speed, manufacturer"
 msgstr "Emplacements, type, vitesse, fabricant"
@@ -1279,6 +1339,9 @@ msgstr "Virtualisation"
 msgid "Volume name"
 msgstr "Nom du volume"
 
+msgid "Vulkan device"
+msgstr "Périphérique Vulkan"
+
 msgid "Warning"
 msgstr "Avertissement"
 
@@ -1314,6 +1377,9 @@ msgstr "jour"
 
 msgid "days"
 msgstr "jours"
+
+msgid "device API {v}"
+msgstr "API du périphérique {v}"
 
 msgid "disabled"
 msgstr "désactivé"
@@ -1354,6 +1420,9 @@ msgstr "max."
 msgid "min {min} · max {max}"
 msgstr "min {min} · max {max}"
 
+msgid "native {mode}"
+msgstr "native {mode}"
+
 msgid "needs administrator rights"
 msgstr "nécessite des droits d'administrateur"
 
@@ -1369,6 +1438,9 @@ msgstr "non indiqué par le pilote"
 msgid "not exposed by the kernel"
 msgstr "non indiqué par le noyau"
 
+msgid "now {link}"
+msgstr "actuel {link}"
+
 msgid "off"
 msgstr "désactivé"
 
@@ -1381,11 +1453,20 @@ msgstr "seulement pour « Lister », jamais enregistré"
 msgid "port {port}"
 msgstr "port {port}"
 
+msgid "preferred mode"
+msgstr "mode préféré"
+
 msgid "rank {n}"
 msgstr "rang {n}"
 
+msgid "running {clock}"
+msgstr "fonctionne à {clock}"
+
 msgid "running…"
 msgstr "en cours…"
+
+msgid "scale {p}"
+msgstr "échelle {p}"
 
 msgid "unknown error"
 msgstr "erreur inconnue"
@@ -1437,6 +1518,9 @@ msgstr "{name} (modules)"
 
 msgid "{n} items"
 msgstr "{n} éléments"
+
+msgid "{n} of {m}"
+msgstr "{n} sur {m}"
 
 msgid "{n} updates"
 msgstr "{n} mises à jour"

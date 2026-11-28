@@ -736,6 +736,56 @@ preset buttons, no write slot, rows survive a sensor update, a click on the row 
 
 **Not verified:** the card on the real desktop with the real Breeze style.
 
+## 5y. Glanceable hardware window (after 2.4.0)
+
+**Request:** a "glanceable and data-driven" refresh of the system data window across all hardware tabs: a hero header
+(product name 16 px bold, glass badge), 3–4 KPI tiles (14 px semi-bold value, 11 px label), secondary details in two
+columns, shortened technical strings with the full value in the tooltip and when copying, display tiles, and version
+pills for the graphics APIs; click-to-copy, keyboard navigation, `Ctrl+F` and the 1.5 px glass lines kept. Three previews
+were rendered with the real hardware data (A data sheet, B tiles, C instrument); the user chose **B**.
+
+**Data model:** `_gruppe()` takes `hero`, `badges`, `icon` and `akzent`, and every value may carry its presentation:
+`role` (`hero`, `sub`, `kpi`, `mon`, or none for a row), `d` (short display text), `tl` (tile label), `ts` (tile subline),
+`mon` (display data). `v`/`ven` always keep the full value, so search, click-to-copy and the exported report are complete.
+The order of the items is header → subline → tiles → rows, which is also the keyboard order (`flach`). New helpers:
+`_cpu_kurz()`, `_mal()` (× in PCIe links), `_ohne_klammer()`, `_datum_lokal()`, `_edid()` (name and diagonal from the
+detailed timing descriptor), `bildschirme()` (`kscreen-doctor -j`, fallback DRM modes), `sensor_titel()`.
+`lire_specs()` gained `hero`, `sub`, `badges`, `kpis`, `rest` (the `lines` used by "Copy specs" and the inspector are
+unchanged).
+
+**QML:** `GlassPill` component and `win.accentInk`; per card `held` and `rollen` (indices per role, plain loops only –
+see 5u); the hero header (selected while the header or one of its subline items is chosen; a click copies the full product
+name), a KPI `GridLayout` (columns from the card width, even wrapping), a display-tile `GridLayout`, and in the row grid a
+`raster` mode whose positions come from `hwWin.raster(items, zeichen)` (short values in pairs, a value longer than the
+half column allows spans both; a hole on the right is filled by the next short value). The column width is derived from
+the card width, not from the grid, so there is no binding loop. Rows show `d || v` and the full `v` in the tooltip.
+
+**Found during the work:**
+- At 820–1040 px in German the footer ("Speicherbänke lesen (Administrator)" plus the invisible copied label) made the
+  root `ColumnLayout` lay out at 1037 px, so header, content and footer ran past the right edge. Reproduced with the
+  committed 2.4.0 as well, so not caused by the refresh; fixed with an icon-only button below 1100 px and a shrinkable label
+  (minimum now 787 px).
+- Here `kscreen-doctor` names a different preferred mode id than the current one (the monitor runs at 2560 × 1440 and
+  164 Hz), so the tile said "not preferred"; "Preferred" now compares the resolution, not the mode id.
+- The PCIe "now" row was shown even when it equalled the maximum; it now appears only when the link is lower.
+
+**Checks:** new window test 37/37 in Breeze Dark and Light (German, 1500 px) and 36/36 at 900 px: card pairs 0 px apart in
+the overview, CPU, GPU, memory, storage and sensors tabs; tiles inside their cards; two hero headers in the CPU tab with
+"AMD Ryzen 9 5900X" in 16 px bold and the subline; tiles "12C / 24T", "5,04 GHz", "64 MiB", "amd-pstate-epp" in one row;
+the detail raster has two columns; ↓ selects the header, Enter copies "Model: AMD Ryzen 9 5900X 12-Core Processor", four
+more ↓ reach the first tile and Ctrl+C copies "12 cores / 24 threads"; a click on a tile copies it; the kernel-module row
+shows "620.73.04 · Open Kernel Module" and copies the full NVIDIA string; the API tiles read "OpenGL 4.6.0", "OpenGL ES
+3.2", "Vulkan 1.4.363"; one display tile "2560 × 1440" copies "DP-3: …"; searching "5900X" keeps the hero header,
+"vulkan" switches to the GPU tab. English at 820 and 1500 px: all checks except the test's own expectation of a decimal
+comma. Window test 21/21 (Dark, Light), sensors 12/12 (Dark, Light) and 4/4 narrow, fan unit tests 9/9, window stress run
+and main-window stress run (60 s, 5010 actions, 221 MB) without QML messages. `pyright` 0 errors, `qmllint` 0 warnings
+outside *unqualified* (1304, analysed to line 6782 of 6847). All 12 `.po` files complete (515 entries).
+
+**Not verified:** the real desktop with the user's colour scheme and icon theme (offscreen renders Breeze icons only);
+refresh rate and scaling inside the window (offscreen `kscreen-doctor` cannot reach the compositor; verified from the
+shell: DP-3, 164 Hz, 100 %); AMD and Intel GPUs (VRAM from sysfs, no power-limit or clock tiles); several displays side by
+side; machines where `dmidecode` was run (memory speed and slot tiles).
+
 ---
 
 ## 6. Not verified
