@@ -7,12 +7,47 @@ locations, printers and devices in one clean window, and it follows your Plasma 
 
 > **DriveDeck is a community fork** of **Fenestra "This PC"** by [naykkalak](https://github.com/naykkalak/fenestra-ce-pc).
 > All credit for the original idea, design and code goes to **naykkalak**. This fork fixes bugs, makes the program
-> faster and adds many new features under its own name. See [what is different](#whats-different-in-this-fork) below, or
-> the detailed [CHANGELOG](CHANGELOG.md).
+> faster and adds many new features under its own name. See [what's new in 2.5.0](#whats-new-in-250), the
+> [release history](#release-history) below, or the detailed [CHANGELOG](CHANGELOG.md).
 
 <p align="center"><img src="preview.png" alt="DriveDeck main window"></p>
 
 **Version 2.5.0** – feedback and bug reports are very welcome.
+
+---
+
+## What's new in 2.5.0
+
+<table>
+  <tr>
+    <td width="38%" valign="top"><a href="preview-specs.png"><img src="preview-specs.png" alt="System information: GPU &amp; Display with hero header, KPI tiles, graphics API tiles and a display tile" width="100%"></a></td>
+    <td width="38%" valign="top"><a href="preview-specs-cpu.png"><img src="preview-specs-cpu.png" alt="System information: CPU &amp; Board with hero headers and KPI tiles" width="100%"></a></td>
+    <td width="24%" valign="top"><a href="preview-settings.png"><img src="preview-settings.png" alt="Settings dialog with monochrome toolbar icons and the live display switches" width="100%"></a></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>System information · GPU &amp; Display</sub></td>
+    <td align="center"><sub>System information · CPU &amp; Board</sub></td>
+    <td align="center"><sub>Settings · new options</sub></td>
+  </tr>
+</table>
+
+- **System information at a glance.** The hardware window leads every main card with the product name, a badge
+  (socket, chipset, PCI slot, session) and 2–4 tiles with the key figures, then the details in two columns. Graphics
+  APIs appear as version tiles (OpenGL, OpenGL ES, Vulkan), every screen as a tile with resolution, refresh rate, scaling
+  and its name from the EDID, and sensor cards show small readings as tiles with their session minimum and maximum.
+  Long technical strings are shortened on screen; the full text stays in the tooltip, when copying and in the report.
+- **Sensors & fans and Network.** Temperatures and fan speeds with min/max, a read-only fan control line (BIOS or
+  fancontrol), and the data usage of today, this week and this month from vnstat or DriveDeck's own counter.
+- **More settings** (thanks to Sadi58, [#4](https://github.com/elbecode-dev/DriveDeck/issues/4)): monochrome toolbar
+  icons, and the title-bar monitor, drive temperature and drive activity can each be switched off. The "…" button of the
+  compact toolbar is gone; the gear, `Ctrl+,` and a right-click on the toolbar open the settings.
+- **Optional extras in the installer:** vnstat and lm_sensors, only in a terminal and only when you answer *y*.
+- **Polish from 2.3.1:** header hairlines of all three columns on one line, glass-tinted dividers, a larger sidebar
+  and category-style section headers.
+
+2.5.0 also contains the changes of 2.3.1 and 2.4.0, which were not published on their own. Before the release it went
+through a full audit (static checks, every new feature and its edge cases, three colour schemes, a combined stress test);
+the results are in [audits.md](audits.md).
 
 ---
 
@@ -33,124 +68,7 @@ small **live graph** of their read and write speed, and warn you when they are a
 
 ---
 
-## What's different in this fork
-
-### Problems that are fixed
-
-| What went wrong before | What happens now |
-|---|---|
-| On computers with a **Btrfs** disk, double-clicking your main drive ("Local Disk") opened a strange system folder (`/var/tmp`). | It opens **your home folder**, for every user. The main drive is also recognised correctly again (sort order, icon, health check). |
-| The list of drives **flickered** and an open right-click menu **closed by itself** every few seconds, because the free space changes all the time. | The list only redraws when something you can actually see has changed. |
-| Network folders with a **space in their name** (for example `My Share`) showed up twice. | They show up once. |
-| Version comparison fixed: 1.1.0 was wrongly treated as newer than 1.1, which could trigger a false update notice. | Fixed. |
-| A USB stick could be **mistaken for the previous stick** after you swapped them. | Every refresh now checks the real device. |
-| A drive that simply had no name could end up with the wrong name, or a drive really named "Local Disk" got renamed. | Unnamed drives get a clear fallback name ("Local Disk" or "Removable Disk"), and real names are left alone. |
-| Two parts of the program could **write to the same settings file at the same moment** and corrupt it. | They now take turns. |
-| User names containing a `%` sign could break the network login. | They are now rejected with a clear message. |
-| Opening folders left **invisible leftover processes** running in the background until the program was closed. | They are cleaned up automatically. |
-| If the scanner tool was not installed, the program kept **searching for scanners** for nothing. | It stops when the tool is missing. |
-
-### A calmer look (2.0.0)
-
-- **Finder-style sidebar** (248 px): full-height column set apart by a soft glass divider, 34 px rows with 18 px icons and
-  13 px text, quiet
-  section headings, a slim capacity line and the size for each drive, eject on hover; unmounted drives have a dimmed icon
-  and a secondary (still readable) label.
-- **Cards float freely** and only show a neutral surface on hover and an accent-tinted one when selected, like the
-  sidebar; slim 4 px usage bars, a green or grey mount dot, and ink level bars on printer cards.
-- **Apple HIG polish:** one palette of Apple system colours for every status, secondary text that meets WCAG AA
-  (4.5 : 1) in light and dark themes, a 4 px spacing grid, four corner radii, 150 ms fades for every state and a
-  macOS-style focus ring outside buttons.
-- **Typography:** Inter for the interface and JetBrains Mono with tabular figures for live values, when installed
-  (see *Optional tools* below). On Arch/CachyOS: `sudo pacman -S inter-font ttf-jetbrains-mono`; on Debian/Ubuntu:
-  `sudo apt install fonts-inter fonts-jetbrains-mono`. Without them DriveDeck uses your system font.
-- **Inspector** on the right (from 1280 px width, 300 px): a calm column without cards, sections divided by hairlines and
-  key/value pairs in the Finder "Get Info" grid. A system overview with live CPU, RAM, storage I/O and network graphs when
-  nothing is selected, or details, SMART health and quick actions for the selected folder, drive, network location,
-  printer or device.
-- **Screen readers:** cards, chips, sidebar rows, inspector details and buttons have localized names that Orca can read.
-- **Keyboard:** Tab goes main area → sidebar → ribbon (buttons and *Show* boxes) → settings → inspector toggle → window
-  buttons → main area (Shift+Tab backwards, Esc back to the main area); `Ctrl+,` opens the settings, `Ctrl+I` shows or
-  hides the inspector.
-- Works with light and dark Plasma colour schemes.
-
-### New in 2.5.0
-
-- **System information at a glance.** The hardware window leads every main card with the product name, a badge
-  (socket, chipset, PCI slot, session) and 2–4 tiles with the key figures, then the details in two columns. Graphics
-  APIs appear as version tiles (OpenGL, OpenGL ES, Vulkan), every screen as a tile with resolution, refresh rate, scaling
-  and its name from the EDID, and sensor cards show small readings as tiles with their session minimum and maximum.
-  Long technical strings are shortened on screen; the full text stays in the tooltip, when copying and in the report.
-- **Sensors & fans and Network.** Temperatures and fan speeds with min/max, a read-only fan control line (BIOS or
-  fancontrol), and the data usage of today, this week and this month from vnstat or DriveDeck's own counter.
-- **More settings** (thanks to Sadi58, [#4](https://github.com/elbecode-dev/DriveDeck/issues/4)): monochrome toolbar
-  icons, and the title-bar monitor, drive temperature and drive activity can each be switched off. The "…" button of the
-  compact toolbar is gone; the gear, `Ctrl+,` and a right-click on the toolbar open the settings.
-- **Optional extras in the installer:** vnstat and lm_sensors, only in a terminal and only when you answer *y*.
-
-<p align="center"><img src="preview-settings.png" alt="Settings dialog with the new options" width="480"></p>
-
-### New in 2.3.0
-
-- **Settings in one place.** A gear next to the inspector toggle, "…" in the compact toolbar or `Ctrl+,` open one
-  small dialog with the application name, the toolbar choice, the visible sections, the warning threshold (with a live
-  preview) and notifications.
-- **Desktop notifications (optional).** Once per drive and session when a drive falls below the warning threshold or
-  reports a SMART warning.
-- **Network fixes.** Shares mounted by IP address are recognised under their saved host name, shares that normal users
-  may not unmount can be disconnected as administrator after one question, and removing a location really deletes its
-  password from KWallet.
-
-### New in 2.2.1
-
-- **Every language is complete again.** The texts added by this fork are now translated into all 13 languages, not
-  only German; long toolbar labels in French, Dutch or Russian are no longer cut off.
-- **Clearer installer.** When PyQt6 is installed but cannot be loaded, `install.sh` explains why and how to fix it
-  (thanks to 3Shadow3S, [#3](https://github.com/elbecode-dev/DriveDeck/issues/3)).
-
-### New in 2.2.0
-
-- **Finder-style side columns.** Sidebar and inspector are full-height columns set apart by one hairline instead of
-  floating glass panels with cards; the inspector shows details in the Finder "Get Info" grid.
-- **Apple HIG design pass.** Every text meets WCAG AA (4.5 : 1) in light and dark themes, all statuses use one palette of
-  Apple system colours, hover and selection look the same everywhere, keyboard focus is a ring outside the element, and
-  spacing, radii and animations follow one system. The neon glow, outlines and accent stripes are gone.
-- **Calmer ink bars.** Printers that report pure RGB colours are shown in muted print tones.
-
-### New in 2.1.0
-
-- **Compact toolbar.** When the four ribbon groups do not fit between the side panels (about 2175 px window width with
-  both panels in German), the ribbon becomes a centred 48 px toolbar with the same commands as icons,
-  tooltips and screen-reader names. "…" opens the settings (sections, warning threshold, "Always use the compact
-  toolbar"); right-clicking the toolbar also offers that switch. Wide windows keep the full ribbon.
-- **SMART health without a password.** For internal NVMe and SATA drives DriveDeck reads the key SMART values through
-  udisks2: wear, spare capacity, power-on time, power cycles, unsafe shutdowns, data written and read, media errors or
-  reallocated/pending sectors, temperature and the last self-test, with an overall "Good / Warning / Critical". They appear
-  in a collapsible *SMART health* section of the inspector and in the Properties window. Drives in a USB enclosure still
-  use the full `smartctl` report with the existing bridge fallbacks (administrator password).
-- **One card per scanner.** A network scanner seen by several drivers (eSCL, airscan, epson2 …) is merged by IP address
-  or model name; the more descriptive entry ("Epson WF-4830 (Flatbed & ADF)") wins.
-- **Wi-Fi printers no longer flicker.** A printer turns grey only after three failed checks in a row; during a short
-  drop-out its last ink levels stay on the card.
-- **Live click setting.** Changing "single click / double click" in System Settings applies to DriveDeck at once.
-- **Ink names and warning.** Cartridge names are recognised by part of the name ("Photo Black ink" → "Photo black",
-  "Black Toner Cartridge" → "Black (toner)") and translated. A cartridge is low at the printer's own threshold, or at 10 %
-  if the printer declares none.
-
-### It is much faster and smoother
-
-- **The window opens instantly.** Slow checks (disks, disk health, network, printers) now run **in the background**
-  instead of making the window wait for them.
-- **Your drives show up immediately** when you start the program, because the last known list is remembered.
-- **One slow device no longer slows down everything.** A switched-off NAS used to delay the printer list. Disks,
-  network locations and printers are now handled separately, and many devices are checked **at the same time**
-  instead of one after another.
-- **Much less work in the background.** The program used to run several system tools every 3 seconds. Now it only
-  takes a tiny look at the system every second and does the full check **when something really changes** (you plug in
-  a stick, mount a drive, …). Free-space bars are refreshed every 10 seconds.
-- **Fewer system calls.** Information that used to need one request per disk is now collected in a single request.
-
-### New features
+## Features in detail
 
 - **Unmounted drives are now visible.** A second hard disk, a Windows partition or a USB stick that was not opened
   automatically shows up as a card marked "Not mounted". **Double-click it** (or right-click → *Mount*) and it is
@@ -216,8 +134,6 @@ small **live graph** of their read and write speed, and warn you when they are a
   (administrator)*, which runs `dmidecode` through `pkexec`. *Copy specs* copies a short summary for a forum post;
   *Export full report…* saves everything as text or JSON, always with English labels.
 
-<p align="center"><img src="preview-specs.png" alt="System information window: GPU & Display" width="760"></p>
-<p align="center"><img src="preview-specs-cpu.png" alt="System information window: CPU & Board" width="760"></p>
 
 - **Disk health that works with USB drives.** Many USB enclosures need a special mode before they report SMART data.
   DriveDeck tries the usual ones for you (SAT, then several NVMe bridge types), asks for your password **only once**
@@ -254,19 +170,7 @@ small **live graph** of their read and write speed, and warn you when they are a
 - **For tinkerers:** the user interface can be exported to a file and loaded from there, which makes it easy to edit
   with syntax colours (see [Developer notes](#developer-notes)).
 
-### A fresher look
-
-- The pie chart in the *Properties* window is now a smooth **donut ring** with the percentage in the middle.
-- Usage bars are slimmer and rounded, and **animate** to their value.
-- Cards react more softly to the mouse: they fade a highlight in, the icon grows a little, and the selected card gets
-  an accent strip. Folders, drives, network locations and printers all share **one hover look**: a translucent
-  purple-to-cyan gradient with a glowing gradient border.
-- Text is easier to read: labels and subtitles use larger sizes relative to your system font, and secondary text has more
-  contrast.
-- Section headers ("FOLDERS", "DEVICES AND DRIVES", …) are in capitals with the item count as a small pill and a line that
-  fades out to the right. Divider lines are softer.
-
-### Small things
+### Good to know
 
 - The built-in update check is **switched off** in this fork, because it would point to the original project and
   suggest replacing this version. (You can switch it back on with your own repository, see the code comment at
@@ -279,6 +183,116 @@ small **live graph** of their read and write speed, and warn you when they are a
   hang under DriveDeck in the process tree.
 - The program gives unused memory back to the system after heavy work (opening the System information window, minimising).
 - Unused leftover code was removed.
+
+---
+
+## Release history
+
+Newest first; every change is listed in the [CHANGELOG](CHANGELOG.md).
+
+### 2.3.0
+
+- **Settings in one place.** A gear next to the inspector toggle, "…" in the compact toolbar or `Ctrl+,` open one
+  small dialog with the application name, the toolbar choice, the visible sections, the warning threshold (with a live
+  preview) and notifications.
+- **Desktop notifications (optional).** Once per drive and session when a drive falls below the warning threshold or
+  reports a SMART warning.
+- **Network fixes.** Shares mounted by IP address are recognised under their saved host name, shares that normal users
+  may not unmount can be disconnected as administrator after one question, and removing a location really deletes its
+  password from KWallet.
+
+### 2.2.1
+
+- **Every language is complete again.** The texts added by this fork are now translated into all 13 languages, not
+  only German; long toolbar labels in French, Dutch or Russian are no longer cut off.
+- **Clearer installer.** When PyQt6 is installed but cannot be loaded, `install.sh` explains why and how to fix it
+  (thanks to 3Shadow3S, [#3](https://github.com/elbecode-dev/DriveDeck/issues/3)).
+
+### 2.2.0
+
+- **Finder-style side columns.** Sidebar and inspector are full-height columns set apart by one hairline instead of
+  floating glass panels with cards; the inspector shows details in the Finder "Get Info" grid.
+- **Apple HIG design pass.** Every text meets WCAG AA (4.5 : 1) in light and dark themes, all statuses use one palette of
+  Apple system colours, hover and selection look the same everywhere, keyboard focus is a ring outside the element, and
+  spacing, radii and animations follow one system. The neon glow, outlines and accent stripes are gone.
+- **Calmer ink bars.** Printers that report pure RGB colours are shown in muted print tones.
+
+### 2.1.0
+
+- **Compact toolbar.** When the four ribbon groups do not fit between the side panels (about 2175 px window width with
+  both panels in German), the ribbon becomes a centred 48 px toolbar with the same commands as icons,
+  tooltips and screen-reader names. "…" opens the settings (sections, warning threshold, "Always use the compact
+  toolbar"); right-clicking the toolbar also offers that switch. Wide windows keep the full ribbon.
+- **SMART health without a password.** For internal NVMe and SATA drives DriveDeck reads the key SMART values through
+  udisks2: wear, spare capacity, power-on time, power cycles, unsafe shutdowns, data written and read, media errors or
+  reallocated/pending sectors, temperature and the last self-test, with an overall "Good / Warning / Critical". They appear
+  in a collapsible *SMART health* section of the inspector and in the Properties window. Drives in a USB enclosure still
+  use the full `smartctl` report with the existing bridge fallbacks (administrator password).
+- **One card per scanner.** A network scanner seen by several drivers (eSCL, airscan, epson2 …) is merged by IP address
+  or model name; the more descriptive entry ("Epson WF-4830 (Flatbed & ADF)") wins.
+- **Wi-Fi printers no longer flicker.** A printer turns grey only after three failed checks in a row; during a short
+  drop-out its last ink levels stay on the card.
+- **Live click setting.** Changing "single click / double click" in System Settings applies to DriveDeck at once.
+- **Ink names and warning.** Cartridge names are recognised by part of the name ("Photo Black ink" → "Photo black",
+  "Black Toner Cartridge" → "Black (toner)") and translated. A cartridge is low at the printer's own threshold, or at 10 %
+  if the printer declares none.
+
+### 2.0.0 – a calmer look
+
+- **Finder-style sidebar** with quiet section headings, a slim capacity line and the size of each drive, eject on hover.
+- **Cards float freely** and only show a surface on hover and an accent-tinted one when selected; slim 4 px usage bars,
+  a mount dot and ink level bars on printer cards.
+- **Apple HIG polish:** one palette of system colours for every status, secondary text that meets WCAG AA (4.5 : 1),
+  a 4 px spacing grid, four corner radii, 150 ms fades and a focus ring outside buttons.
+- **Typography:** Inter for the interface and JetBrains Mono with tabular figures for live values, when installed
+  (see *Optional tools* below). On Arch/CachyOS: `sudo pacman -S inter-font ttf-jetbrains-mono`; on Debian/Ubuntu:
+  `sudo apt install fonts-inter fonts-jetbrains-mono`. Without them DriveDeck uses your system font.
+- **Inspector** on the right (from 1280 px window width): a system overview with live CPU, RAM, storage I/O and network
+  graphs, or details, SMART health and quick actions for the selected item.
+- **Keyboard and screen readers:** Tab runs through main area, sidebar, ribbon, settings, inspector toggle and window
+  buttons; `Ctrl+,` opens the settings, `Ctrl+I` toggles the inspector; every element has a name that Orca can read.
+
+### The first fork releases (1.x)
+
+**Problems that are fixed** compared with the original program:
+
+| What went wrong before | What happens now |
+|---|---|
+| On computers with a **Btrfs** disk, double-clicking your main drive ("Local Disk") opened a strange system folder (`/var/tmp`). | It opens **your home folder**, for every user. The main drive is also recognised correctly again (sort order, icon, health check). |
+| The list of drives **flickered** and an open right-click menu **closed by itself** every few seconds, because the free space changes all the time. | The list only redraws when something you can actually see has changed. |
+| Network folders with a **space in their name** (for example `My Share`) showed up twice. | They show up once. |
+| Version comparison fixed: 1.1.0 was wrongly treated as newer than 1.1, which could trigger a false update notice. | Fixed. |
+| A USB stick could be **mistaken for the previous stick** after you swapped them. | Every refresh now checks the real device. |
+| A drive that simply had no name could end up with the wrong name, or a drive really named "Local Disk" got renamed. | Unnamed drives get a clear fallback name ("Local Disk" or "Removable Disk"), and real names are left alone. |
+| Two parts of the program could **write to the same settings file at the same moment** and corrupt it. | They now take turns. |
+| User names containing a `%` sign could break the network login. | They are now rejected with a clear message. |
+| Opening folders left **invisible leftover processes** running in the background until the program was closed. | They are cleaned up automatically. |
+| If the scanner tool was not installed, the program kept **searching for scanners** for nothing. | It stops when the tool is missing. |
+
+**Faster and smoother:**
+
+- **The window opens instantly.** Slow checks (disks, disk health, network, printers) now run **in the background**
+  instead of making the window wait for them.
+- **Your drives show up immediately** when you start the program, because the last known list is remembered.
+- **One slow device no longer slows down everything.** A switched-off NAS used to delay the printer list. Disks,
+  network locations and printers are now handled separately, and many devices are checked **at the same time**
+  instead of one after another.
+- **Much less work in the background.** The program used to run several system tools every 3 seconds. Now it only
+  takes a tiny look at the system every second and does the full check **when something really changes** (you plug in
+  a stick, mount a drive, …). Free-space bars are refreshed every 10 seconds.
+- **Fewer system calls.** Information that used to need one request per disk is now collected in a single request.
+
+**A fresher look** (later replaced by the calmer design of 2.0.0 and 2.2.0):
+
+- The pie chart in the *Properties* window is now a smooth **donut ring** with the percentage in the middle.
+- Usage bars are slimmer and rounded, and **animate** to their value.
+- Cards react more softly to the mouse: they fade a highlight in, the icon grows a little, and the selected card gets
+  an accent strip. Folders, drives, network locations and printers all share **one hover look**: a translucent
+  purple-to-cyan gradient with a glowing gradient border.
+- Text is easier to read: labels and subtitles use larger sizes relative to your system font, and secondary text has more
+  contrast.
+- Section headers ("FOLDERS", "DEVICES AND DRIVES", …) are in capitals with the item count as a small pill and a line that
+  fades out to the right. Divider lines are softer.
 
 ---
 
