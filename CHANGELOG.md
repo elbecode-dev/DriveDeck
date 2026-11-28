@@ -10,12 +10,17 @@ hidden and everything else works).
 
 ---
 
-## Unreleased
+## 2.5.0 – 2026-11-28
+
+2.3.1 and 2.4.0 were not published on their own; 2.5.0 is the first release that contains their changes (see the two
+sections below).
 
 ### Added
 - **More choices in the settings** (issue #4, idea by Sadi58):
   - **Monochrome toolbar icons:** the ribbon and the compact toolbar can use the symbolic (`-symbolic`) icons of the theme, drawn in the text colour, instead of the coloured set. Breeze has a symbolic icon for every command; where a theme lacks one, the normal icon is drawn as a monochrome mask.
   - **Live displays**, each on by default and switchable: CPU, RAM and network in the title bar; the drive temperature on the cards; the drive activity (read/write history and current rates) on the cards. The inspector and the drive properties keep showing temperature and activity, so the measurements themselves keep running.
+
+  Thanks to **Sadi58** for these ideas ([#4](https://github.com/elbecode-dev/DriveDeck/issues/4)). The system window decoration from the same request is planned separately.
 
 ### Changed
 - The "…" button of the compact toolbar is gone: its menu only held "Settings…", which the gear in the title bar, `Ctrl+,` and the right-click menu of the toolbar already open (issue #4).
@@ -33,6 +38,13 @@ hidden and everything else works).
 - Click-to-copy, keyboard navigation (header, subline, tiles and rows in order), the global search (`Ctrl+F`) and the 1.5 px glass lines are unchanged. 28 new texts are translated into all 12 languages.
 
 ### Fixed
+- **Pre-release audit findings** (details in `audits.md`, section 5aa):
+  - The hardware window showed its cards in one column at its own start size (1180 × 780): two columns now begin at 900 px of content width instead of 960.
+  - Long product names in the hero header were cut off early (a flat 190 px was reserved for the badges); the title now uses the real badge width and shows the full name in a tooltip when it is still too long.
+  - `kscreen-doctor` inherited DriveDeck's `QT_QPA_PLATFORM`; when DriveDeck was started with a forced platform (xcb, offscreen) KScreen could not reach the compositor and refresh rate and scaling were missing. The variable is now removed for that call.
+  - A stopped vnstat service froze today, this week and this month at the last saved value. vnstat stamps every save; when the newest stamp is older than 45 minutes (vnstat saves every 5 minutes, every 30 when all interfaces are offline), DriveDeck uses its own counter instead.
+  - 12 translation keys that the redesign no longer used ("BIOS / UEFI", "Display server", "Outputs", …) were removed from all languages.
+- **New previews:** `preview.png` (2.5.0), `preview-settings.png` (the new settings) and `preview-specs.png` / `preview-specs-cpu.png` (the redesigned system information), English, IP address as a placeholder.
 - **Footer of the hardware window at minimum width:** in German and other long languages the footer was wider than the window between 820 and about 1040 px, so the whole window content was pushed past the right edge. Below 1100 px the slot-details button now shows only its icon (with a tooltip), and the "Copied to clipboard" message may shrink.
 
 ## 2.4.0 – 2026-11-28

@@ -85,9 +85,6 @@ msgstr "Gouverneurs disponibles"
 msgid "Available modules"
 msgstr "Modules disponibles"
 
-msgid "BIOS / UEFI"
-msgstr "BIOS / UEFI"
-
 msgid "BIOS automatic"
 msgstr "Automatique (BIOS)"
 
@@ -214,9 +211,6 @@ msgstr "Fermer"
 msgid "Command bar icons: Fluent UI System Icons, © Microsoft Corporation, MIT license."
 msgstr "Icônes de la barre de commandes : Fluent UI System Icons, © Microsoft Corporation, licence MIT."
 
-msgid "Compatibility"
-msgstr "Compatibilité"
-
 msgid "Compatibility profile"
 msgstr "Profil de compatibilité"
 
@@ -292,9 +286,6 @@ msgstr "Consommation de données"
 msgid "Data written"
 msgstr "Données écrites"
 
-msgid "Date"
-msgstr "Date"
-
 msgid "Default"
 msgstr "Par défaut"
 
@@ -336,9 +327,6 @@ msgstr "Disque défaillant – sauvegardez vos fichiers"
 
 msgid "Display name (optional):"
 msgstr "Nom affiché (facultatif) :"
-
-msgid "Display server"
-msgstr "Serveur d'affichage"
 
 msgid "Displays"
 msgstr "Écrans"
@@ -502,9 +490,6 @@ msgstr "Installé"
 msgid "Installed (usable)"
 msgstr "Installée (utilisable)"
 
-msgid "Instance version"
-msgstr "Version de l'instance"
-
 msgid "Instruction sets"
 msgstr "Jeux d'instructions"
 
@@ -580,9 +565,6 @@ msgstr "Disque local"
 msgid "Location unavailable"
 msgstr "Emplacement indisponible"
 
-msgid "Logical CPUs"
-msgstr "Processeurs logiques"
-
 msgid "MAC address"
 msgstr "Adresse MAC"
 
@@ -624,9 +606,6 @@ msgstr "Erreurs de support signalées"
 
 msgid "Memory"
 msgstr "Mémoire"
-
-msgid "Memory controller"
-msgstr "Contrôleur mémoire"
 
 msgid "Memory modules"
 msgstr "Modules mémoire"
@@ -771,9 +750,6 @@ msgstr "Fabricant OpenGL"
 
 msgid "Operating system"
 msgstr "Système d'exploitation"
-
-msgid "Outputs"
-msgstr "Sorties"
 
 msgid "Overview"
 msgstr "Vue d'ensemble"
@@ -964,9 +940,6 @@ msgstr "En ce moment"
 msgid "Running"
 msgstr "En cours"
 
-msgid "Running at"
-msgstr "Fonctionne à"
-
 msgid "SATA and RAID controllers"
 msgstr "Contrôleurs SATA et RAID"
 
@@ -1074,9 +1047,6 @@ msgstr "Signes d'usure – voir Propriétés"
 
 msgid "Size"
 msgstr "Taille"
-
-msgid "Slots"
-msgstr "Emplacements"
 
 msgid "Slots in use"
 msgstr "Emplacements occupés"
@@ -1333,9 +1303,6 @@ msgstr "Type de VRAM"
 msgid "Vendor"
 msgstr "Fabricant"
 
-msgid "Version"
-msgstr "Version"
-
 msgid "Version {version} of DriveDeck is available. To update, download it and run ./install.sh again."
 msgstr "La version {version} de DriveDeck est disponible. Pour mettre à jour, téléchargez-la puis relancez ./install.sh."
 
@@ -1518,9 +1485,6 @@ msgstr "{label} a été démonté mais n'a pas pu être mis hors tension :\n{det
 
 msgid "{link} – idle power state may lower it"
 msgstr "{link} – l'économie d'énergie peut la réduire"
-
-msgid "{mode} (preferred mode)"
-msgstr "{mode} (mode préféré)"
 
 msgid "{name} (Ethernet)"
 msgstr "{name} (Ethernet)"

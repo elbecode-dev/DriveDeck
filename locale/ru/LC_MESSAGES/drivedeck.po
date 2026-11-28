@@ -85,9 +85,6 @@ msgstr "Доступные регуляторы"
 msgid "Available modules"
 msgstr "Доступные модули"
 
-msgid "BIOS / UEFI"
-msgstr "BIOS / UEFI"
-
 msgid "BIOS automatic"
 msgstr "Автоматика BIOS"
 
@@ -214,9 +211,6 @@ msgstr "Закрыть"
 msgid "Command bar icons: Fluent UI System Icons, © Microsoft Corporation, MIT license."
 msgstr "Значки панели команд: Fluent UI System Icons, © Microsoft Corporation, лицензия MIT."
 
-msgid "Compatibility"
-msgstr "Совместимость"
-
 msgid "Compatibility profile"
 msgstr "Профиль совместимости"
 
@@ -292,9 +286,6 @@ msgstr "Расход трафика"
 msgid "Data written"
 msgstr "Записано"
 
-msgid "Date"
-msgstr "Дата"
-
 msgid "Default"
 msgstr "По умолчанию"
 
@@ -336,9 +327,6 @@ msgstr "Диск неисправен – сохраните свои файлы
 
 msgid "Display name (optional):"
 msgstr "Отображаемое имя (необязательно):"
-
-msgid "Display server"
-msgstr "Графический сервер"
 
 msgid "Displays"
 msgstr "Экраны"
@@ -502,9 +490,6 @@ msgstr "Установлено"
 msgid "Installed (usable)"
 msgstr "Установлено (доступно)"
 
-msgid "Instance version"
-msgstr "Версия экземпляра"
-
 msgid "Instruction sets"
 msgstr "Наборы инструкций"
 
@@ -580,9 +565,6 @@ msgstr "Локальный диск"
 msgid "Location unavailable"
 msgstr "Расположение недоступно"
 
-msgid "Logical CPUs"
-msgstr "Логические процессоры"
-
 msgid "MAC address"
 msgstr "MAC-адрес"
 
@@ -624,9 +606,6 @@ msgstr "Сообщено об ошибках носителя"
 
 msgid "Memory"
 msgstr "Память"
-
-msgid "Memory controller"
-msgstr "Контроллер памяти"
 
 msgid "Memory modules"
 msgstr "Модули памяти"
@@ -771,9 +750,6 @@ msgstr "Производитель OpenGL"
 
 msgid "Operating system"
 msgstr "Операционная система"
-
-msgid "Outputs"
-msgstr "Выходы"
 
 msgid "Overview"
 msgstr "Обзор"
@@ -964,9 +940,6 @@ msgstr "Сейчас"
 msgid "Running"
 msgstr "Выполняется"
 
-msgid "Running at"
-msgstr "Работает на"
-
 msgid "SATA and RAID controllers"
 msgstr "Контроллеры SATA и RAID"
 
@@ -1074,9 +1047,6 @@ msgstr "Признаки износа – см. Свойства"
 
 msgid "Size"
 msgstr "Размер"
-
-msgid "Slots"
-msgstr "Слоты"
 
 msgid "Slots in use"
 msgstr "Занятые слоты"
@@ -1333,9 +1303,6 @@ msgstr "Тип VRAM"
 msgid "Vendor"
 msgstr "Производитель"
 
-msgid "Version"
-msgstr "Версия"
-
 msgid "Version {version} of DriveDeck is available. To update, download it and run ./install.sh again."
 msgstr "Доступна версия {version} программы «DriveDeck». Чтобы обновить, скачайте её и снова запустите ./install.sh."
 
@@ -1518,9 +1485,6 @@ msgstr "{label} размонтирован, но его не удалось от
 
 msgid "{link} – idle power state may lower it"
 msgstr "{link} – режим энергосбережения может её снижать"
-
-msgid "{mode} (preferred mode)"
-msgstr "{mode} (предпочтительный режим)"
 
 msgid "{name} (Ethernet)"
 msgstr "{name} (Ethernet)"

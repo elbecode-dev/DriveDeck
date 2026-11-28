@@ -85,9 +85,6 @@ msgstr "Kullanılabilir yöneticiler"
 msgid "Available modules"
 msgstr "Kullanılabilir modüller"
 
-msgid "BIOS / UEFI"
-msgstr "BIOS / UEFI"
-
 msgid "BIOS automatic"
 msgstr "BIOS otomatiği"
 
@@ -214,9 +211,6 @@ msgstr "Kapat"
 msgid "Command bar icons: Fluent UI System Icons, © Microsoft Corporation, MIT license."
 msgstr "Komut çubuğu simgeleri: Fluent UI System Icons, © Microsoft Corporation, MIT lisansı."
 
-msgid "Compatibility"
-msgstr "Uyumluluk"
-
 msgid "Compatibility profile"
 msgstr "Uyumluluk profili"
 
@@ -292,9 +286,6 @@ msgstr "Veri kullanımı"
 msgid "Data written"
 msgstr "Yazılan veri"
 
-msgid "Date"
-msgstr "Tarih"
-
 msgid "Default"
 msgstr "Varsayılan"
 
@@ -336,9 +327,6 @@ msgstr "Disk arızalı – dosyalarınızı yedekleyin"
 
 msgid "Display name (optional):"
 msgstr "Görünen ad (isteğe bağlı):"
-
-msgid "Display server"
-msgstr "Görüntü sunucusu"
 
 msgid "Displays"
 msgstr "Ekranlar"
@@ -502,9 +490,6 @@ msgstr "Kurulum"
 msgid "Installed (usable)"
 msgstr "Kurulu (kullanılabilir)"
 
-msgid "Instance version"
-msgstr "Örnek sürümü"
-
 msgid "Instruction sets"
 msgstr "Komut setleri"
 
@@ -580,9 +565,6 @@ msgstr "Yerel disk"
 msgid "Location unavailable"
 msgstr "Konum kullanılamıyor"
 
-msgid "Logical CPUs"
-msgstr "Mantıksal CPU'lar"
-
 msgid "MAC address"
 msgstr "MAC adresi"
 
@@ -624,9 +606,6 @@ msgstr "Ortam hataları bildirildi"
 
 msgid "Memory"
 msgstr "Bellek"
-
-msgid "Memory controller"
-msgstr "Bellek denetleyicisi"
 
 msgid "Memory modules"
 msgstr "Bellek modülleri"
@@ -771,9 +750,6 @@ msgstr "OpenGL üreticisi"
 
 msgid "Operating system"
 msgstr "İşletim sistemi"
-
-msgid "Outputs"
-msgstr "Çıkışlar"
 
 msgid "Overview"
 msgstr "Genel bakış"
@@ -964,9 +940,6 @@ msgstr "Şu anda"
 msgid "Running"
 msgstr "Çalışıyor"
 
-msgid "Running at"
-msgstr "Çalışma hızı"
-
 msgid "SATA and RAID controllers"
 msgstr "SATA ve RAID denetleyicileri"
 
@@ -1074,9 +1047,6 @@ msgstr "Yıpranma belirtileri – Özellikler'e bakın"
 
 msgid "Size"
 msgstr "Boyut"
-
-msgid "Slots"
-msgstr "Yuvalar"
 
 msgid "Slots in use"
 msgstr "Dolu yuvalar"
@@ -1333,9 +1303,6 @@ msgstr "VRAM türü"
 msgid "Vendor"
 msgstr "Üretici"
 
-msgid "Version"
-msgstr "Sürüm"
-
 msgid "Version {version} of DriveDeck is available. To update, download it and run ./install.sh again."
 msgstr "DriveDeck {version} sürümü kullanılabilir. Güncellemek için indirip ./install.sh dosyasını yeniden çalıştırın."
 
@@ -1518,9 +1485,6 @@ msgstr "{label} bağlantısı kesildi ancak kapatılamadı:\n{detail}\n\nYine de
 
 msgid "{link} – idle power state may lower it"
 msgstr "{link} – güç tasarrufu bunu düşürebilir"
-
-msgid "{mode} (preferred mode)"
-msgstr "{mode} (tercih edilen kip)"
 
 msgid "{name} (Ethernet)"
 msgstr "{name} (Ethernet)"

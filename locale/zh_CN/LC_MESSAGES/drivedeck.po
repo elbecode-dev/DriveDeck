@@ -85,9 +85,6 @@ msgstr "可用调速器"
 msgid "Available modules"
 msgstr "可用模块"
 
-msgid "BIOS / UEFI"
-msgstr "BIOS / UEFI"
-
 msgid "BIOS automatic"
 msgstr "BIOS 自动控制"
 
@@ -214,9 +211,6 @@ msgstr "关闭"
 msgid "Command bar icons: Fluent UI System Icons, © Microsoft Corporation, MIT license."
 msgstr "命令栏图标: Fluent UI System Icons,© Microsoft Corporation,MIT 许可证。"
 
-msgid "Compatibility"
-msgstr "兼容配置"
-
 msgid "Compatibility profile"
 msgstr "兼容性配置文件"
 
@@ -292,9 +286,6 @@ msgstr "数据用量"
 msgid "Data written"
 msgstr "已写入数据"
 
-msgid "Date"
-msgstr "日期"
-
 msgid "Default"
 msgstr "默认"
 
@@ -336,9 +327,6 @@ msgstr "磁盘故障 – 请备份文件"
 
 msgid "Display name (optional):"
 msgstr "显示名称(可选):"
-
-msgid "Display server"
-msgstr "显示服务器"
 
 msgid "Displays"
 msgstr "显示器"
@@ -502,9 +490,6 @@ msgstr "安装时间"
 msgid "Installed (usable)"
 msgstr "已安装(可用)"
 
-msgid "Instance version"
-msgstr "实例版本"
-
 msgid "Instruction sets"
 msgstr "指令集"
 
@@ -580,9 +565,6 @@ msgstr "本地磁盘"
 msgid "Location unavailable"
 msgstr "位置不可用"
 
-msgid "Logical CPUs"
-msgstr "逻辑 CPU"
-
 msgid "MAC address"
 msgstr "MAC 地址"
 
@@ -624,9 +606,6 @@ msgstr "已报告介质错误"
 
 msgid "Memory"
 msgstr "内存"
-
-msgid "Memory controller"
-msgstr "内存控制器"
 
 msgid "Memory modules"
 msgstr "内存模块"
@@ -771,9 +750,6 @@ msgstr "OpenGL 厂商"
 
 msgid "Operating system"
 msgstr "操作系统"
-
-msgid "Outputs"
-msgstr "输出"
 
 msgid "Overview"
 msgstr "概览"
@@ -964,9 +940,6 @@ msgstr "当前"
 msgid "Running"
 msgstr "运行中"
 
-msgid "Running at"
-msgstr "运行频率"
-
 msgid "SATA and RAID controllers"
 msgstr "SATA 和 RAID 控制器"
 
@@ -1074,9 +1047,6 @@ msgstr "有磨损迹象 – 请查看属性"
 
 msgid "Size"
 msgstr "大小"
-
-msgid "Slots"
-msgstr "插槽"
 
 msgid "Slots in use"
 msgstr "已用插槽"
@@ -1333,9 +1303,6 @@ msgstr "显存类型"
 msgid "Vendor"
 msgstr "供应商"
 
-msgid "Version"
-msgstr "版本"
-
 msgid "Version {version} of DriveDeck is available. To update, download it and run ./install.sh again."
 msgstr "DriveDeck {version} 版本已发布。如需更新，请下载后重新运行 ./install.sh。"
 
@@ -1518,9 +1485,6 @@ msgstr "{label} 已卸载,但无法断电:\n{detail}\n\n您仍然可以直接拔
 
 msgid "{link} – idle power state may lower it"
 msgstr "{link} – 节能状态可能会降低"
-
-msgid "{mode} (preferred mode)"
-msgstr "{mode}(首选模式)"
 
 msgid "{name} (Ethernet)"
 msgstr "{name}(以太网)"

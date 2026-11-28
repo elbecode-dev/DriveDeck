@@ -819,6 +819,104 @@ and Light). `pyright` 0 errors, `qmllint` 0 warnings outside *unqualified* (1321
 
 **Not verified:** monochrome icons with the user's own icon theme on the real desktop.
 
+## 5aa. Pre-release audit for 2.5.0 (2026-11-28)
+
+A structured audit before tagging: static analysis, the new features and their edge cases, design consistency in three
+colour schemes, and a combined stress run. All harnesses run offscreen (section 7). Findings were fixed at once and the
+affected checks run again; the numbers below are from the final run on the release state.
+
+### 1. Static analysis
+
+| Check | Result |
+|---|---|
+| `pyright` 1.1.414 | 0 errors, 0 warnings |
+| `qmllint` on `--dump-qml` (6886 lines) | 0 warnings outside *unqualified* (1322, the known context-property pattern); a probe line with an unqualified access inserted at line 6885 of 6888 is reported, so the analysis reaches the end of the file |
+| Translations (12 `.po` + English) | 508 entries each, 0 empty, 0 placeholder mismatches, every `.mo` identical to its `.po` (checked with `gettext`), 0 texts used by the code without a translation |
+
+**Fixed:** 12 keys that the redesign of the hardware window left behind ("BIOS / UEFI", "Compatibility", "Date",
+"Display server", "Instance version", "Logical CPUs", "Memory controller", "Outputs", "Running at", "Slots", "Version",
+"{mode} (preferred mode)") were removed from all languages; "Show and options" (the old "…" menu) was already gone.
+
+### 2. Features and regressions
+
+**System information window** – all 8 categories at 1500, 1180, 900 and 820 px (VividViolet, English; German at 1500
+and 1180): card pairs 0 px apart (top and height), one column at 900 and 820 px, nothing past the right window edge
+(header, content, footer), no visible text with empty brackets or dangling separators – 25/25 (two columns) and 33/33
+(one column) per width. Hero headers, tiles, keyboard (↓/Enter/Ctrl+C), search and copying: 37/37.
+- **Finding, fixed:** at its own start size (1180 × 780) the window showed one column, because two columns began at
+  960 px of content width and the content is 951 px wide there. The threshold is now 900 px.
+- **Finding, fixed:** the hero title reserved a flat 190 px for the badges, so "NVIDIA GeForce RTX 4080 SUPER" and the
+  mainboard name were cut at 1180 px. The title now subtracts the real badge width (computed from the card width, not
+  from its own row – the first attempt caused a "recursive rearrange" loop, caught by the warning check) and shows the
+  full name in a tooltip when it is still too long.
+
+**Displays** – unit test 17/17 (together with the sensor and icon checks below): without `kscreen-doctor`, and with
+garbage, empty, `null`, list-shaped or disabled-output answers, the DRM mode list is used; the screen text has no empty
+parts and the resolution and connector pills are never empty.
+- **Finding, fixed:** `kscreen-doctor` inherited DriveDeck's `QT_QPA_PLATFORM`. Started with a forced platform (xcb,
+  offscreen) KScreen could not reach the compositor, so refresh rate and scaling were missing. The variable is now
+  removed for that call; even the offscreen process now gets "DP-3 · 164 Hz · 100 %".
+
+**Sensors & fans, read-only** – none of the old write paths exist (`PWM_ROOT_SKRIPT`, `pwm_schreiben`, `pwm_auftraege`,
+`fan_bios`, `setFanPreset`); while reading all chips and the fan-control state only `nvidia-smi` and `systemctl` are
+started and nothing under `/sys` is opened for writing; the sensor thread stops when the window closes.
+
+**vnstat and the own traffic counter** – 20/20: fresh vnstat database without day values → own counter; created today →
+own counter; created yesterday → today from vnstat, week and month from the own counter, mixed source line; 60 days old →
+vnstat only; no vnstat or a broken answer → own counter; first run, growth, reload in the same boot (no double count),
+reboot through `boot_id`, counter reset without a reboot; no temporary files left; a half-written `net_usage.json` is
+replaced by a fresh start; four threads writing at once always leave valid JSON (`schreibe_atomar`: temp file, `fsync`,
+`os.replace`).
+- **Finding, fixed:** with the vnstat service stopped, `vnstat --json` keeps returning the old database and today, this
+  week and this month froze. vnstat stamps every save (`updated.timestamp`, every 5 minutes, every 30 when all
+  interfaces are offline); when the newest stamp is older than 45 minutes DriveDeck uses its own counter. Tested with
+  1 h (own counter), 20 min (vnstat) and an old vnstat without the stamp (vnstat).
+
+**Issue #4 options** – 20/20 in Breeze Dark, Breeze Light and VividViolet: defaults, no "…" button, all four controls in
+the dialog and in its Tab order, live switching without restart, saved and read back from `settings.json`; while
+temperature and activity are hidden on the cards both sampling threads keep running (checked after more than one 5 s
+temperature cycle) and the inspector still has the values; switched on again, the chips appear at once. Monochrome
+icons: with a theme that has no `-symbolic` icons the normal names are used (drawn as a mask), and with no icon at all
+the last fallback name, never an empty source.
+
+### 3. Design consistency and stress
+
+**Contrast** (WCAG, computed from the scheme files with the same mixes as the QML):
+
+| | Breeze Dark | Breeze Light | VividViolet |
+|---|---|---|---|
+| tile value | 13.99 | 13.10 | 9.74 |
+| tile label (secondary) | 7.64 | 5.61 | 5.61 |
+| row key on card | 8.55 | 5.86 | 6.17 |
+| tile subline (tertiary) | 6.34 | 4.68 | 4.75 |
+| accent value on API tile | 9.97 | 6.78 | 7.73 |
+| accent badge text | 8.92 | 6.45 | 7.39 |
+
+All ≥ 4.5 : 1. Radii stay on the token scale (cards 12, tiles and rows 8, pills half their height), dividers in the
+window are the 1.5 px glass lines. **Fixed:** the device-symbol tile of the hero header used a radius of 10 px, off the
+4/6/8/12 scale; it now uses the card radius (8 px).
+
+**Window and keyboard tests in all three schemes** – window test 21/21, hardware window 37/37, sensors 12/12, settings
+20/20 each (Tab chain, `Ctrl+,`, `Ctrl+F`, arrows, Enter/`Ctrl+C`, `Esc`); no `TypeError`, `ReferenceError`, binding loop
+or "recursive rearrange" in any run (the only message is the harness's own "icon theme not found").
+
+**Combined stress run** (VividViolet, 90 s): 421 random compound actions – opening the hardware window, switching
+categories, searching, arrow keys and Enter, resizing it to 820–1500 px, closing it; opening the settings with `Ctrl+,`,
+tabbing and `Esc`; toggling the five display settings; resizing the main window to 1000–2400 px. RSS 203–229 MB without
+growth, no QML errors; after closing no worker thread is alive and the stop flag is set.
+
+### 4. Previews
+
+`preview.png` (main window, 2200 px), `preview-settings.png` (settings with the new options), `preview-specs.png`
+(GPU & Display) and `preview-specs-cpu.png` (CPU & Board) were rendered offscreen with a copy of the desktop's colour
+scheme, icon theme, fonts and Kvantum style, in English, with the placeholder IP 192.168.1.10; nothing was written to the
+real configuration.
+
+### Not verified
+
+The real desktop with blur (the previews are opaque offscreen renders); X11 sessions; AMD and Intel GPUs; several
+monitors; memory tiles after `dmidecode`; vnstat with a database that is weeks old on this machine (simulated only).
+
 ---
 
 ## 6. Not verified

@@ -85,9 +85,6 @@ msgstr "Beschikbare governors"
 msgid "Available modules"
 msgstr "Beschikbare modules"
 
-msgid "BIOS / UEFI"
-msgstr "BIOS / UEFI"
-
 msgid "BIOS automatic"
 msgstr "BIOS-automatiek"
 
@@ -214,9 +211,6 @@ msgstr "Sluiten"
 msgid "Command bar icons: Fluent UI System Icons, © Microsoft Corporation, MIT license."
 msgstr "Pictogrammen van de opdrachtbalk: Fluent UI System Icons, © Microsoft Corporation, MIT-licentie."
 
-msgid "Compatibility"
-msgstr "Compatibiliteit"
-
 msgid "Compatibility profile"
 msgstr "Compatibiliteitsprofiel"
 
@@ -292,9 +286,6 @@ msgstr "Dataverbruik"
 msgid "Data written"
 msgstr "Geschreven gegevens"
 
-msgid "Date"
-msgstr "Datum"
-
 msgid "Default"
 msgstr "Standaard"
 
@@ -336,9 +327,6 @@ msgstr "Schijf defect – maak een back-up van uw bestanden"
 
 msgid "Display name (optional):"
 msgstr "Weergavenaam (optioneel):"
-
-msgid "Display server"
-msgstr "Weergaveserver"
 
 msgid "Displays"
 msgstr "Beeldschermen"
@@ -502,9 +490,6 @@ msgstr "Geïnstalleerd"
 msgid "Installed (usable)"
 msgstr "Geïnstalleerd (bruikbaar)"
 
-msgid "Instance version"
-msgstr "Instantieversie"
-
 msgid "Instruction sets"
 msgstr "Instructiesets"
 
@@ -580,9 +565,6 @@ msgstr "Lokale schijf"
 msgid "Location unavailable"
 msgstr "Locatie niet beschikbaar"
 
-msgid "Logical CPUs"
-msgstr "Logische CPU's"
-
 msgid "MAC address"
 msgstr "MAC-adres"
 
@@ -624,9 +606,6 @@ msgstr "Mediafouten gemeld"
 
 msgid "Memory"
 msgstr "Geheugen"
-
-msgid "Memory controller"
-msgstr "Geheugencontroller"
 
 msgid "Memory modules"
 msgstr "Geheugenmodules"
@@ -771,9 +750,6 @@ msgstr "OpenGL-leverancier"
 
 msgid "Operating system"
 msgstr "Besturingssysteem"
-
-msgid "Outputs"
-msgstr "Uitgangen"
 
 msgid "Overview"
 msgstr "Overzicht"
@@ -964,9 +940,6 @@ msgstr "Op dit moment"
 msgid "Running"
 msgstr "Actief"
 
-msgid "Running at"
-msgstr "Draait op"
-
 msgid "SATA and RAID controllers"
 msgstr "SATA- en RAID-controllers"
 
@@ -1074,9 +1047,6 @@ msgstr "Tekenen van slijtage – zie Eigenschappen"
 
 msgid "Size"
 msgstr "Grootte"
-
-msgid "Slots"
-msgstr "Sleuven"
 
 msgid "Slots in use"
 msgstr "Bezette sleuven"
@@ -1333,9 +1303,6 @@ msgstr "VRAM-type"
 msgid "Vendor"
 msgstr "Fabrikant"
 
-msgid "Version"
-msgstr "Versie"
-
 msgid "Version {version} of DriveDeck is available. To update, download it and run ./install.sh again."
 msgstr "Versie {version} van DriveDeck is beschikbaar. Download deze en voer ./install.sh opnieuw uit om bij te werken."
 
@@ -1518,9 +1485,6 @@ msgstr "{label} is ontkoppeld, maar kon niet worden uitgeschakeld:\n{detail}\n\n
 
 msgid "{link} – idle power state may lower it"
 msgstr "{link} – energiebesparing kan deze verlagen"
-
-msgid "{mode} (preferred mode)"
-msgstr "{mode} (voorkeursmodus)"
 
 msgid "{name} (Ethernet)"
 msgstr "{name} (Ethernet)"

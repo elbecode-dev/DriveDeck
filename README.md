@@ -12,7 +12,7 @@ locations, printers and devices in one clean window, and it follows your Plasma 
 
 <p align="center"><img src="preview.png" alt="DriveDeck main window"></p>
 
-**Version 2.4.0** – feedback and bug reports are very welcome.
+**Version 2.5.0** – feedback and bug reports are very welcome.
 
 ---
 
@@ -73,6 +73,22 @@ small **live graph** of their read and write speed, and warn you when they are a
   buttons → main area (Shift+Tab backwards, Esc back to the main area); `Ctrl+,` opens the settings, `Ctrl+I` shows or
   hides the inspector.
 - Works with light and dark Plasma colour schemes.
+
+### New in 2.5.0
+
+- **System information at a glance.** The hardware window leads every main card with the product name, a badge
+  (socket, chipset, PCI slot, session) and 2–4 tiles with the key figures, then the details in two columns. Graphics
+  APIs appear as version tiles (OpenGL, OpenGL ES, Vulkan), every screen as a tile with resolution, refresh rate, scaling
+  and its name from the EDID, and sensor cards show small readings as tiles with their session minimum and maximum.
+  Long technical strings are shortened on screen; the full text stays in the tooltip, when copying and in the report.
+- **Sensors & fans and Network.** Temperatures and fan speeds with min/max, a read-only fan control line (BIOS or
+  fancontrol), and the data usage of today, this week and this month from vnstat or DriveDeck's own counter.
+- **More settings** (thanks to Sadi58, [#4](https://github.com/elbecode-dev/DriveDeck/issues/4)): monochrome toolbar
+  icons, and the title-bar monitor, drive temperature and drive activity can each be switched off. The "…" button of the
+  compact toolbar is gone; the gear, `Ctrl+,` and a right-click on the toolbar open the settings.
+- **Optional extras in the installer:** vnstat and lm_sensors, only in a terminal and only when you answer *y*.
+
+<p align="center"><img src="preview-settings.png" alt="Settings dialog with the new options" width="480"></p>
 
 ### New in 2.3.0
 
@@ -192,7 +208,7 @@ small **live graph** of their read and write speed, and warn you when they are a
   (the active connection with link speed, IPv4/IPv6 addresses, gateway, DNS servers and MAC address next to its adapter,
   and the **data usage** right now, this session, today, this week and this month – from `vnstat` once its database covers the
   period, otherwise from DriveDeck's own counter in `~/.local/share/drivedeck/net_usage.json`, which notices reboots through the
-  kernel's boot ID). From 960 px of content width the cards sit side by side in pairs of equal height; lists and tables
+  kernel's boot ID). From 900 px of content width (the default window size) the cards sit side by side in pairs of equal height; lists and tables
   span the full width. `Ctrl+F` searches all categories at once and shows the
   number of hits next to each category; a click on any row (or Enter on the row chosen with the arrow keys) copies it.
   `Esc` clears the search, then closes the window. The CPU socket is derived from the chipset or the CPU family without
@@ -200,7 +216,8 @@ small **live graph** of their read and write speed, and warn you when they are a
   (administrator)*, which runs `dmidecode` through `pkexec`. *Copy specs* copies a short summary for a forum post;
   *Export full report…* saves everything as text or JSON, always with English labels.
 
-<p align="center"><img src="preview-specs.png" alt="System information window" width="640"></p>
+<p align="center"><img src="preview-specs.png" alt="System information window: GPU & Display" width="760"></p>
+<p align="center"><img src="preview-specs-cpu.png" alt="System information window: CPU & Board" width="760"></p>
 
 - **Disk health that works with USB drives.** Many USB enclosures need a special mode before they report SMART data.
   DriveDeck tries the usual ones for you (SAT, then several NVMe bridge types), asks for your password **only once**
@@ -372,6 +389,7 @@ Quality audits (stress, performance, code and UI) and what they found are summar
   program unless the original project bundles them.
 - DriveDeck (fork changes, new features, name and icon): Christian, 2026
 - Thanks to **3Shadow3S** for the PyQt6 file-name diagnosis behind the installer hint ([#3](https://github.com/elbecode-dev/DriveDeck/issues/3)).
+- Thanks to **Sadi58** for the settings ideas in 2.5.0 – monochrome toolbar icons and switchable live displays ([#4](https://github.com/elbecode-dev/DriveDeck/issues/4)) – and earlier for the click mode and the warning threshold.
 
 ## AI assistance
 

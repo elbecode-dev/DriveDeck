@@ -85,9 +85,6 @@ msgstr "利用可能なガバナー"
 msgid "Available modules"
 msgstr "利用可能なモジュール"
 
-msgid "BIOS / UEFI"
-msgstr "BIOS / UEFI"
-
 msgid "BIOS automatic"
 msgstr "BIOS 自動制御"
 
@@ -214,9 +211,6 @@ msgstr "閉じる"
 msgid "Command bar icons: Fluent UI System Icons, © Microsoft Corporation, MIT license."
 msgstr "コマンド バーのアイコン: Fluent UI System Icons、© Microsoft Corporation、MIT ライセンス。"
 
-msgid "Compatibility"
-msgstr "互換プロファイル"
-
 msgid "Compatibility profile"
 msgstr "互換プロファイル"
 
@@ -292,9 +286,6 @@ msgstr "データ使用量"
 msgid "Data written"
 msgstr "書き込んだデータ"
 
-msgid "Date"
-msgstr "日付"
-
 msgid "Default"
 msgstr "既定"
 
@@ -336,9 +327,6 @@ msgstr "ディスクの故障 – ファイルをバックアップしてくだ�
 
 msgid "Display name (optional):"
 msgstr "表示名 (省略可):"
-
-msgid "Display server"
-msgstr "ディスプレイサーバー"
 
 msgid "Displays"
 msgstr "ディスプレイ"
@@ -502,9 +490,6 @@ msgstr "インストール日"
 msgid "Installed (usable)"
 msgstr "搭載 (使用可能)"
 
-msgid "Instance version"
-msgstr "インスタンスのバージョン"
-
 msgid "Instruction sets"
 msgstr "命令セット"
 
@@ -580,9 +565,6 @@ msgstr "ローカル ディスク"
 msgid "Location unavailable"
 msgstr "場所を利用できません"
 
-msgid "Logical CPUs"
-msgstr "論理 CPU"
-
 msgid "MAC address"
 msgstr "MAC アドレス"
 
@@ -624,9 +606,6 @@ msgstr "メディアエラーが報告されています"
 
 msgid "Memory"
 msgstr "メモリ"
-
-msgid "Memory controller"
-msgstr "メモリコントローラー"
 
 msgid "Memory modules"
 msgstr "メモリモジュール"
@@ -771,9 +750,6 @@ msgstr "OpenGL ベンダー"
 
 msgid "Operating system"
 msgstr "オペレーティングシステム"
-
-msgid "Outputs"
-msgstr "出力"
 
 msgid "Overview"
 msgstr "概要"
@@ -964,9 +940,6 @@ msgstr "現在"
 msgid "Running"
 msgstr "実行中"
 
-msgid "Running at"
-msgstr "動作速度"
-
 msgid "SATA and RAID controllers"
 msgstr "SATA / RAID コントローラー"
 
@@ -1074,9 +1047,6 @@ msgstr "劣化の兆候 – プロパティを確認"
 
 msgid "Size"
 msgstr "サイズ"
-
-msgid "Slots"
-msgstr "スロット"
 
 msgid "Slots in use"
 msgstr "使用中のスロット"
@@ -1333,9 +1303,6 @@ msgstr "VRAM の種類"
 msgid "Vendor"
 msgstr "ベンダー"
 
-msgid "Version"
-msgstr "バージョン"
-
 msgid "Version {version} of DriveDeck is available. To update, download it and run ./install.sh again."
 msgstr "DriveDeck のバージョン {version} が利用可能です。更新するには、ダウンロードして ./install.sh をもう一度実行してください。"
 
@@ -1518,9 +1485,6 @@ msgstr "{label} のマウントは解除されましたが、電源を切れま�
 
 msgid "{link} – idle power state may lower it"
 msgstr "{link} – 省電力状態で下がることがあります"
-
-msgid "{mode} (preferred mode)"
-msgstr "{mode} (推奨モード)"
 
 msgid "{name} (Ethernet)"
 msgstr "{name} (イーサネット)"

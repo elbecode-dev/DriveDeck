@@ -85,9 +85,6 @@ msgstr "可用的調速器"
 msgid "Available modules"
 msgstr "可用的模組"
 
-msgid "BIOS / UEFI"
-msgstr "BIOS / UEFI"
-
 msgid "BIOS automatic"
 msgstr "BIOS 自動控制"
 
@@ -214,9 +211,6 @@ msgstr "關閉"
 msgid "Command bar icons: Fluent UI System Icons, © Microsoft Corporation, MIT license."
 msgstr "命令列圖示: Fluent UI System Icons,© Microsoft Corporation,MIT 授權。"
 
-msgid "Compatibility"
-msgstr "相容設定檔"
-
 msgid "Compatibility profile"
 msgstr "相容性設定檔"
 
@@ -292,9 +286,6 @@ msgstr "資料用量"
 msgid "Data written"
 msgstr "已寫入資料"
 
-msgid "Date"
-msgstr "日期"
-
 msgid "Default"
 msgstr "預設"
 
@@ -336,9 +327,6 @@ msgstr "磁碟故障 – 請備份檔案"
 
 msgid "Display name (optional):"
 msgstr "顯示名稱(選填):"
-
-msgid "Display server"
-msgstr "顯示伺服器"
 
 msgid "Displays"
 msgstr "顯示器"
@@ -502,9 +490,6 @@ msgstr "安裝日期"
 msgid "Installed (usable)"
 msgstr "已安裝(可用)"
 
-msgid "Instance version"
-msgstr "執行個體版本"
-
 msgid "Instruction sets"
 msgstr "指令集"
 
@@ -580,9 +565,6 @@ msgstr "本機磁碟"
 msgid "Location unavailable"
 msgstr "位置無法使用"
 
-msgid "Logical CPUs"
-msgstr "邏輯 CPU"
-
 msgid "MAC address"
 msgstr "MAC 位址"
 
@@ -624,9 +606,6 @@ msgstr "已回報媒體錯誤"
 
 msgid "Memory"
 msgstr "記憶體"
-
-msgid "Memory controller"
-msgstr "記憶體控制器"
 
 msgid "Memory modules"
 msgstr "記憶體模組"
@@ -771,9 +750,6 @@ msgstr "OpenGL 廠商"
 
 msgid "Operating system"
 msgstr "作業系統"
-
-msgid "Outputs"
-msgstr "輸出"
 
 msgid "Overview"
 msgstr "概覽"
@@ -964,9 +940,6 @@ msgstr "目前"
 msgid "Running"
 msgstr "執行中"
 
-msgid "Running at"
-msgstr "運作時脈"
-
 msgid "SATA and RAID controllers"
 msgstr "SATA 與 RAID 控制器"
 
@@ -1074,9 +1047,6 @@ msgstr "有磨損跡象 – 請查看內容"
 
 msgid "Size"
 msgstr "大小"
-
-msgid "Slots"
-msgstr "插槽"
 
 msgid "Slots in use"
 msgstr "已用插槽"
@@ -1333,9 +1303,6 @@ msgstr "顯示記憶體類型"
 msgid "Vendor"
 msgstr "廠商"
 
-msgid "Version"
-msgstr "版本"
-
 msgid "Version {version} of DriveDeck is available. To update, download it and run ./install.sh again."
 msgstr "DriveDeck {version} 版本已推出。若要更新，請下載後重新執行 ./install.sh。"
 
@@ -1518,9 +1485,6 @@ msgstr "{label} 已卸載,但無法關閉電源:\n{detail}\n\n您仍然可以直
 
 msgid "{link} – idle power state may lower it"
 msgstr "{link} – 省電狀態可能會降低"
-
-msgid "{mode} (preferred mode)"
-msgstr "{mode}(偏好模式)"
 
 msgid "{name} (Ethernet)"
 msgstr "{name}(乙太網路)"

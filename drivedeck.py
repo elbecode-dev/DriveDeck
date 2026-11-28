@@ -3750,7 +3750,9 @@ def bildschirme():
     daten = None
     if shutil.which("kscreen-doctor"):
         try:
-            daten = json.loads(_ausgabe(["kscreen-doctor", "-j"], timeout=4) or "null")
+            # ohne QT_QPA_PLATFORM : läuft DriveDeck erzwungen als xcb/offscreen, soll KScreen trotzdem den echten Compositor fragen
+            umgebung = {k: v for k, v in ENV_C.items() if k != "QT_QPA_PLATFORM"}
+            daten = json.loads(_ausgabe(["kscreen-doctor", "-j"], timeout=4, env=umgebung) or "null")
         except ValueError:
             daten = None
     for o in (daten or {}).get("outputs", []) if isinstance(daten, dict) else []:
@@ -4279,7 +4281,9 @@ _VNSTAT: dict[str, Any] = {"zeit": -1e9, "daten": None}
 
 def vnstat_summen():
     """({heute, woche, monat}, angelegt) aus « vnstat --json » (alle Schnittstellen) ; angelegt ist das Datum, ab dem die
-    Datenbank lückenlos zählt (die jüngste Schnittstelle). None ohne vnstat oder ohne Tageswerte. 60 s gemerkt."""
+    Datenbank lückenlos zählt (die jüngste Schnittstelle). None ohne vnstat, ohne Tageswerte oder wenn der Dienst steht :
+    vnstat schreibt « updated » bei jedem Speichern (alle 5 Minuten, ohne aktive Schnittstelle alle 30) ; ist der jüngste
+    Stand älter als 45 Minuten, wären heute, Woche und Monat eingefroren – dann zählt der eigene Zähler. 60 s gemerkt."""
     if not shutil.which("vnstat"):
         return None
     if time.monotonic() - _VNSTAT["zeit"] < 60:
@@ -4294,7 +4298,11 @@ def vnstat_summen():
     res = {"heute": [0, 0], "woche": [0, 0], "monat": [0, 0]}
     gefunden = False
     angelegt: list[datetime.date] = []
-    for iface in d.get("interfaces", []) or []:
+    aktualisiert: list[float] = []
+    for iface in (d.get("interfaces", []) or []) if isinstance(d, dict) else []:
+        u = (iface.get("updated") or {}).get("timestamp")
+        if isinstance(u, (int, float)):
+            aktualisiert.append(float(u))
         c = (iface.get("created") or {}).get("date") or {}
         try:
             angelegt.append(datetime.date(int(c["year"]), int(c["month"]), int(c["day"])))
@@ -4311,7 +4319,8 @@ def vnstat_summen():
                 if ab <= datum <= heute:
                     res[name][0] += int(tag.get("rx", 0))
                     res[name][1] += int(tag.get("tx", 0))
-    _VNSTAT["daten"] = (res, max(angelegt)) if gefunden and angelegt else None
+    steht = bool(aktualisiert) and time.time() - max(aktualisiert) > 45 * 60   # Dienst gestoppt : Datenbank veraltet
+    _VNSTAT["daten"] = (res, max(angelegt)) if gefunden and angelegt and not steht else None
     return _VNSTAT["daten"]
 
 
@@ -9228,7 +9237,7 @@ QQC2.ApplicationWindow {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     activeFocusOnTab: true
-                    readonly property bool zweiSpaltig: width >= 960
+                    readonly property bool zweiSpaltig: width >= 900   // ab der Startgröße 1180 px : Karten paarweise (Inhalt ~950 px)
                     readonly property bool laedt: hwWin.aktTab.id === "overview" ? hwWin.overview.length === 0
                                                  : (hwWin.aktTab.id === "sensors" ? backend.sensors.length === 0 && hwWin.sensorenWarten
                                                                                   : !hwWin.reportReady)
@@ -9433,7 +9442,7 @@ QQC2.ApplicationWindow {
                                                             Layout.preferredWidth: Math.round(36 * win.fontGrow)
                                                             Layout.preferredHeight: Math.round(36 * win.fontGrow)
                                                             Layout.alignment: Qt.AlignTop
-                                                            radius: 10
+                                                            radius: win.rCard
                                                             color: Qt.alpha(Kirigami.Theme.textColor, 0.06)
                                                             border.width: 1
                                                             border.color: win.hairline
@@ -9452,19 +9461,30 @@ QQC2.ApplicationWindow {
                                                                 spacing: 8
                                                                 QQC2.Label {
                                                                     id: hwHeroTitel
-                                                                    Layout.maximumWidth: Math.max(80, hwKarte.width - Math.round(190 * win.fontGrow))   // Plaketten direkt neben dem Namen
+                                                                    // Plaketten direkt neben dem Namen ; gekürzt wird erst, wenn Name und Plaketten nicht mehr passen
+                                                                    // aus der Kartenbreite gerechnet (nicht aus der eigenen Zeile : sonst ordnet das Layout endlos neu an) :
+                                                                    // Ränder 12 + 2 + 6 je Seite, Symbolfläche mit Abstand, Plaketten mit Abstand
+                                                                    Layout.maximumWidth: Math.max(60, hwKarte.width - 40
+                                                                                                  - ((hwKarte.modelData.icon || "") !== "" ? Math.round(36 * win.fontGrow) + 12 : 0)
+                                                                                                  - hwHeroPillen.implicitWidth - (hwHeroPillen.implicitWidth > 0 ? 8 : 0))
                                                                     text: hwHero.heldItem !== null ? (hwHero.heldItem.d || hwHero.heldItem.v) : hwKarte.modelData.title
                                                                     font.family: win.uiFont
                                                                     font.pixelSize: Math.round(16 * win.fontGrow)
                                                                     font.weight: Font.Bold
                                                                     elide: Text.ElideRight
+                                                                    QQC2.ToolTip.visible: truncated && hwHeroHover.hovered
+                                                                    QQC2.ToolTip.text: text
                                                                 }
-                                                                Repeater {
-                                                                    model: hwKarte.modelData.badges || []
-                                                                    delegate: GlassPill {
-                                                                        required property var modelData
-                                                                        text: modelData
-                                                                        akzent: true
+                                                                Row {
+                                                                    id: hwHeroPillen
+                                                                    spacing: 6
+                                                                    Repeater {
+                                                                        model: hwKarte.modelData.badges || []
+                                                                        delegate: GlassPill {
+                                                                            required property var modelData
+                                                                            text: modelData
+                                                                            akzent: true
+                                                                        }
                                                                     }
                                                                 }
                                                                 Item { Layout.fillWidth: true }
@@ -13223,7 +13243,7 @@ QQC2.ApplicationWindow {
 """
 
 
-APP_VERSION = '2.4.0'
+APP_VERSION = '2.5.0'
 APP_AUTEUR = """Original Copyright (C) 2026 naykkalak
 Modified and maintained by Christian (2026), with help from his son Leon"""
 APP_LICENCE = 'GPL-3.0-or-later'
