@@ -188,9 +188,21 @@ small **live graph** of their read and write speed, and warn you when they are a
 
 ## Release history
 
-Newest first; every change is listed in the [CHANGELOG](CHANGELOG.md).
+Newest first. Each version in one or two lines; every change in detail is in the [CHANGELOG](CHANGELOG.md).
 
-### 2.3.0
+### 2.5.0 – 2026-11-28
+
+The current release – see [What's new in 2.5.0](#whats-new-in-250): the glanceable system information, more settings
+(thanks to Sadi58, [#4](https://github.com/elbecode-dev/DriveDeck/issues/4)) and a full pre-release audit. It also
+contains two versions that were not published on their own:
+
+- **2.4.0** (2026-11-28): the resizable hardware inspector with the new categories *Storage & buses*, *Sensors & fans*
+  (read-only) and *Network* (data usage from vnstat or DriveDeck's own counter), and optional vnstat/lm_sensors extras in
+  the installer.
+- **2.3.1** (2026-11-27): the header hairlines of all three columns on one line, glass-tinted dividers, a larger sidebar
+  and category-style section headers.
+
+### 2.3.0 – 2026-11-27
 
 - **Settings in one place.** A gear next to the inspector toggle, "…" in the compact toolbar or `Ctrl+,` open one
   small dialog with the application name, the toolbar choice, the visible sections, the warning threshold (with a live
@@ -201,14 +213,14 @@ Newest first; every change is listed in the [CHANGELOG](CHANGELOG.md).
   may not unmount can be disconnected as administrator after one question, and removing a location really deletes its
   password from KWallet.
 
-### 2.2.1
+### 2.2.1 – 2026-11-27
 
 - **Every language is complete again.** The texts added by this fork are now translated into all 13 languages, not
   only German; long toolbar labels in French, Dutch or Russian are no longer cut off.
 - **Clearer installer.** When PyQt6 is installed but cannot be loaded, `install.sh` explains why and how to fix it
   (thanks to 3Shadow3S, [#3](https://github.com/elbecode-dev/DriveDeck/issues/3)).
 
-### 2.2.0
+### 2.2.0 – 2026-11-27
 
 - **Finder-style side columns.** Sidebar and inspector are full-height columns set apart by one hairline instead of
   floating glass panels with cards; the inspector shows details in the Finder "Get Info" grid.
@@ -217,7 +229,7 @@ Newest first; every change is listed in the [CHANGELOG](CHANGELOG.md).
   spacing, radii and animations follow one system. The neon glow, outlines and accent stripes are gone.
 - **Calmer ink bars.** Printers that report pure RGB colours are shown in muted print tones.
 
-### 2.1.0
+### 2.1.0 – 2026-11-26
 
 - **Compact toolbar.** When the four ribbon groups do not fit between the side panels (about 2175 px window width with
   both panels in German), the ribbon becomes a centred 48 px toolbar with the same commands as icons,
@@ -237,7 +249,13 @@ Newest first; every change is listed in the [CHANGELOG](CHANGELOG.md).
   "Black Toner Cartridge" → "Black (toner)") and translated. A cartridge is low at the printer's own threshold, or at 10 %
   if the printer declares none.
 
-### 2.0.0 – a calmer look
+### 2.0.1 – 2026-11-26
+
+- Folders open in your **default file manager** and "Open in terminal" uses **your terminal**; an **inspector toggle**
+  (`Ctrl+I`), full-height side panels and more system details in the inspector header (CPU and GPU temperature, CPU
+  scheduler, package updates), plus the fixes of a full end-to-end audit.
+
+### 2.0.0 – 2026-11-26 – the first stable DriveDeck, a calmer look
 
 - **Finder-style sidebar** with quiet section headings, a slim capacity line and the size of each drive, eject on hover.
 - **Cards float freely** and only show a surface on hover and an accent-tinted one when selected; slim 4 px usage bars,
@@ -252,9 +270,17 @@ Newest first; every change is listed in the [CHANGELOG](CHANGELOG.md).
 - **Keyboard and screen readers:** Tab runs through main area, sidebar, ribbon, settings, inspector toggle and window
   buttons; `Ctrl+,` opens the settings, `Ctrl+I` toggles the inspector; every element has a name that Orca can read.
 
-### The first fork releases (1.x)
+### 2.0.0 betas and release candidates – 2026-10-28 to 2026-11-18
 
-**Problems that are fixed** compared with the original program:
+- **beta.1** renamed the fork to **DriveDeck** with its own icon, a modern look and live monitoring; **beta.2** to
+  **beta.8.6** added a clean shutdown, the read/write graph on the drive cards, ink levels, the system summary, more
+  context menus, the ribbon with click mode and warning threshold, and the glass window; **rc1** to **rc5** only fixed bugs.
+- The beta look – a donut ring in *Properties*, animated usage bars and a purple-to-cyan hover glow – was replaced by the
+  calmer design of 2.0.0 and 2.2.0.
+
+### 1.2.0 – 2026-10-25 – the first fork release
+
+Based on Fenestra "This PC" 1.1 by naykkalak. **Problems that are fixed** compared with the original program:
 
 | What went wrong before | What happens now |
 |---|---|
@@ -282,17 +308,9 @@ Newest first; every change is listed in the [CHANGELOG](CHANGELOG.md).
   a stick, mount a drive, …). Free-space bars are refreshed every 10 seconds.
 - **Fewer system calls.** Information that used to need one request per disk is now collected in a single request.
 
-**A fresher look** (later replaced by the calmer design of 2.0.0 and 2.2.0):
+---
 
-- The pie chart in the *Properties* window is now a smooth **donut ring** with the percentage in the middle.
-- Usage bars are slimmer and rounded, and **animate** to their value.
-- Cards react more softly to the mouse: they fade a highlight in, the icon grows a little, and the selected card gets
-  an accent strip. Folders, drives, network locations and printers all share **one hover look**: a translucent
-  purple-to-cyan gradient with a glowing gradient border.
-- Text is easier to read: labels and subtitles use larger sizes relative to your system font, and secondary text has more
-  contrast.
-- Section headers ("FOLDERS", "DEVICES AND DRIVES", …) are in capitals with the item count as a small pill and a line that
-  fades out to the right. Divider lines are softer.
+The complete list of changes, version by version: [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
