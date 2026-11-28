@@ -19,6 +19,12 @@ msgstr "naykkalak による Fenestra「PC」のコミュニティフォーク：
 msgid "ADF duplex"
 msgstr "ADF 両面"
 
+msgid "AGESA / firmware"
+msgstr "AGESA / ファームウェア"
+
+msgid "ALSA kernel driver"
+msgstr "ALSA カーネルドライバー"
+
 msgid "About"
 msgstr "バージョン情報"
 
@@ -28,8 +34,14 @@ msgstr "DriveDeck について"
 msgid "Actions & tools"
 msgstr "操作とツール"
 
+msgid "Active connection"
+msgstr "アクティブな接続"
+
 msgid "Activity"
 msgstr "アクティビティ"
+
+msgid "Adapter {slot}"
+msgstr "アダプター {slot}"
 
 msgid "Add a network location"
 msgstr "ネットワークの場所を追加"
@@ -52,17 +64,47 @@ msgstr "外観"
 msgid "Application name:"
 msgstr "アプリケーション名:"
 
+msgid "Architecture"
+msgstr "アーキテクチャ"
+
+msgid "Audio subsystem"
+msgstr "オーディオサブシステム"
+
+msgid "Audio, input and USB"
+msgstr "オーディオ、入力、USB"
+
 msgid "Author: {author}"
 msgstr "作者: {author}"
 
 msgid "Available"
 msgstr "利用可能"
 
+msgid "Available governors"
+msgstr "利用可能なガバナー"
+
+msgid "Available modules"
+msgstr "利用可能なモジュール"
+
+msgid "BIOS / UEFI"
+msgstr "BIOS / UEFI"
+
+msgid "BIOS automatic"
+msgstr "BIOS 自動制御"
+
 msgid "Bad sectors"
 msgstr "不良セクター"
 
 msgid "Black"
 msgstr "ブラック"
+
+msgid "Boost"
+msgstr "ブースト"
+
+msgid "Boot mode"
+msgstr "起動モード"
+
+msgid "Build"
+msgstr "ビルド"
 
 msgid "Built-in"
 msgstr "内蔵"
@@ -72,6 +114,9 @@ msgstr "CD/DVD ドライブ"
 
 msgid "CPU & Board"
 msgstr "CPU とマザーボード"
+
+msgid "Cache"
+msgstr "キャッシュ"
 
 msgid "Cannot add"
 msgstr "追加できません"
@@ -124,17 +169,38 @@ msgstr "アンマウントできません"
 msgid "Capacity: {size}"
 msgstr "容量: {size}"
 
+msgid "Categories"
+msgstr "カテゴリー"
+
+msgid "Chassis type"
+msgstr "筐体の種類"
+
 msgid "Check for a new version once a week"
 msgstr "週に 1 回新しいバージョンを確認する"
 
+msgid "Chipset (from the model name)"
+msgstr "チップセット (モデル名から)"
+
 msgid "Choose a share…"
 msgstr "共有を選択…"
+
+msgid "Click to copy"
+msgstr "クリックしてコピー"
 
 msgid "Close"
 msgstr "閉じる"
 
 msgid "Command bar icons: Fluent UI System Icons, © Microsoft Corporation, MIT license."
 msgstr "コマンド バーのアイコン: Fluent UI System Icons、© Microsoft Corporation、MIT ライセンス。"
+
+msgid "Compatibility"
+msgstr "互換プロファイル"
+
+msgid "Compiler"
+msgstr "コンパイラー"
+
+msgid "Compositor"
+msgstr "コンポジター"
 
 msgid "Connected"
 msgstr "接続済み"
@@ -160,6 +226,9 @@ msgstr "パスをコピー"
 msgid "Copy specs"
 msgstr "仕様をコピー"
 
+msgid "Core profile"
+msgstr "コアプロファイル"
+
 msgid "Could not save the list:\n{error}"
 msgstr "一覧を保存できませんでした:\n{error}"
 
@@ -184,14 +253,26 @@ msgstr "アプリケーション名をカスタマイズ (例: PC、CyberDeck)"
 msgid "Cyan"
 msgstr "シアン"
 
+msgid "DNS servers"
+msgstr "DNS サーバー"
+
 msgid "Data read"
 msgstr "読み取ったデータ"
+
+msgid "Data usage"
+msgstr "データ使用量"
 
 msgid "Data written"
 msgstr "書き込んだデータ"
 
+msgid "Date"
+msgstr "日付"
+
 msgid "Default"
 msgstr "既定"
+
+msgid "Default gateway"
+msgstr "デフォルトゲートウェイ"
 
 msgid "Desktop"
 msgstr "デスクトップ"
@@ -226,14 +307,26 @@ msgstr "ディスクの故障 – ファイルをバックアップしてくだ�
 msgid "Display name (optional):"
 msgstr "表示名 (省略可):"
 
+msgid "Display server"
+msgstr "ディスプレイサーバー"
+
+msgid "Distribution"
+msgstr "ディストリビューション"
+
 msgid "Documents"
 msgstr "ドキュメント"
+
+msgid "Download"
+msgstr "ダウンロード"
 
 msgid "Downloads"
 msgstr "ダウンロード"
 
 msgid "Drag folders here to pin them"
 msgstr "ここにフォルダーをドラッグしてピン留め"
+
+msgid "Drive"
+msgstr "ドライブ"
 
 msgid "Drive failing: {label}"
 msgstr "ドライブの故障: {label}"
@@ -247,11 +340,35 @@ msgstr "取り出し"
 msgid "Empty"
 msgstr "空"
 
+msgid "Energy performance preference"
+msgstr "エネルギー性能の優先設定"
+
+msgid "Error correction"
+msgstr "エラー訂正"
+
 msgid "Export full report…"
 msgstr "完全なレポートをエクスポート…"
 
 msgid "Failed"
 msgstr "失敗"
+
+msgid "Family"
+msgstr "ファミリー"
+
+msgid "Family / Model / Stepping"
+msgstr "ファミリー / モデル / ステッピング"
+
+msgid "Fan"
+msgstr "ファン"
+
+msgid "Fan control"
+msgstr "ファン制御"
+
+msgid "Fan {n}"
+msgstr "ファン {n}"
+
+msgid "Fans"
+msgstr "ファン"
 
 msgid "File system"
 msgstr "ファイルシステム"
@@ -292,11 +409,17 @@ msgstr "GPL-3.0 以降"
 msgid "GPU & Display"
 msgstr "グラフィックスとディスプレイ"
 
+msgid "GPU core"
+msgstr "GPU コア"
+
 msgid "Game controller"
 msgstr "ゲームコントローラー"
 
 msgid "Good"
 msgstr "良好"
+
+msgid "Governor"
+msgstr "ガバナー"
 
 msgid "Graphics"
 msgstr "グラフィックス"
@@ -313,6 +436,12 @@ msgstr "グレー"
 msgid "Health"
 msgstr "健康状態"
 
+msgid "IPv4 address"
+msgstr "IPv4 アドレス"
+
+msgid "IPv6 address"
+msgstr "IPv6 アドレス"
+
 msgid "Incorrect username or password."
 msgstr "ユーザー名またはパスワードが正しくありません。"
 
@@ -322,8 +451,23 @@ msgstr "インク残量"
 msgid "Installed"
 msgstr "インストール日"
 
+msgid "Installed (usable)"
+msgstr "搭載 (使用可能)"
+
+msgid "Instance version"
+msgstr "インスタンスのバージョン"
+
+msgid "Instruction sets"
+msgstr "命令セット"
+
 msgid "Insufficient rights"
 msgstr "権限が不足しています"
+
+msgid "Interface"
+msgstr "インターフェース"
+
+msgid "Interfaces"
+msgstr "インターフェース"
 
 msgid "JSON report"
 msgstr "JSON レポート"
@@ -331,8 +475,20 @@ msgstr "JSON レポート"
 msgid "KWallet could not save the password: the gauge will not be shown."
 msgstr "KWallet がパスワードを保存できませんでした。空き容量のバーは表示されません。"
 
+msgid "Kernel driver"
+msgstr "カーネルドライバー"
+
+msgid "Kernel module"
+msgstr "カーネルモジュール"
+
 msgid "Keyboard"
 msgstr "キーボード"
+
+msgid "L1 data"
+msgstr "L1 データ"
+
+msgid "L1 instruction"
+msgstr "L1 命令"
 
 msgid "License: {license}"
 msgstr "ライセンス: {license}"
@@ -346,8 +502,17 @@ msgstr "ライトグレー"
 msgid "Light magenta"
 msgstr "ライトマゼンタ"
 
+msgid "Link speed"
+msgstr "リンク速度"
+
+msgid "Liquid cooler"
+msgstr "水冷クーラー"
+
 msgid "List"
 msgstr "一覧表示"
+
+msgid "Loaded modules"
+msgstr "読み込み済みモジュール"
 
 msgid "Local Disk"
 msgstr "ローカル ディスク"
@@ -355,14 +520,38 @@ msgstr "ローカル ディスク"
 msgid "Location unavailable"
 msgstr "場所を利用できません"
 
+msgid "Logical CPUs"
+msgstr "論理 CPU"
+
+msgid "MAC address"
+msgstr "MAC アドレス"
+
 msgid "Magenta"
 msgstr "マゼンタ"
 
 msgid "Mainboard"
 msgstr "マザーボード"
 
+msgid "Manual · {p}"
+msgstr "手動 · {p}"
+
+msgid "Manufacturer"
+msgstr "メーカー"
+
 msgid "Matte black"
 msgstr "マットブラック"
+
+msgid "Max. GPU clock"
+msgstr "最大 GPU クロック"
+
+msgid "Max. capacity"
+msgstr "最大容量"
+
+msgid "Max. clock"
+msgstr "最大クロック"
+
+msgid "Max. memory clock"
+msgstr "最大メモリクロック"
 
 msgid "Maximize"
 msgstr "最大化"
@@ -376,8 +565,26 @@ msgstr "メディアエラーが報告されています"
 msgid "Memory"
 msgstr "メモリ"
 
+msgid "Memory controller"
+msgstr "メモリコントローラー"
+
+msgid "Memory modules"
+msgstr "メモリモジュール"
+
+msgid "Microcode"
+msgstr "マイクロコード"
+
+msgid "Min. clock"
+msgstr "最小クロック"
+
 msgid "Minimize"
 msgstr "最小化"
+
+msgid "Model"
+msgstr "モデル"
+
+msgid "Module {n}"
+msgstr "モジュール {n}"
 
 msgid "Mount"
 msgstr "マウント"
@@ -406,6 +613,12 @@ msgstr "ミュージック"
 msgid "My NAS"
 msgstr "マイ NAS"
 
+msgid "NVMe controller {slot}"
+msgstr "NVMe コントローラー {slot}"
+
+msgid "NVMe drive"
+msgstr "NVMe ドライブ"
+
 msgid "Name shown in the title bar and as the heading of the drive list. Leave empty for the default names."
 msgstr "タイトルバーとドライブ一覧の見出しに表示される名前です。空欄にすると既定の名前を使います。"
 
@@ -420,6 +633,9 @@ msgstr "「notify-send」にもデスクトップの通知サービスにも接�
 
 msgid "Network"
 msgstr "ネットワーク"
+
+msgid "Network adapter"
+msgstr "ネットワークアダプター"
 
 msgid "Network location"
 msgstr "ネットワークの場所"
@@ -436,11 +652,17 @@ msgstr "ディスクなし"
 msgid "No information available."
 msgstr "利用できる情報がありません。"
 
+msgid "No matches"
+msgstr "一致する項目はありません"
+
 msgid "No scanning program was found on this computer. Please install “skanpage” or “simple-scan”."
 msgstr "このコンピューターにスキャンプログラムが見つかりません。「skanpage」または「simple-scan」をインストールしてください。"
 
 msgid "No share visible with these credentials."
 msgstr "この資格情報では表示できる共有がありません。"
+
+msgid "No temperature or fan sensors were found. The sensor drivers of the mainboard may need to be loaded (for example with “sensors-detect”)."
+msgstr "温度センサーやファンのセンサーが見つかりませんでした。マザーボードのセンサードライバーを読み込む必要があるかもしれません (例: 「sensors-detect」)。"
 
 msgid "No terminal program found"
 msgstr "ターミナルプログラムが見つかりません"
@@ -481,8 +703,23 @@ msgstr "設定を開く"
 msgid "Open with {app}"
 msgstr "{app} で開く"
 
+msgid "Operating system"
+msgstr "オペレーティングシステム"
+
+msgid "Outputs"
+msgstr "出力"
+
 msgid "Overview"
 msgstr "概要"
+
+msgid "PCIe link"
+msgstr "PCIe リンク"
+
+msgid "PCIe link (max.)"
+msgstr "PCIe リンク (最大)"
+
+msgid "PCIe link (now)"
+msgstr "PCIe リンク (現在)"
 
 msgid "Partial eject"
 msgstr "一部のみ取り出しました"
@@ -517,6 +754,12 @@ msgstr "クイック アクセスにピン留め"
 msgid "Power cycles"
 msgstr "電源投入回数"
 
+msgid "Power limit"
+msgstr "電力制限"
+
+msgid "Power management"
+msgstr "電源管理"
+
 msgid "Power-on time"
 msgstr "通電時間"
 
@@ -538,6 +781,9 @@ msgstr "印刷中"
 msgid "Processor"
 msgstr "プロセッサ"
 
+msgid "Product"
+msgstr "製品"
+
 msgid "Program not found"
 msgstr "プログラムが見つかりません"
 
@@ -546,6 +792,9 @@ msgstr "プロパティ"
 
 msgid "Properties of {name}"
 msgstr "{name} のプロパティ"
+
+msgid "Pulse server"
+msgstr "Pulse サーバー"
 
 msgid "Quick access"
 msgstr "クイック アクセス"
@@ -577,6 +826,9 @@ msgstr "SMART の読み取りがタイムアウトしました。"
 msgid "Reading hardware…"
 msgstr "ハードウェアを読み取り中…"
 
+msgid "Reading sensors…"
+msgstr "センサーを読み取り中…"
+
 msgid "Ready"
 msgstr "準備完了"
 
@@ -588,6 +840,9 @@ msgstr "空き容量がこれ以下になると赤いゲージと ⚠ 記号を�
 
 msgid "Refresh"
 msgstr "最新の情報に更新"
+
+msgid "Release"
+msgstr "リリース"
 
 msgid "Remember the password (KWallet) to show the free space"
 msgstr "空き容量を表示するためにパスワードを記憶する (KWallet)"
@@ -619,6 +874,9 @@ msgstr "名前の変更…"
 msgid "Renaming is not supported for this format ({fstype})."
 msgstr "この形式 ({fstype}) では名前の変更はサポートされていません。"
 
+msgid "Renderer"
+msgstr "レンダラー"
+
 msgid "Report saved"
 msgstr "レポートを保存しました"
 
@@ -631,8 +889,26 @@ msgstr "名前をリセット"
 msgid "Restore"
 msgstr "元のサイズに戻す"
 
+msgid "Right now"
+msgstr "現在"
+
 msgid "Running"
 msgstr "実行中"
+
+msgid "Running at"
+msgstr "動作速度"
+
+msgid "SATA and RAID controllers"
+msgstr "SATA / RAID コントローラー"
+
+msgid "SATA drive"
+msgstr "SATA ドライブ"
+
+msgid "SATA link {n}"
+msgstr "SATA リンク {n}"
+
+msgid "SATA links"
+msgstr "SATA リンク"
 
 msgid "SMART health"
 msgstr "SMART の健康状態"
@@ -655,11 +931,23 @@ msgstr "SSD の最適化に失敗しました"
 msgid "Safely remove"
 msgstr "安全に取り外す"
 
+msgid "Scaling driver"
+msgstr "スケーリングドライバー"
+
+msgid "Scaling range"
+msgstr "クロック範囲"
+
 msgid "Scanner"
 msgstr "スキャナー"
 
 msgid "Scan…"
 msgstr "スキャン…"
+
+msgid "Search (Ctrl+F)"
+msgstr "検索 (Ctrl+F)"
+
+msgid "Search results"
+msgstr "検索結果"
 
 msgid "Searching…"
 msgstr "検索中…"
@@ -673,11 +961,17 @@ msgstr "セルフテストに失敗しました"
 msgid "Send test notification"
 msgstr "テスト通知を送信"
 
+msgid "Sensors & fans"
+msgstr "センサーとファン"
+
 msgid "Server address:"
 msgstr "サーバーのアドレス:"
 
 msgid "Server unreachable. Check the address and that the server is turned on."
 msgstr "サーバーに接続できません。アドレスと、サーバーの電源が入っていることを確認してください。"
+
+msgid "Session type"
+msgstr "セッションの種類"
 
 msgid "Set as default printer"
 msgstr "通常使うプリンターに設定"
@@ -709,14 +1003,35 @@ msgstr "劣化の兆候 – プロパティを確認"
 msgid "Size"
 msgstr "サイズ"
 
+msgid "Slots"
+msgstr "スロット"
+
+msgid "Slots, type, speed, manufacturer"
+msgstr "スロット、種類、速度、メーカー"
+
+msgid "Socket"
+msgstr "ソケット"
+
+msgid "Sockets · cores per socket · threads per core"
+msgstr "ソケット · ソケットあたりのコア · コアあたりのスレッド"
+
 msgid "Sound"
 msgstr "サウンド"
+
+msgid "Sound card {n}"
+msgstr "サウンドカード {n}"
+
+msgid "Source"
+msgstr "ソース"
 
 msgid "Spare"
 msgstr "予備領域"
 
 msgid "Spare capacity below the limit"
 msgstr "予備領域がしきい値未満"
+
+msgid "Speed"
+msgstr "速度"
 
 msgid "Status"
 msgstr "状態"
@@ -727,8 +1042,20 @@ msgstr "状態:"
 msgid "Storage"
 msgstr "ストレージ"
 
+msgid "Storage & buses"
+msgstr "ストレージとバス"
+
 msgid "Storage I/O"
 msgstr "ストレージ I/O"
+
+msgid "Storage and filesystems"
+msgstr "ストレージとファイルシステム"
+
+msgid "Subsystem"
+msgstr "サブシステム"
+
+msgid "Swap"
+msgstr "スワップ"
 
 msgid "System"
 msgstr "システム"
@@ -763,8 +1090,14 @@ msgstr "温度"
 msgid "Temperature warning"
 msgstr "温度の警告"
 
+msgid "Temperature {n}"
+msgstr "温度 {n}"
+
 msgid "Temperature:"
 msgstr "温度:"
+
+msgid "Temperatures"
+msgstr "温度"
 
 msgid "Terminal"
 msgstr "ターミナル"
@@ -832,14 +1165,29 @@ msgstr "このドライブには管理者パスワード付きの smartctl が�
 msgid "This location already exists in the list."
 msgstr "この場所はすでに一覧にあります。"
 
+msgid "This month"
+msgstr "今月"
+
 msgid "This printer does not report ink levels"
 msgstr "このプリンターはインク残量を報告しません"
+
+msgid "This session (since boot)"
+msgstr "このセッション (起動以降)"
 
 msgid "This software is neither affiliated with nor endorsed by Microsoft Corporation. Windows is a trademark of Microsoft Corporation."
 msgstr "このソフトウェアは Microsoft Corporation とは関係がなく、承認も受けていません。Windows は Microsoft Corporation の商標です。"
 
+msgid "This week"
+msgstr "今週"
+
+msgid "Today"
+msgstr "今日"
+
 msgid "Toggle inspector"
 msgstr "インスペクターの表示切り替え"
+
+msgid "Total"
+msgstr "合計"
 
 msgid "Touchpad"
 msgstr "タッチパッド"
@@ -847,11 +1195,26 @@ msgstr "タッチパッド"
 msgid "Trash"
 msgstr "ごみ箱"
 
+msgid "Type"
+msgstr "種類"
+
 msgid "Type the password to be able to remember it."
 msgstr "パスワードを記憶するには、パスワードを入力してください。"
 
 msgid "Type:"
 msgstr "種類:"
+
+msgid "UEFI · Secure Boot off"
+msgstr "UEFI · セキュアブート オフ"
+
+msgid "UEFI · Secure Boot on"
+msgstr "UEFI · セキュアブート オン"
+
+msgid "USB devices"
+msgstr "USB デバイス"
+
+msgid "USB host controllers"
+msgstr "USB ホストコントローラー"
 
 msgid "Uncorrectable sectors"
 msgstr "訂正不能セクター"
@@ -874,6 +1237,9 @@ msgstr "不正なシャットダウン"
 msgid "Up to date"
 msgstr "最新"
 
+msgid "Upload"
+msgstr "アップロード"
+
 msgid "Uptime"
 msgstr "稼働時間"
 
@@ -886,6 +1252,15 @@ msgstr "使用中: {size}"
 msgid "Username (required):"
 msgstr "ユーザー名 (必須):"
 
+msgid "VRAM type"
+msgstr "VRAM の種類"
+
+msgid "Vendor"
+msgstr "ベンダー"
+
+msgid "Version"
+msgstr "バージョン"
+
 msgid "Version {version} of DriveDeck is available. To update, download it and run ./install.sh again."
 msgstr "DriveDeck のバージョン {version} が利用可能です。更新するには、ダウンロードして ./install.sh をもう一度実行してください。"
 
@@ -897,6 +1272,9 @@ msgstr "ビデオ"
 
 msgid "View"
 msgstr "表示"
+
+msgid "Virtualization"
+msgstr "仮想化"
 
 msgid "Volume name"
 msgstr "ボリューム名"
@@ -922,14 +1300,35 @@ msgstr "書き込み"
 msgid "Yellow"
 msgstr "イエロー"
 
+msgid "built into the kernel"
+msgstr "カーネルに組み込み"
+
+msgid "connected"
+msgstr "接続済み"
+
+msgid "counted by DriveDeck since {date}"
+msgstr "{date} から DriveDeck が集計"
+
 msgid "day"
 msgstr "日"
 
 msgid "days"
 msgstr "日"
 
+msgid "disabled"
+msgstr "無効"
+
 msgid "driver {name}"
 msgstr "ドライバー {name}"
+
+msgid "empty"
+msgstr "空"
+
+msgid "enabled"
+msgstr "有効"
+
+msgid "fancontrol active"
+msgstr "fancontrol 有効"
 
 msgid "file manager"
 msgstr "ファイルマネージャー"
@@ -937,11 +1336,23 @@ msgstr "ファイルマネージャー"
 msgid "filled in from the list, or type it"
 msgstr "一覧から入力されます。または直接入力"
 
+msgid "full duplex"
+msgstr "全二重"
+
 msgid "gdbus not found or timed out."
 msgstr "gdbus が見つからないか、タイムアウトしました。"
 
+msgid "half duplex"
+msgstr "半二重"
+
 msgid "limit {n} %"
 msgstr "しきい値 {n} %"
+
+msgid "max."
+msgstr "最大"
+
+msgid "min {min} · max {max}"
+msgstr "最小 {min} · 最大 {max}"
 
 msgid "needs administrator rights"
 msgstr "管理者権限が必要"
@@ -949,14 +1360,44 @@ msgstr "管理者権限が必要"
 msgid "needs administrator rights – use the button below"
 msgstr "管理者権限が必要 – 下のボタンを使ってください"
 
+msgid "none"
+msgstr "なし"
+
+msgid "not exposed by the driver"
+msgstr "ドライバーは報告していません"
+
+msgid "not exposed by the kernel"
+msgstr "カーネルは報告していません"
+
+msgid "off"
+msgstr "オフ"
+
+msgid "on"
+msgstr "オン"
+
 msgid "only for “List”, never saved"
 msgstr "「一覧表示」専用で、保存されません"
+
+msgid "port {port}"
+msgstr "ポート {port}"
+
+msgid "rank {n}"
+msgstr "ランク {n}"
 
 msgid "running…"
 msgstr "実行中…"
 
 msgid "unknown error"
 msgstr "不明なエラー"
+
+msgid "used by {list}"
+msgstr "{list} が使用"
+
+msgid "version {v}"
+msgstr "バージョン {v}"
+
+msgid "vnstat since {date}"
+msgstr "{date} から vnstat"
 
 msgid "{cores} cores / {threads} threads"
 msgstr "{cores} コア / {threads} スレッド"
@@ -979,6 +1420,21 @@ msgstr "{label} の空き容量がわずかです"
 msgid "{label} was unmounted but could not be powered off:\n{detail}\n\nYou can still unplug it."
 msgstr "{label} のマウントは解除されましたが、電源を切れませんでした:\n{detail}\n\nそのまま取り外しても問題ありません。"
 
+msgid "{link} – idle power state may lower it"
+msgstr "{link} – 省電力状態で下がることがあります"
+
+msgid "{mode} (preferred mode)"
+msgstr "{mode} (推奨モード)"
+
+msgid "{name} (Ethernet)"
+msgstr "{name} (イーサネット)"
+
+msgid "{name} (Wi-Fi)"
+msgstr "{name} (Wi-Fi)"
+
+msgid "{name} (modules)"
+msgstr "{name} (モジュール)"
+
 msgid "{n} items"
 msgstr "{n} 項目"
 
@@ -987,6 +1443,18 @@ msgstr "{n} 件の更新"
 
 msgid "{share} on {host}"
 msgstr "{host} の {share}"
+
+msgid "{socket} (derived from the CPU family)"
+msgstr "{socket} (CPU ファミリーから推定)"
+
+msgid "{socket} (derived from the {chipset} chipset)"
+msgstr "{socket} ({chipset} チップセットから推定)"
+
+msgid "{speed} (running {clock})"
+msgstr "{speed} ({clock} で動作)"
+
+msgid "{type} (from the model name)"
+msgstr "{type} (モデル名から)"
 
 msgid "{used} in use ({pct} %)"
 msgstr "{used} 使用中 ({pct} %)"

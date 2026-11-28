@@ -19,6 +19,12 @@ msgstr "由 naykkalak 开发的 Fenestra“此电脑”的社区分支：在 KDE
 msgid "ADF duplex"
 msgstr "ADF 双面"
 
+msgid "AGESA / firmware"
+msgstr "AGESA / 固件"
+
+msgid "ALSA kernel driver"
+msgstr "ALSA 内核驱动"
+
 msgid "About"
 msgstr "关于"
 
@@ -28,8 +34,14 @@ msgstr "关于 DriveDeck"
 msgid "Actions & tools"
 msgstr "操作和工具"
 
+msgid "Active connection"
+msgstr "活动连接"
+
 msgid "Activity"
 msgstr "活动"
+
+msgid "Adapter {slot}"
+msgstr "适配器 {slot}"
 
 msgid "Add a network location"
 msgstr "添加网络位置"
@@ -52,17 +64,47 @@ msgstr "外观"
 msgid "Application name:"
 msgstr "应用程序名称:"
 
+msgid "Architecture"
+msgstr "架构"
+
+msgid "Audio subsystem"
+msgstr "音频子系统"
+
+msgid "Audio, input and USB"
+msgstr "音频、输入和 USB"
+
 msgid "Author: {author}"
 msgstr "作者: {author}"
 
 msgid "Available"
 msgstr "可用"
 
+msgid "Available governors"
+msgstr "可用调速器"
+
+msgid "Available modules"
+msgstr "可用模块"
+
+msgid "BIOS / UEFI"
+msgstr "BIOS / UEFI"
+
+msgid "BIOS automatic"
+msgstr "BIOS 自动控制"
+
 msgid "Bad sectors"
 msgstr "坏扇区"
 
 msgid "Black"
 msgstr "黑色"
+
+msgid "Boost"
+msgstr "加速"
+
+msgid "Boot mode"
+msgstr "启动模式"
+
+msgid "Build"
+msgstr "构建"
 
 msgid "Built-in"
 msgstr "内置"
@@ -72,6 +114,9 @@ msgstr "CD/DVD 驱动器"
 
 msgid "CPU & Board"
 msgstr "CPU 和主板"
+
+msgid "Cache"
+msgstr "缓存"
 
 msgid "Cannot add"
 msgstr "无法添加"
@@ -124,17 +169,38 @@ msgstr "无法卸载"
 msgid "Capacity: {size}"
 msgstr "容量: {size}"
 
+msgid "Categories"
+msgstr "类别"
+
+msgid "Chassis type"
+msgstr "机箱类型"
+
 msgid "Check for a new version once a week"
 msgstr "每周检查一次新版本"
 
+msgid "Chipset (from the model name)"
+msgstr "芯片组(根据型号名称)"
+
 msgid "Choose a share…"
 msgstr "选择共享…"
+
+msgid "Click to copy"
+msgstr "点击复制"
 
 msgid "Close"
 msgstr "关闭"
 
 msgid "Command bar icons: Fluent UI System Icons, © Microsoft Corporation, MIT license."
 msgstr "命令栏图标: Fluent UI System Icons,© Microsoft Corporation,MIT 许可证。"
+
+msgid "Compatibility"
+msgstr "兼容配置"
+
+msgid "Compiler"
+msgstr "编译器"
+
+msgid "Compositor"
+msgstr "合成器"
 
 msgid "Connected"
 msgstr "已连接"
@@ -160,6 +226,9 @@ msgstr "复制路径"
 msgid "Copy specs"
 msgstr "复制规格"
 
+msgid "Core profile"
+msgstr "核心配置"
+
 msgid "Could not save the list:\n{error}"
 msgstr "无法保存列表:\n{error}"
 
@@ -184,14 +253,26 @@ msgstr "自定义应用程序名称(例如 此电脑、CyberDeck)"
 msgid "Cyan"
 msgstr "青色"
 
+msgid "DNS servers"
+msgstr "DNS 服务器"
+
 msgid "Data read"
 msgstr "已读取数据"
+
+msgid "Data usage"
+msgstr "数据用量"
 
 msgid "Data written"
 msgstr "已写入数据"
 
+msgid "Date"
+msgstr "日期"
+
 msgid "Default"
 msgstr "默认"
+
+msgid "Default gateway"
+msgstr "默认网关"
 
 msgid "Desktop"
 msgstr "桌面"
@@ -226,14 +307,26 @@ msgstr "磁盘故障 – 请备份文件"
 msgid "Display name (optional):"
 msgstr "显示名称(可选):"
 
+msgid "Display server"
+msgstr "显示服务器"
+
+msgid "Distribution"
+msgstr "发行版"
+
 msgid "Documents"
 msgstr "文档"
+
+msgid "Download"
+msgstr "下载"
 
 msgid "Downloads"
 msgstr "下载"
 
 msgid "Drag folders here to pin them"
 msgstr "将文件夹拖到此处以固定"
+
+msgid "Drive"
+msgstr "驱动器"
 
 msgid "Drive failing: {label}"
 msgstr "驱动器故障:{label}"
@@ -247,11 +340,35 @@ msgstr "弹出"
 msgid "Empty"
 msgstr "空"
 
+msgid "Energy performance preference"
+msgstr "能效偏好"
+
+msgid "Error correction"
+msgstr "纠错"
+
 msgid "Export full report…"
 msgstr "导出完整报告…"
 
 msgid "Failed"
 msgstr "失败"
+
+msgid "Family"
+msgstr "系列"
+
+msgid "Family / Model / Stepping"
+msgstr "系列 / 型号 / 步进"
+
+msgid "Fan"
+msgstr "风扇"
+
+msgid "Fan control"
+msgstr "风扇控制"
+
+msgid "Fan {n}"
+msgstr "风扇 {n}"
+
+msgid "Fans"
+msgstr "风扇"
 
 msgid "File system"
 msgstr "文件系统"
@@ -292,11 +409,17 @@ msgstr "GPL-3.0 或更高版本"
 msgid "GPU & Display"
 msgstr "显卡和显示器"
 
+msgid "GPU core"
+msgstr "GPU 核心"
+
 msgid "Game controller"
 msgstr "游戏控制器"
 
 msgid "Good"
 msgstr "良好"
+
+msgid "Governor"
+msgstr "调速器"
 
 msgid "Graphics"
 msgstr "图形"
@@ -313,6 +436,12 @@ msgstr "灰色"
 msgid "Health"
 msgstr "健康状况"
 
+msgid "IPv4 address"
+msgstr "IPv4 地址"
+
+msgid "IPv6 address"
+msgstr "IPv6 地址"
+
 msgid "Incorrect username or password."
 msgstr "用户名或密码不正确。"
 
@@ -322,8 +451,23 @@ msgstr "墨水量"
 msgid "Installed"
 msgstr "安装时间"
 
+msgid "Installed (usable)"
+msgstr "已安装(可用)"
+
+msgid "Instance version"
+msgstr "实例版本"
+
+msgid "Instruction sets"
+msgstr "指令集"
+
 msgid "Insufficient rights"
 msgstr "权限不足"
+
+msgid "Interface"
+msgstr "接口"
+
+msgid "Interfaces"
+msgstr "接口"
 
 msgid "JSON report"
 msgstr "JSON 报告"
@@ -331,8 +475,20 @@ msgstr "JSON 报告"
 msgid "KWallet could not save the password: the gauge will not be shown."
 msgstr "KWallet 无法保存密码:将不显示空间条。"
 
+msgid "Kernel driver"
+msgstr "内核驱动"
+
+msgid "Kernel module"
+msgstr "内核模块"
+
 msgid "Keyboard"
 msgstr "键盘"
+
+msgid "L1 data"
+msgstr "L1 数据"
+
+msgid "L1 instruction"
+msgstr "L1 指令"
 
 msgid "License: {license}"
 msgstr "许可证: {license}"
@@ -346,8 +502,17 @@ msgstr "浅灰色"
 msgid "Light magenta"
 msgstr "浅品红色"
 
+msgid "Link speed"
+msgstr "链路速度"
+
+msgid "Liquid cooler"
+msgstr "水冷散热器"
+
 msgid "List"
 msgstr "列出"
+
+msgid "Loaded modules"
+msgstr "已加载模块"
 
 msgid "Local Disk"
 msgstr "本地磁盘"
@@ -355,14 +520,38 @@ msgstr "本地磁盘"
 msgid "Location unavailable"
 msgstr "位置不可用"
 
+msgid "Logical CPUs"
+msgstr "逻辑 CPU"
+
+msgid "MAC address"
+msgstr "MAC 地址"
+
 msgid "Magenta"
 msgstr "品红色"
 
 msgid "Mainboard"
 msgstr "主板"
 
+msgid "Manual · {p}"
+msgstr "手动 · {p}"
+
+msgid "Manufacturer"
+msgstr "制造商"
+
 msgid "Matte black"
 msgstr "哑光黑"
+
+msgid "Max. GPU clock"
+msgstr "最大 GPU 频率"
+
+msgid "Max. capacity"
+msgstr "最大容量"
+
+msgid "Max. clock"
+msgstr "最大频率"
+
+msgid "Max. memory clock"
+msgstr "最大显存频率"
 
 msgid "Maximize"
 msgstr "最大化"
@@ -376,8 +565,26 @@ msgstr "已报告介质错误"
 msgid "Memory"
 msgstr "内存"
 
+msgid "Memory controller"
+msgstr "内存控制器"
+
+msgid "Memory modules"
+msgstr "内存模块"
+
+msgid "Microcode"
+msgstr "微码"
+
+msgid "Min. clock"
+msgstr "最小频率"
+
 msgid "Minimize"
 msgstr "最小化"
+
+msgid "Model"
+msgstr "型号"
+
+msgid "Module {n}"
+msgstr "模块 {n}"
 
 msgid "Mount"
 msgstr "挂载"
@@ -406,6 +613,12 @@ msgstr "音乐"
 msgid "My NAS"
 msgstr "我的 NAS"
 
+msgid "NVMe controller {slot}"
+msgstr "NVMe 控制器 {slot}"
+
+msgid "NVMe drive"
+msgstr "NVMe 驱动器"
+
 msgid "Name shown in the title bar and as the heading of the drive list. Leave empty for the default names."
 msgstr "显示在标题栏和驱动器列表标题中的名称。留空则使用默认名称。"
 
@@ -420,6 +633,9 @@ msgstr "无法连接“notify-send”,也无法连接桌面通知服务。"
 
 msgid "Network"
 msgstr "网络"
+
+msgid "Network adapter"
+msgstr "网络适配器"
 
 msgid "Network location"
 msgstr "网络位置"
@@ -436,11 +652,17 @@ msgstr "无光盘"
 msgid "No information available."
 msgstr "没有可用的信息。"
 
+msgid "No matches"
+msgstr "没有匹配项"
+
 msgid "No scanning program was found on this computer. Please install “skanpage” or “simple-scan”."
 msgstr "此电脑上未找到扫描程序。请安装“skanpage”或“simple-scan”。"
 
 msgid "No share visible with these credentials."
 msgstr "使用这些凭据看不到任何共享。"
+
+msgid "No temperature or fan sensors were found. The sensor drivers of the mainboard may need to be loaded (for example with “sensors-detect”)."
+msgstr "未找到温度或风扇传感器。可能需要加载主板的传感器驱动(例如使用“sensors-detect”)。"
 
 msgid "No terminal program found"
 msgstr "未找到终端程序"
@@ -481,8 +703,23 @@ msgstr "打开设置"
 msgid "Open with {app}"
 msgstr "使用 {app} 打开"
 
+msgid "Operating system"
+msgstr "操作系统"
+
+msgid "Outputs"
+msgstr "输出"
+
 msgid "Overview"
 msgstr "概览"
+
+msgid "PCIe link"
+msgstr "PCIe 链路"
+
+msgid "PCIe link (max.)"
+msgstr "PCIe 链路(最大)"
+
+msgid "PCIe link (now)"
+msgstr "PCIe 链路(当前)"
 
 msgid "Partial eject"
 msgstr "部分弹出"
@@ -517,6 +754,12 @@ msgstr "固定到快速访问"
 msgid "Power cycles"
 msgstr "通电次数"
 
+msgid "Power limit"
+msgstr "功耗限制"
+
+msgid "Power management"
+msgstr "电源管理"
+
 msgid "Power-on time"
 msgstr "通电时间"
 
@@ -538,6 +781,9 @@ msgstr "正在打印"
 msgid "Processor"
 msgstr "处理器"
 
+msgid "Product"
+msgstr "产品"
+
 msgid "Program not found"
 msgstr "未找到程序"
 
@@ -546,6 +792,9 @@ msgstr "属性"
 
 msgid "Properties of {name}"
 msgstr "{name} 属性"
+
+msgid "Pulse server"
+msgstr "Pulse 服务器"
 
 msgid "Quick access"
 msgstr "快速访问"
@@ -577,6 +826,9 @@ msgstr "读取 SMART 超时。"
 msgid "Reading hardware…"
 msgstr "正在读取硬件…"
 
+msgid "Reading sensors…"
+msgstr "正在读取传感器…"
+
 msgid "Ready"
 msgstr "就绪"
 
@@ -588,6 +840,9 @@ msgstr "可用空间等于或低于此值时显示红色指示和 ⚠ 符号。"
 
 msgid "Refresh"
 msgstr "刷新"
+
+msgid "Release"
+msgstr "发行版本"
 
 msgid "Remember the password (KWallet) to show the free space"
 msgstr "记住密码(KWallet)以显示可用空间"
@@ -619,6 +874,9 @@ msgstr "重命名…"
 msgid "Renaming is not supported for this format ({fstype})."
 msgstr "此格式({fstype})不支持重命名。"
 
+msgid "Renderer"
+msgstr "渲染器"
+
 msgid "Report saved"
 msgstr "报告已保存"
 
@@ -631,8 +889,26 @@ msgstr "重置名称"
 msgid "Restore"
 msgstr "还原"
 
+msgid "Right now"
+msgstr "当前"
+
 msgid "Running"
 msgstr "运行中"
+
+msgid "Running at"
+msgstr "运行频率"
+
+msgid "SATA and RAID controllers"
+msgstr "SATA 和 RAID 控制器"
+
+msgid "SATA drive"
+msgstr "SATA 驱动器"
+
+msgid "SATA link {n}"
+msgstr "SATA 链路 {n}"
+
+msgid "SATA links"
+msgstr "SATA 链路"
 
 msgid "SMART health"
 msgstr "SMART 健康状况"
@@ -655,11 +931,23 @@ msgstr "SSD 优化失败"
 msgid "Safely remove"
 msgstr "安全删除"
 
+msgid "Scaling driver"
+msgstr "调频驱动"
+
+msgid "Scaling range"
+msgstr "频率范围"
+
 msgid "Scanner"
 msgstr "扫描仪"
 
 msgid "Scan…"
 msgstr "扫描…"
+
+msgid "Search (Ctrl+F)"
+msgstr "搜索 (Ctrl+F)"
+
+msgid "Search results"
+msgstr "搜索结果"
 
 msgid "Searching…"
 msgstr "正在搜索…"
@@ -673,11 +961,17 @@ msgstr "自检失败"
 msgid "Send test notification"
 msgstr "发送测试通知"
 
+msgid "Sensors & fans"
+msgstr "传感器和风扇"
+
 msgid "Server address:"
 msgstr "服务器地址:"
 
 msgid "Server unreachable. Check the address and that the server is turned on."
 msgstr "无法连接到服务器。请检查地址以及服务器是否已开机。"
+
+msgid "Session type"
+msgstr "会话类型"
 
 msgid "Set as default printer"
 msgstr "设为默认打印机"
@@ -709,14 +1003,35 @@ msgstr "有磨损迹象 – 请查看属性"
 msgid "Size"
 msgstr "大小"
 
+msgid "Slots"
+msgstr "插槽"
+
+msgid "Slots, type, speed, manufacturer"
+msgstr "插槽、类型、速度、制造商"
+
+msgid "Socket"
+msgstr "插座"
+
+msgid "Sockets · cores per socket · threads per core"
+msgstr "插座 · 每插座核心 · 每核心线程"
+
 msgid "Sound"
 msgstr "声音"
+
+msgid "Sound card {n}"
+msgstr "声卡 {n}"
+
+msgid "Source"
+msgstr "来源"
 
 msgid "Spare"
 msgstr "备用空间"
 
 msgid "Spare capacity below the limit"
 msgstr "备用空间低于阈值"
+
+msgid "Speed"
+msgstr "速度"
 
 msgid "Status"
 msgstr "状态"
@@ -727,8 +1042,20 @@ msgstr "状态:"
 msgid "Storage"
 msgstr "存储"
 
+msgid "Storage & buses"
+msgstr "存储和总线"
+
 msgid "Storage I/O"
 msgstr "存储 I/O"
+
+msgid "Storage and filesystems"
+msgstr "存储和文件系统"
+
+msgid "Subsystem"
+msgstr "子系统"
+
+msgid "Swap"
+msgstr "交换"
 
 msgid "System"
 msgstr "系统"
@@ -763,8 +1090,14 @@ msgstr "温度"
 msgid "Temperature warning"
 msgstr "温度警告"
 
+msgid "Temperature {n}"
+msgstr "温度 {n}"
+
 msgid "Temperature:"
 msgstr "温度:"
+
+msgid "Temperatures"
+msgstr "温度"
 
 msgid "Terminal"
 msgstr "终端"
@@ -832,14 +1165,29 @@ msgstr "此驱动器需要使用管理员密码运行 smartctl(例如 USB 硬盘
 msgid "This location already exists in the list."
 msgstr "此位置已在列表中。"
 
+msgid "This month"
+msgstr "本月"
+
 msgid "This printer does not report ink levels"
 msgstr "此打印机不报告墨水量"
+
+msgid "This session (since boot)"
+msgstr "本次会话(开机以来)"
 
 msgid "This software is neither affiliated with nor endorsed by Microsoft Corporation. Windows is a trademark of Microsoft Corporation."
 msgstr "本软件与 Microsoft Corporation 无关联,也未获其认可。Windows 是 Microsoft Corporation 的商标。"
 
+msgid "This week"
+msgstr "本周"
+
+msgid "Today"
+msgstr "今天"
+
 msgid "Toggle inspector"
 msgstr "显示/隐藏检查器"
+
+msgid "Total"
+msgstr "总计"
 
 msgid "Touchpad"
 msgstr "触摸板"
@@ -847,11 +1195,26 @@ msgstr "触摸板"
 msgid "Trash"
 msgstr "回收站"
 
+msgid "Type"
+msgstr "类型"
+
 msgid "Type the password to be able to remember it."
 msgstr "请输入密码以便记住它。"
 
 msgid "Type:"
 msgstr "类型:"
+
+msgid "UEFI · Secure Boot off"
+msgstr "UEFI · 安全启动 关闭"
+
+msgid "UEFI · Secure Boot on"
+msgstr "UEFI · 安全启动 开启"
+
+msgid "USB devices"
+msgstr "USB 设备"
+
+msgid "USB host controllers"
+msgstr "USB 主机控制器"
 
 msgid "Uncorrectable sectors"
 msgstr "无法纠正的扇区"
@@ -874,6 +1237,9 @@ msgstr "异常关机"
 msgid "Up to date"
 msgstr "已是最新"
 
+msgid "Upload"
+msgstr "上传"
+
 msgid "Uptime"
 msgstr "运行时间"
 
@@ -886,6 +1252,15 @@ msgstr "已用: {size}"
 msgid "Username (required):"
 msgstr "用户名(必填):"
 
+msgid "VRAM type"
+msgstr "显存类型"
+
+msgid "Vendor"
+msgstr "供应商"
+
+msgid "Version"
+msgstr "版本"
+
 msgid "Version {version} of DriveDeck is available. To update, download it and run ./install.sh again."
 msgstr "DriveDeck {version} 版本已发布。如需更新，请下载后重新运行 ./install.sh。"
 
@@ -897,6 +1272,9 @@ msgstr "视频"
 
 msgid "View"
 msgstr "查看"
+
+msgid "Virtualization"
+msgstr "虚拟化"
 
 msgid "Volume name"
 msgstr "卷名称"
@@ -922,14 +1300,35 @@ msgstr "写入"
 msgid "Yellow"
 msgstr "黄色"
 
+msgid "built into the kernel"
+msgstr "内置于内核"
+
+msgid "connected"
+msgstr "已连接"
+
+msgid "counted by DriveDeck since {date}"
+msgstr "自 {date} 起由 DriveDeck 统计"
+
 msgid "day"
 msgstr "天"
 
 msgid "days"
 msgstr "天"
 
+msgid "disabled"
+msgstr "已禁用"
+
 msgid "driver {name}"
 msgstr "驱动程序 {name}"
+
+msgid "empty"
+msgstr "空"
+
+msgid "enabled"
+msgstr "已启用"
+
+msgid "fancontrol active"
+msgstr "fancontrol 运行中"
 
 msgid "file manager"
 msgstr "文件管理器"
@@ -937,11 +1336,23 @@ msgstr "文件管理器"
 msgid "filled in from the list, or type it"
 msgstr "从列表填入,或手动输入"
 
+msgid "full duplex"
+msgstr "全双工"
+
 msgid "gdbus not found or timed out."
 msgstr "未找到 gdbus 或已超时。"
 
+msgid "half duplex"
+msgstr "半双工"
+
 msgid "limit {n} %"
 msgstr "阈值 {n} %"
+
+msgid "max."
+msgstr "最大"
+
+msgid "min {min} · max {max}"
+msgstr "最低 {min} · 最高 {max}"
 
 msgid "needs administrator rights"
 msgstr "需要管理员权限"
@@ -949,14 +1360,44 @@ msgstr "需要管理员权限"
 msgid "needs administrator rights – use the button below"
 msgstr "需要管理员权限 – 请使用下方按钮"
 
+msgid "none"
+msgstr "无"
+
+msgid "not exposed by the driver"
+msgstr "驱动未提供"
+
+msgid "not exposed by the kernel"
+msgstr "内核未提供"
+
+msgid "off"
+msgstr "关"
+
+msgid "on"
+msgstr "开"
+
 msgid "only for “List”, never saved"
 msgstr "仅用于“列出”,不会保存"
+
+msgid "port {port}"
+msgstr "端口 {port}"
+
+msgid "rank {n}"
+msgstr "rank {n}"
 
 msgid "running…"
 msgstr "运行中…"
 
 msgid "unknown error"
 msgstr "未知错误"
+
+msgid "used by {list}"
+msgstr "由 {list} 使用"
+
+msgid "version {v}"
+msgstr "版本 {v}"
+
+msgid "vnstat since {date}"
+msgstr "自 {date} 起由 vnstat 统计"
 
 msgid "{cores} cores / {threads} threads"
 msgstr "{cores} 核 / {threads} 线程"
@@ -979,6 +1420,21 @@ msgstr "{label} 即将用满"
 msgid "{label} was unmounted but could not be powered off:\n{detail}\n\nYou can still unplug it."
 msgstr "{label} 已卸载,但无法断电:\n{detail}\n\n您仍然可以直接拔出。"
 
+msgid "{link} – idle power state may lower it"
+msgstr "{link} – 节能状态可能会降低"
+
+msgid "{mode} (preferred mode)"
+msgstr "{mode}(首选模式)"
+
+msgid "{name} (Ethernet)"
+msgstr "{name}(以太网)"
+
+msgid "{name} (Wi-Fi)"
+msgstr "{name}(Wi-Fi)"
+
+msgid "{name} (modules)"
+msgstr "{name}(模块)"
+
 msgid "{n} items"
 msgstr "{n} 个项目"
 
@@ -987,6 +1443,18 @@ msgstr "{n} 个更新"
 
 msgid "{share} on {host}"
 msgstr "{host} 上的 {share}"
+
+msgid "{socket} (derived from the CPU family)"
+msgstr "{socket}(根据 CPU 系列推断)"
+
+msgid "{socket} (derived from the {chipset} chipset)"
+msgstr "{socket}(根据 {chipset} 芯片组推断)"
+
+msgid "{speed} (running {clock})"
+msgstr "{speed}(运行于 {clock})"
+
+msgid "{type} (from the model name)"
+msgstr "{type}(根据型号名称)"
 
 msgid "{used} in use ({pct} %)"
 msgstr "已用 {used}({pct} %)"

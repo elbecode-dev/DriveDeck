@@ -7,6 +7,8 @@
 
 import configparser
 import ctypes
+import datetime
+import fcntl
 import gc
 import hashlib
 import ipaddress
@@ -16,6 +18,7 @@ import shlex
 import shutil
 import signal
 import socket
+import struct
 import os
 import subprocess
 import sys
@@ -1225,6 +1228,17 @@ def name_begrenzen(wert):
     return " ".join(sauber.split())[:NAME_MAX].strip()
 
 
+def _hw_fenster(w):
+    """{w, h, max} des Systemdaten-Fensters ; ungültig = Startgröße 1180 × 780."""
+    try:
+        b, h = int(w["w"]), int(w["h"])
+        if 820 <= b <= 8000 and 580 <= h <= 6000:
+            return {"w": b, "h": h, "max": w.get("max") is True}
+    except (TypeError, KeyError, ValueError):
+        pass
+    return {"w": 1180, "h": 780, "max": False}
+
+
 def lade_einstellungen():
     """Persönliche Einstellungen aus settings.json : {"warn_threshold_percent", "click_mode", "custom_name"} – ungültig = Standard."""
     try:
@@ -1245,7 +1259,8 @@ def lade_einstellungen():
             "custom_name": name_begrenzen(data.get("custom_name", "")),
             "compact_toolbar": data.get("compact_toolbar") is True,   # immer die kompakte Leiste (sonst nur, wenn das Ribbon nicht passt)
             "notifications": data.get("notifications") is True,   # Desktop-Benachrichtigungen (Warnschwelle, SMART) : bewusst einschalten
-            "desktop_name": name_begrenzen(data.get("desktop_name", ""))}   # zuletzt in die Starter geschriebener Name
+            "desktop_name": name_begrenzen(data.get("desktop_name", "")),   # zuletzt in die Starter geschriebener Name
+            "hw_window": _hw_fenster(data.get("hw_window"))}   # Größe des Systemdaten-Fensters
 
 
 def speichere_einstellungen(einst):
@@ -3211,10 +3226,54 @@ def _ausgabe(cmd, timeout=6, env=ENV_C):
         return ""
 
 
-def _gruppe(titel, *paare):
-    """{title, items:[{k, v}]} ohne leere Werte ; None, wenn nichts übrig bleibt."""
-    items = [{"k": k, "v": str(v).strip()} for k, v in paare if v is not None and str(v).strip() != ""]
-    return {"title": titel, "items": items} if items else None
+_KURZWERTE = {"enabled", "disabled", "none", "empty", "connected", "built into the kernel", "not exposed by the driver",
+              "not exposed by the kernel", "on", "off"}
+
+
+def _zw(en, **werte):
+    """Wert mit Platzhaltern als (übersetzt, englisch) : die Anzeige folgt der Sprache, der Bericht bleibt englisch."""
+    a, b = tr(en), en
+    for k, v in werte.items():
+        a, b = a.replace("{%s}" % k, str(v)), b.replace("{%s}" % k, str(v))
+    return a, b
+
+
+def _verbinde(*teile, trenner=" · "):
+    """Teile (Text oder (übersetzt, englisch)) ohne leere zu einem Wert-Paar verbinden."""
+    teile = [t if isinstance(t, tuple) else (t, t) for t in teile if t and (t[0] if isinstance(t, tuple) else t)]
+    return trenner.join(t[0] for t in teile), trenner.join(t[1] for t in teile)
+
+
+def _gruppe(titel, *paare, en=None, breit=False, spalten=None):
+    """{title, en, wide, items:[{k, en, v, ven}]} ohne leere Werte ; None, wenn nichts übrig bleibt. Titel und Schlüssel werden
+    übersetzt (die englischen Originale bleiben für den Bericht zum Weitergeben) ; ein Paar darf als Drittes den englischen
+    Schlüssel tragen, ein Wert darf ein Paar (übersetzt, englisch) sein. breit : Karte über die volle Breite ; spalten : Kopf
+    einer Tabelle (dann ist jeder Wert eine Liste von Zellen)."""
+    items = []
+    for p in paare:
+        k, v = p[0], p[1]
+        if isinstance(v, list):   # Tabellenzeile
+            if not any(str(z).strip() for z in v):
+                continue
+            items.append({"k": tr(k), "en": p[2] if len(p) > 2 else k, "cells": [str(z) for z in v],
+                          "v": "  ".join(str(z) for z in v), "ven": "  ".join(str(z) for z in v)})
+            continue
+        if isinstance(v, tuple):
+            anz, ven = str(v[0]).strip(), str(v[1]).strip()
+        else:
+            if v is None:
+                continue
+            ven = str(v).strip()
+            anz = tr(ven) if ven in _KURZWERTE else ven
+        if anz == "":
+            continue
+        items.append({"k": tr(k), "en": p[2] if len(p) > 2 else k, "v": anz, "ven": ven})
+    if not items:
+        return None
+    g = {"title": tr(titel), "en": en or titel, "items": items, "wide": breit}
+    if spalten:
+        g["cols"] = [tr(x) for x in spalten]
+    return g
 
 
 def _lese(pfad):
@@ -3267,6 +3326,38 @@ def pci_karten(klassen):
     return res
 
 
+# Sockel ohne Root : zuerst aus dem Chipsatz des Mainboards, sonst aus CPU-Familie und -Modell (nur Desktop-Plattformen)
+_SOCKEL_CHIPSATZ = (("AM4", ("A320", "B350", "X370", "B450", "X470", "A520", "B550", "X570")),
+                    ("AM5", ("A620", "B650", "B650E", "X670", "X670E", "B840", "B850", "X870", "X870E")),
+                    ("LGA1851", ("Z890", "B860", "H810")),
+                    ("LGA1700", ("H610", "B660", "H670", "Z690", "B760", "H770", "Z790")),
+                    ("LGA1200", ("H410", "B460", "H470", "Z490", "H510", "B560", "H570", "Z590")),
+                    ("LGA1151", ("H310", "B360", "H370", "Z370", "Z390", "B365", "H110", "B150", "H170", "Z170", "B250",
+                                 "H270", "Z270")),
+                    ("LGA2066", ("X299",)), ("sTRX4", ("TRX40",)), ("sWRX8", ("WRX80",)))
+
+
+def sockel_ableiten(hersteller, familie, modell, board):
+    """(Sockel, Quelle) ohne SMBIOS : Quelle « chipset » mit dem Chipsatz oder « cpu » ; ("", "") wenn unbekannt."""
+    chip = _chipsatz(board)
+    for sockel, chips in _SOCKEL_CHIPSATZ:
+        for c in (chip, chip[:-1] if chip[-1:] in ("M", "I") else ""):   # « B650M », « B550I » : Formfaktor-Kürzel am Ende
+            if c and c in chips:
+                return sockel, c
+    f, m = familie, modell
+    if "AMD" in (hersteller or ""):
+        if f == 0x17 and m not in (0x01, 0x31) or f == 0x19 and m < 0x60:
+            return "AM4", "cpu"
+        if f == 0x19 and 0x60 <= m < 0x80 or f == 0x1A and m in (0x40, 0x44):
+            return "AM5", "cpu"
+    elif "Intel" in (hersteller or "") and f == 6:
+        for sockel, modelle in (("LGA1851", (0xC5, 0xC6)), ("LGA1700", (0x97, 0x9A, 0xB7, 0xBA, 0xBF)),
+                                ("LGA1200", (0xA5, 0xA6, 0xA7)), ("LGA1151", (0x9E,)), ("LGA2066", (0x55,))):
+            if m in modelle:
+                return sockel, "cpu"
+    return "", ""
+
+
 _FAEHIGKEITEN = (("sse4_2", "SSE4.2"), ("avx", "AVX"), ("avx2", "AVX2"), ("avx512f", "AVX-512"), ("aes", "AES-NI"),
                  ("fma", "FMA3"), ("sha_ni", "SHA"), ("svm", "AMD-V"), ("vmx", "Intel VT-x"), ("amx_tile", "AMX"))
 
@@ -3291,7 +3382,7 @@ def _secure_boot():
         return "Legacy BIOS"
     try:
         with open("/sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d2-aa0d-00e098032b8c", "rb") as f:
-            return "UEFI · Secure Boot " + ("on" if f.read()[-1] == 1 else "off")
+            return _zw("UEFI · Secure Boot on") if f.read()[-1] == 1 else _zw("UEFI · Secure Boot off")
     except (OSError, IndexError):
         return "UEFI"
 
@@ -3346,7 +3437,14 @@ def sammle_cpu():
     cpu = "/sys/devices/system/cpu/cpu0/cpufreq/"
     mhz = lambda t: ("%.2f GHz" % (float(t) / 1000)).replace(".", DECIMAL) if re.match(r"^[\d.]+$", t or "") else ""
     dmi = (_DMI["daten"] or {}).get("processor", {})
-    socket_ = dmi.get("Upgrade") or dmi.get("Socket Designation") or (tr("needs administrator rights") if not _DMI["daten"] else "")
+    socket_ = dmi.get("Upgrade") or dmi.get("Socket Designation") or ""
+    if not socket_ and fam.isdigit() and mod.isdigit():   # ohne SMBIOS : aus Chipsatz bzw. CPU-Familie ableiten
+        sockel, quelle = sockel_ableiten(lc.get("Vendor ID", ""), int(fam), int(mod), _dmi("board_name"))
+        if sockel:
+            socket_ = (tr("{socket} (derived from the CPU family)") if quelle == "cpu"
+                       else tr("{socket} (derived from the {chipset} chipset)").replace("{chipset}", quelle)).replace("{socket}", sockel)
+    if not socket_ and not _DMI["daten"]:
+        socket_ = tr("needs administrator rights")
     boost = _lese("/sys/devices/system/cpu/cpufreq/boost")
     khz = lambda p: ("%.2f GHz" % (int(_lese(p)) / 1e6)).replace(".", DECIMAL) if _lese(p).isdigit() else ""
     return [
@@ -3416,13 +3514,13 @@ def sammle_gpu():
             vt = _lese("/sys/bus/pci/devices/0000:%s/mem_info_vram_total" % k["slot"]) if k["slot"].count(":") == 1 else ""
             vram = ("%s GB" % round(int(vt) / 2 ** 30, 1)) if vt.isdigit() else ""
         if _VRAM_GDDR6X.search(k["modell"]):
-            vram_typ = "GDDR6X (from the model name)"
+            vram_typ = _zw("{type} (from the model name)", type="GDDR6X")
         pmax, paktuell = pcie_info(k["slot"])
         res.append(_gruppe(titel, ("Model", (hersteller + " " + k["modell"]).strip()), ("Subsystem", k["unter"]),
                            ("VRAM", vram), ("VRAM type", vram_typ or "not exposed by the driver"),
                            ("Kernel driver", (k["treiber"] + (" " + treiber_v if treiber_v else "")).strip()),
                            ("Available modules", ", ".join(k["module"])), *mehr,
-                           ("PCIe link (max.)", pmax), ("PCIe link (now)", paktuell + (" – idle power state may lower it" if paktuell and paktuell != pmax else ""))))
+                           ("PCIe link (max.)", pmax), ("PCIe link (now)", _zw("{link} – idle power state may lower it", link=paktuell) if paktuell and paktuell != pmax else paktuell)))
     return res
 
 
@@ -3459,7 +3557,7 @@ def sammle_display():
     for d in sorted(glob.glob("/sys/class/drm/card*-*")):
         if _lese(d + "/status") == "connected":
             modes = (_lire_texte(d + "/modes") or "").split("\n")[0].strip()
-            ausgaenge.append((os.path.basename(d).split("-", 1)[1], (modes + " (preferred mode)") if modes else "connected"))
+            ausgaenge.append((os.path.basename(d).split("-", 1)[1], _zw("{mode} (preferred mode)", mode=modes) if modes else "connected"))
     return [
         _gruppe("Display server", ("Session type", sitzung), ("Desktop", desktop), ("Compositor", kwin), ("Plasma", plasma)),
         _gruppe("OpenGL", ("Renderer", gl.get("OpenGL renderer string")), ("Vendor", gl.get("OpenGL vendor string")),
@@ -3489,16 +3587,17 @@ def sammle_ram():
                 continue
             zahl = re.search(r"(\d+)", m.get("Configured Memory Speed", m.get("Configured Clock Speed", "")))   # « Unknown » -> None
             gk = "%s MT/s" % (zahl.group(1) if zahl else "0")
+            tempo = _zw("{speed} (running {clock})", speed=m.get("Speed", ""), clock=gk) if gk != "0 MT/s" else m.get("Speed", "")
             slots.append((m.get("Locator", "?") + (" (%s)" % m["Bank Locator"] if m.get("Bank Locator") else ""),
-                          " · ".join(x for x in (groesse, m.get("Type"), m.get("Speed", "") + (" (running " + gk + ")" if gk != "0 MT/s" else ""),
-                                                 m.get("Manufacturer"), m.get("Part Number", "").strip(), m.get("Form Factor"),
-                                                 ("rank " + m["Rank"]) if m.get("Rank") else "") if x and x not in ("Unknown",))))
+                          _verbinde(*[x for x in (groesse, m.get("Type"), tempo, m.get("Manufacturer"), m.get("Part Number", "").strip(),
+                                                  m.get("Form Factor"), _zw("rank {n}", n=m["Rank"]) if m.get("Rank") else "")
+                                      if x and x not in ("Unknown",)])))
         a = d["array"]
         gruppen.append(_gruppe("Memory controller", ("Type", erste.get("Type")), ("Speed", erste.get("Speed")),
                                ("Running at", erste.get("Configured Memory Speed", erste.get("Configured Clock Speed"))),
                                ("Slots", a.get("Number Of Devices")), ("Max. capacity", a.get("Maximum Capacity")),
                                ("Error correction", a.get("Error Correction Type"))))
-        gruppen.append(_gruppe("Memory modules", *slots))
+        gruppen.append(_gruppe("Memory modules", *slots, breit=True))
     else:
         gruppen.append(_gruppe("Memory modules", ("Slots, type, speed, manufacturer",
                                                   tr("needs administrator rights – use the button below"))))
@@ -3540,11 +3639,11 @@ def sammle_system():
         for n in namen:
             if n in module:
                 v = modul_version(n, tief=False)   # ein modinfo-Prozess pro Modul wäre hier zu teuer
-                zeilen.append((n, " · ".join(x for x in (("version " + v) if v else "", "%d KB" % (module[n][0] // 1024),
-                                                         ("used by " + module[n][1].replace(",", ", ")) if module[n][1] else "") if x)))
+                zeilen.append((n, _verbinde(_zw("version {v}", v=v) if v else "", "%d KB" % (module[n][0] // 1024),
+                                            _zw("used by {list}", list=module[n][1].replace(",", ", ")) if module[n][1] else "")))
             elif os.path.isdir("/sys/module/" + n):
                 zeilen.append((n, "built into the kernel"))
-        gruppen.append(_gruppe(titel + " (modules)", *zeilen))
+        gruppen.append(_gruppe(tr("{name} (modules)").replace("{name}", tr(titel)), *zeilen, en=titel + " (modules)", breit=True))
     pw = re.search(r"Linked with libpipewire (\S+)", _ausgabe(["pw-cli", "--version"], timeout=4)) if shutil.which("pw-cli") else None
     pa = re.search(r"Server Name:\s*(.+)", _ausgabe(["pactl", "info"], timeout=4)) if shutil.which("pactl") else None
     wp = re.search(r"(\d+\.\d+[\d.]*)", _ausgabe(["wireplumber", "--version"], timeout=4)) if shutil.which("wireplumber") else None
@@ -3553,7 +3652,7 @@ def sammle_system():
               re.finditer(r"^\s*(\d+) \[[^\]]*\]:\s*(.+?)\s*$", _lire_texte("/proc/asound/cards") or "", re.M)]
     gruppen.append(_gruppe("Audio subsystem", ("ALSA kernel driver", alsa), ("PipeWire", pw.group(1) if pw else ""),
                            ("WirePlumber", wp.group(1) if wp else ""), ("Pulse server", pa.group(1) if pa else ""),
-                           *[("Sound card " + n, t) for n, t in karten]))
+                           *[(tr("Sound card {n}").replace("{n}", n), t, "Sound card " + n) for n, t in karten]))
     return gruppen
 
 
@@ -3562,10 +3661,12 @@ def sammle_netz():
     for k in pci_karten(("Ethernet controller", "Network controller", "Wireless controller")):
         v = modul_version(k["treiber"]) if k["treiber"] else ""
         pmax, pnow = pcie_info(k["slot"])
-        gruppen.append(_gruppe("Adapter " + k["slot"], ("Model", (k["hersteller"] + " " + k["modell"]).strip()),
+        gruppen.append(_gruppe(tr("Adapter {slot}").replace("{slot}", k["slot"]),
+                               ("Model", (k["hersteller"] + " " + k["modell"]).strip()),
                                ("Subsystem", k["unter"]),
                                ("Kernel driver", (k["treiber"] + (" " + v if v else "")).strip()),
-                               ("Available modules", ", ".join(k["module"])), ("PCIe link", pnow or pmax)))
+                               ("Available modules", ", ".join(k["module"])), ("PCIe link", pnow or pmax),
+                               en="Adapter " + k["slot"]))
     zeilen = []
     try:
         namen = sorted(os.listdir("/sys/class/net"))
@@ -3577,11 +3678,459 @@ def sammle_netz():
             continue
         treiber = os.path.basename(os.path.realpath(basis + "/device/driver")) if os.path.exists(basis + "/device/driver") else ""
         sp = _lese(basis + "/speed")
-        zeilen.append((n + (" (Wi-Fi)" if os.path.exists(basis + "/wireless") else " (Ethernet)"),
-                       " · ".join(x for x in (("driver " + treiber) if treiber else "", _lese(basis + "/operstate"),
-                                              (sp + " Mb/s") if sp.isdigit() and int(sp) > 0 else "") if x)))
+        wlan = os.path.exists(basis + "/wireless")
+        zeilen.append(((_zw("{name} (Wi-Fi)", name=n) if wlan else _zw("{name} (Ethernet)", name=n))[0],
+                       _verbinde(_zw("driver {name}", name=treiber) if treiber else "",
+                                 _zw("connected") if _lese(basis + "/operstate") == "up" else _lese(basis + "/operstate"),
+                                 (sp + " Mb/s") if sp.isdigit() and int(sp) > 0 else ""),
+                       "%s (%s)" % (n, "Wi-Fi" if wlan else "Ethernet")))
     gruppen.append(_gruppe("Interfaces", *zeilen))
     return gruppen
+
+# ---- Speicher & Busse : Controller mit PCIe-Link, USB-Host-Controller, USB-Geräte mit ausgehandelter Geschwindigkeit
+_USB_TEMPO = {"1.5": "1.5 Mb/s (Low Speed)", "12": "12 Mb/s (Full Speed)", "480": "480 Mb/s (High Speed)",
+              "5000": "5 Gb/s (SuperSpeed)", "10000": "10 Gb/s (SuperSpeed+)", "20000": "20 Gb/s (SuperSpeed+ 2x2)",
+              "40000": "40 Gb/s (USB4)", "80000": "80 Gb/s (USB4 v2)"}
+
+
+def usb_tempo(roh):
+    """« 480 » -> « 480 Mb/s (High Speed) » ; unbekannte Werte mit Einheit."""
+    roh = (roh or "").strip()
+    return _USB_TEMPO.get(roh, (roh + " Mb/s") if roh else "")
+
+
+def _pcie_link_text(slot):
+    """« PCIe 4.0 x4 (max. PCIe 4.0 x4) » aus sysfs ; « » ohne Angaben."""
+    pmax, pnow = pcie_info(slot)
+    if pnow and pmax and pnow != pmax:
+        return pnow + " (" + tr("max.") + " " + pmax + ")"
+    return pnow or pmax
+
+
+def sammle_busse():
+    gruppen = []
+    andere = []   # SATA/RAID : eine gemeinsame Karte, eine Zeile je Controller
+    for k in pci_karten(("Non-Volatile memory controller", "SATA controller", "RAID bus controller", "Mass storage controller")):
+        basis = "/sys/bus/pci/devices/" + (k["slot"] if k["slot"].count(":") == 2 else "0000:" + k["slot"])
+        laufwerke = sorted({_lese(m).strip() for m in glob.glob(basis + "/nvme/nvme*/model")} - {""})
+        if not os.path.isdir(basis + "/nvme"):
+            andere.append((k["slot"], _verbinde((k["hersteller"] + " " + k["modell"]).strip(), k["treiber"], _pcie_link_text(k["slot"]))))
+            continue
+        gruppen.append(_gruppe(tr("NVMe controller {slot}").replace("{slot}", k["slot"]),
+                               ("Drive", ", ".join(laufwerke)),
+                               ("Model", (k["hersteller"] + " " + k["modell"]).strip()),
+                               ("Kernel driver", k["treiber"]), ("PCIe link", _pcie_link_text(k["slot"])),
+                               en="NVMe controller " + k["slot"]))
+    gruppen.append(_gruppe("SATA and RAID controllers", *andere))
+    sata = []
+    for link in sorted(glob.glob("/sys/class/ata_link/link*"), key=lambda x: int(re.sub(r"\D", "", x) or 0)):
+        sp = _lese(link + "/sata_spd")
+        if sp and sp != "<unknown>":
+            sata.append((tr("SATA link {n}").replace("{n}", re.sub(r"\D", "", os.path.basename(link))), sp,
+                         "SATA link " + re.sub(r"\D", "", os.path.basename(link))))
+    gruppen.append(_gruppe("SATA links", *sata))
+    gruppen.append(_gruppe("USB host controllers",
+                           *[(k["slot"], _verbinde((k["hersteller"] + " " + k["modell"]).strip(), k["treiber"], _pcie_link_text(k["slot"])))
+                             for k in pci_karten(("USB controller",))]))
+    geraete = []
+    for d in sorted(glob.glob("/sys/bus/usb/devices/*")):
+        name = os.path.basename(d)
+        if ":" in name or name.startswith("usb"):   # Schnittstellen und Root-Hubs auslassen
+            continue
+        produkt = _lese(d + "/product") or ("%s:%s" % (_lese(d + "/idVendor"), _lese(d + "/idProduct")))
+        hersteller = _lese(d + "/manufacturer")
+        titel = " ".join(x for x in (hersteller if hersteller and hersteller.lower() not in produkt.lower() else "", produkt) if x)
+        ver = _lese(d + "/version")
+        geraete.append((titel, _verbinde(usb_tempo(_lese(d + "/speed")), ("USB " + ver) if ver else "",
+                                         _zw("port {port}", port=name),
+                                         "%s:%s" % (_lese(d + "/idVendor"), _lese(d + "/idProduct")))))
+    gruppen.append(_gruppe("USB devices", *geraete, breit=True))
+    return gruppen
+
+
+# ---- Sensoren & Lüfter : hwmon (ohne Root), alle 2 s, solange das Systemdaten-Fenster offen ist
+_HWMON_ARTEN = (("CPU", ("k10temp", "coretemp", "zenpower", "cpu_thermal")),
+                ("GPU", ("amdgpu", "radeon", "nouveau", "i915", "xe")),
+                ("Memory modules", ("jc42", "spd5118", "ee1004")),
+                ("Liquid cooler", ("x53", "x63", "x73", "kraken", "nzxt", "corsair", "aquacomputer", "d5next", "quadro",
+                                   "octo", "farbwerk")),
+                ("Mainboard", ("nct", "it8", "it87", "asus", "gigabyte", "dell_smm", "thinkpad", "f71", "w83", "acpitz",
+                               "pch_", "nouveau")))
+
+
+def _hwmon_titel(d, name):
+    """(angezeigter Titel, englischer Titel) eines hwmon-Chips."""
+    modell = _lese(d + "/device/model")
+    if name == "nvme":
+        return ((tr("NVMe drive") + " · " + modell) if modell else tr("NVMe drive"),
+                ("NVMe drive · " + modell) if modell else "NVMe drive")
+    if name == "drivetemp":
+        return ((tr("SATA drive") + " · " + modell) if modell else tr("SATA drive"),
+                ("SATA drive · " + modell) if modell else "SATA drive")
+    for art, praefixe in _HWMON_ARTEN:
+        if any(name.startswith(x) for x in praefixe):
+            return tr(art) + " · " + name, art + " · " + name
+    return name, name
+
+
+def hwmon_lesen():
+    """[(Schlüssel, Titel, Titel en, [(Sensor-Schlüssel, Name, Wert, Einheit)])] aus /sys/class/hwmon ; NVIDIA über nvidia-smi."""
+    res = []
+    for d in sorted(glob.glob("/sys/class/hwmon/hwmon*"), key=lambda x: int(re.sub(r"\D", "", os.path.basename(x)) or 0)):
+        name = _lese(d + "/name") or os.path.basename(d)
+        werte = []
+        for art, einheit, teiler in (("temp", "°C", 1000.0), ("fan", "RPM", 1.0)):
+            for f in sorted(glob.glob(d + "/%s*_input" % art), key=lambda x: int(re.sub(r"\D", "", os.path.basename(x)) or 0)):
+                roh = _lese(f)
+                if not re.match(r"^-?\d+$", roh):
+                    continue
+                n = re.sub(r"\D", "", os.path.basename(f))
+                label = _lese(f.replace("_input", "_label"))
+                if not label:
+                    label = (tr("Fan {n}") if art == "fan" else tr("Temperature {n}")).replace("{n}", n)
+                wert = int(roh) / teiler
+                if art == "temp" and not 0 < wert < 127:   # nicht angeschlossene Fühler melden -1, 0, 127,5 oder 255 °C
+                    continue
+                werte.append((art + n, label, wert, einheit))
+        if werte:
+            titel, en = _hwmon_titel(d, name)
+            res.append((os.path.basename(d) + ":" + name, titel, en, werte))
+    # Fühler der Speichermodule (jc42, spd5118 …, je Modul ein Chip) : eine gemeinsame Karte « Arbeitsspeicher »
+    module = [r for r in res if r[2].startswith("Memory modules")]
+    if len(module) > 1:
+        werte = [("temp%d" % i, tr("Module {n}").replace("{n}", str(i + 1)), w[0][2], w[0][3]) for i, (_k, _t, _e, w) in enumerate(module)]
+        res = [r for r in res if r not in module]
+        res.insert(0, ("memory", tr("Memory"), "Memory", werte))
+    if shutil.which("nvidia-smi"):
+        for z in _ausgabe(["nvidia-smi", "--query-gpu=index,name,temperature.gpu,fan.speed",
+                           "--format=csv,noheader,nounits"], timeout=3).splitlines():
+            t = [x.strip() for x in z.split(",")]
+            if len(t) >= 4:
+                werte = []
+                if re.match(r"^\d+(\.\d+)?$", t[2]):
+                    werte.append(("temp", tr("GPU core"), float(t[2]), "°C"))
+                if re.match(r"^\d+(\.\d+)?$", t[3]):
+                    werte.append(("fan", tr("Fan"), float(t[3]), "%"))
+                if werte:
+                    res.append(("nvidia" + t[0], tr("GPU") + " · " + t[1], "GPU · " + t[1], werte))
+    # logische Reihenfolge : CPU, GPU, Arbeitsspeicher, Mainboard, Kühlung, Laufwerke, Rest
+    rang = ("CPU", "GPU", "Memory", "Mainboard", "Liquid cooler", "NVMe drive", "SATA drive")
+    res.sort(key=lambda r: next((i for i, x in enumerate(rang) if r[2].startswith(x)), len(rang)))
+    return res
+
+
+def sensor_text(wert, einheit):
+    if einheit == "°C":
+        return ("%.1f °C" % wert).replace(".", DECIMAL)
+    return "%d %s" % (round(wert), einheit)
+
+
+# ---- Lüfter der Hauptplatine : Regelung nur anzeigen (rein lesend, kein Schreibzugriff auf pwmN) ---------------------
+_FANCONTROL = [-1e9, False]   # (monotonic, aktiv) : systemctl höchstens alle 10 s
+
+
+def fancontrol_aktiv():
+    """Läuft der fancontrol-Dienst (lm_sensors) ? Ergebnis 10 s gemerkt."""
+    jetzt = time.monotonic()
+    if jetzt - _FANCONTROL[0] > 10:
+        _FANCONTROL[0] = jetzt
+        _FANCONTROL[1] = bool(shutil.which("systemctl")) and \
+            _ausgabe(["systemctl", "is-active", "fancontrol"], timeout=2).strip() == "active"
+    return _FANCONTROL[1]
+
+
+def pwm_kanaele(d):
+    """{Kanal: (pwmN_enable, pwmN)} der PWM-Ausgänge eines hwmon-Chips."""
+    res = {}
+    for f in glob.glob(d + "/pwm*_enable"):
+        m = re.match(r"^pwm(\d+)_enable$", os.path.basename(f))
+        if not m:
+            continue
+        e, p = _lese(f), _lese(d + "/pwm" + m.group(1))
+        if re.match(r"^\d+$", e) and re.match(r"^\d+$", p):
+            res[int(m.group(1))] = (int(e), int(p))
+    return res
+
+
+def _pwm_prozent(p):
+    return round(p * 100 / 255)
+
+
+def luefter_regelung(d):
+    """Wer regelt die Lüfter eines Hauptplatinen-Chips ? {v, ven} ; None ohne PWM-Ausgänge. Liest nur, schreibt nie."""
+    kan = pwm_kanaele(d)
+    if not kan:
+        return None
+    manuell = [p for e, p in kan.values() if e == 1]
+    if fancontrol_aktiv():
+        v, ven = tr("fancontrol active"), "fancontrol active"
+    elif manuell:   # von außen gesetzt (pwmconfig, ein anderes Werkzeug …) : nur anzeigen
+        pz = "%d %%" % _pwm_prozent(sum(manuell) / len(manuell))
+        v, ven = tr("Manual · {p}").replace("{p}", pz), "Manual · " + pz
+    else:
+        v, ven = tr("BIOS automatic"), "BIOS automatic"
+    return {"v": v, "ven": ven}
+
+
+# ---- Netzwerk : aktive Verbindung (Standardroute) und Datenverbrauch -------------------------------------------------
+def standard_route():
+    """(Schnittstelle, IPv4-Gateway) der Standardroute mit der kleinsten Metrik ; ("", "") ohne Route."""
+    beste = None
+    for z in (_lire_texte("/proc/net/route") or "").splitlines()[1:]:
+        f = z.split()
+        if len(f) >= 7 and f[1] == "00000000" and int(f[3], 16) & 2:
+            metrik = int(f[6])
+            if beste is None or metrik < beste[0]:
+                beste = (metrik, f[0], socket.inet_ntoa(struct.pack("<L", int(f[2], 16))))
+    return (beste[1], beste[2]) if beste else ("", "")
+
+
+def ipv6_gateway(iface):
+    for z in (_lire_texte("/proc/net/ipv6_route") or "").splitlines():
+        f = z.split()
+        if len(f) >= 10 and f[0] == "0" * 32 and f[1] == "00" and f[9] == iface and f[4] != "0" * 32:
+            return str(ipaddress.IPv6Address(bytes.fromhex(f[4])))
+    return ""
+
+
+def ipv4_adresse(iface):
+    """« 192.168.1.10/24 » über SIOCGIFADDR / SIOCGIFNETMASK (ohne Root, ohne « ip ») ; « » ohne Adresse."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sk:
+            name = struct.pack("256s", iface[:15].encode())
+            adr = socket.inet_ntoa(fcntl.ioctl(sk.fileno(), 0x8915, name)[20:24])
+            maske = socket.inet_ntoa(fcntl.ioctl(sk.fileno(), 0x891B, name)[20:24])
+        return "%s/%d" % (adr, ipaddress.IPv4Network("0.0.0.0/" + maske).prefixlen)
+    except (OSError, ValueError):
+        return ""
+
+
+def ipv6_adressen(iface):
+    """Globale IPv6-Adressen (sonst die link-lokale) einer Schnittstelle aus /proc/net/if_inet6."""
+    global6, lokal = [], []
+    for z in (_lire_texte("/proc/net/if_inet6") or "").splitlines():
+        f = z.split()
+        if len(f) >= 6 and f[5] == iface:
+            adr = "%s/%d" % (ipaddress.IPv6Address(bytes.fromhex(f[0])), int(f[2], 16))
+            (global6 if f[3] == "00" else lokal).append(adr)
+    return global6 or lokal
+
+
+def dns_server():
+    """Aktive DNS-Server ; beim Stub von systemd-resolved (127.0.0.53) die Server dahinter."""
+    def lesen(pfad):
+        return [z.split()[1] for z in (_lire_texte(pfad) or "").splitlines() if z.startswith("nameserver") and len(z.split()) > 1]
+    eintraege = lesen("/etc/resolv.conf")
+    if eintraege and all(e.startswith("127.0.0.53") for e in eintraege):
+        hinter = lesen("/run/systemd/resolve/resolv.conf")
+        if hinter:
+            return hinter
+    return eintraege
+
+
+def physische_schnittstellen():
+    """Schnittstellen mit echtem Gerät dahinter (kein lo, keine Brücken, VPN- oder Container-Netze)."""
+    try:
+        return sorted(n for n in os.listdir("/sys/class/net") if os.path.exists("/sys/class/net/%s/device" % n))
+    except OSError:
+        return []
+
+
+def netz_summen():
+    """(empfangen, gesendet) in Bytes seit dem Start, über alle physischen Schnittstellen."""
+    rx = tx = 0
+    for n in physische_schnittstellen():
+        a, b = _lese("/sys/class/net/%s/statistics/rx_bytes" % n), _lese("/sys/class/net/%s/statistics/tx_bytes" % n)
+        rx += int(a) if a.isdigit() else 0
+        tx += int(b) if b.isdigit() else 0
+    return rx, tx
+
+
+NET_USAGE = os.path.join(DATA_DIR, "net_usage.json")
+
+
+class NetzZaehler:
+    """Eigener Verbrauchszähler ohne Abhängigkeiten : summiert die Zuwächse der Kernel-Zähler je Tag. Die boot_id erkennt
+    einen Neustart (die Kernel-Zähler beginnen dann bei 0) ; ein kleinerer Zählerstand ohne Neustart (Schnittstelle neu)
+    zählt ab 0. Gespeichert wird höchstens alle 5 Minuten und beim Beenden ; Tage älter als 400 Tage fallen weg."""
+
+    def __init__(self, pfad=NET_USAGE):
+        self.pfad = pfad
+        self.sperre = threading.Lock()
+        self.gespeichert = 0.0
+        try:
+            with open(pfad, encoding="utf-8") as f:
+                d = json.load(f)
+            if not isinstance(d, dict) or not isinstance(d.get("days"), dict):
+                raise ValueError
+        except (OSError, ValueError):
+            d = {}
+        self.boot = str(d.get("boot_id", ""))
+        last = d.get("last") or [0, 0]
+        self.last = (int(last[0]), int(last[1])) if isinstance(last, list) and len(last) == 2 else (0, 0)
+        self.tage = {k: [int(v[0]), int(v[1])] for k, v in (d.get("days") or {}).items()
+                     if isinstance(v, list) and len(v) == 2 and re.match(r"^\d{4}-\d{2}-\d{2}$", k)}
+        self.seit = str(d.get("since", "")) or datetime.date.today().isoformat()
+
+    def stichprobe(self, speichern=False):
+        boot = _lese("/proc/sys/kernel/random/boot_id")
+        rx, tx = netz_summen()
+        with self.sperre:
+            if boot and boot == self.boot:
+                drx = rx - self.last[0] if rx >= self.last[0] else rx
+                dtx = tx - self.last[1] if tx >= self.last[1] else tx
+            else:   # Neustart (oder erster Lauf) : alles seit dem Start
+                drx, dtx = rx, tx
+            heute = datetime.date.today().isoformat()
+            t = self.tage.setdefault(heute, [0, 0])
+            t[0] += drx
+            t[1] += dtx
+            self.boot, self.last = boot, (rx, tx)
+            if speichern or time.monotonic() - self.gespeichert > 300:
+                self._speichern()
+
+    def _speichern(self):
+        grenze = (datetime.date.today() - datetime.timedelta(days=400)).isoformat()
+        self.tage = {k: v for k, v in self.tage.items() if k >= grenze}
+        try:
+            os.makedirs(os.path.dirname(self.pfad), exist_ok=True)
+            schreibe_atomar(self.pfad, json.dumps({"boot_id": self.boot, "last": list(self.last), "since": self.seit,
+                                                   "days": self.tage}))
+            self.gespeichert = time.monotonic()
+        except OSError as e:
+            print("[drivedeck] net_usage :", e)
+
+    def summen(self):
+        """{heute, woche, monat} als [empfangen, gesendet] ; Woche ab Montag, Monat ab dem 1."""
+        heute = datetime.date.today()
+        grenzen = (("heute", heute), ("woche", heute - datetime.timedelta(days=heute.weekday())), ("monat", heute.replace(day=1)))
+        res = {"heute": [0, 0], "woche": [0, 0], "monat": [0, 0]}
+        with self.sperre:
+            for tag, (r, t) in self.tage.items():
+                for name, ab in grenzen:
+                    if ab.isoformat() <= tag <= heute.isoformat():
+                        res[name][0] += r
+                        res[name][1] += t
+        return res
+
+
+_VNSTAT: dict[str, Any] = {"zeit": -1e9, "daten": None}
+
+
+def vnstat_summen():
+    """({heute, woche, monat}, angelegt) aus « vnstat --json » (alle Schnittstellen) ; angelegt ist das Datum, ab dem die
+    Datenbank lückenlos zählt (die jüngste Schnittstelle). None ohne vnstat oder ohne Tageswerte. 60 s gemerkt."""
+    if not shutil.which("vnstat"):
+        return None
+    if time.monotonic() - _VNSTAT["zeit"] < 60:
+        return _VNSTAT["daten"]
+    _VNSTAT["zeit"] = time.monotonic()
+    try:
+        d = json.loads(_ausgabe(["vnstat", "--json", "d", "40"], timeout=5) or "{}")
+    except ValueError:
+        d = {}
+    heute = datetime.date.today()
+    grenzen = (("heute", heute), ("woche", heute - datetime.timedelta(days=heute.weekday())), ("monat", heute.replace(day=1)))
+    res = {"heute": [0, 0], "woche": [0, 0], "monat": [0, 0]}
+    gefunden = False
+    angelegt: list[datetime.date] = []
+    for iface in d.get("interfaces", []) or []:
+        c = (iface.get("created") or {}).get("date") or {}
+        try:
+            angelegt.append(datetime.date(int(c["year"]), int(c["month"]), int(c["day"])))
+        except (KeyError, ValueError, TypeError):
+            angelegt.append(heute)   # ohne Angabe : als heute angelegt behandeln (deckt keinen vollen Zeitraum ab)
+        for tag in ((iface.get("traffic") or {}).get("day") or []):
+            dt = tag.get("date") or {}
+            try:
+                datum = datetime.date(int(dt["year"]), int(dt["month"]), int(dt["day"]))
+            except (KeyError, ValueError, TypeError):
+                continue
+            gefunden = True
+            for name, ab in grenzen:
+                if ab <= datum <= heute:
+                    res[name][0] += int(tag.get("rx", 0))
+                    res[name][1] += int(tag.get("tx", 0))
+    _VNSTAT["daten"] = (res, max(angelegt)) if gefunden and angelegt else None
+    return _VNSTAT["daten"]
+
+
+def _bytes_text(n):
+    if n >= 1024 ** 3:
+        return taille(n)
+    if n >= 1024 ** 2:
+        return ("%.1f MB" % (n / 1024 ** 2)).replace(".", DECIMAL)
+    return "%d KB" % round(n / 1024)
+
+
+def _rate_text(bps):
+    return ("%.1f MB/s" % (bps / 1024 ** 2)).replace(".", DECIMAL) if bps >= 1024 ** 2 else "%d KB/s" % round(bps / 1024)
+
+
+def netz_live(zaehler, vorher, bericht_netz):
+    """(Gruppen, Messung) des Netzwerk-Reiters : aktive Verbindung, Adapter dieser Verbindung, Datenverbrauch (volle Breite),
+    dann die übrigen Adapter und Schnittstellen aus dem Bericht. vorher : (monotonic, rx, tx) der letzten Messung."""
+    iface, gw4 = standard_route()
+    rx, tx = netz_summen()
+    jetzt = time.monotonic()
+    rate = ("", "")
+    if vorher and jetzt > vorher[0]:
+        dt = jetzt - vorher[0]
+        rate = (_rate_text(max(0, rx - vorher[1]) / dt), _rate_text(max(0, tx - vorher[2]) / dt))
+    gruppen = []
+    slot = ""
+    if iface:
+        basis = "/sys/class/net/" + iface
+        wlan = os.path.exists(basis + "/wireless")
+        sp = _lese(basis + "/speed")
+        zustand = _lese(basis + "/operstate")
+        geraet = os.path.realpath(basis + "/device") if os.path.exists(basis + "/device") else ""
+        slot = os.path.basename(geraet).removeprefix("0000:") if geraet else ""
+        dup = _lese(basis + "/duplex")
+        tempo = ""
+        if sp.isdigit() and int(sp) > 0:
+            tempo = _verbinde(sp + " Mb/s", _zw("full duplex") if dup == "full" else (_zw("half duplex") if dup == "half" else ""))
+        gruppen.append(_gruppe("Active connection",
+                               ("Interface", _zw("{name} (Wi-Fi)", name=iface) if wlan else _zw("{name} (Ethernet)", name=iface)),
+                               ("Status", _zw("connected") if zustand == "up" else zustand),
+                               ("Link speed", tempo),
+                               ("IPv4 address", ipv4_adresse(iface)),
+                               ("IPv6 address", "\n".join(ipv6_adressen(iface)[:3])),
+                               ("Default gateway", "\n".join(x for x in (gw4, ipv6_gateway(iface)) if x)),
+                               ("DNS servers", "\n".join(dns_server()[:4])),
+                               ("MAC address", _lese(basis + "/address"))))
+    rest = [g for g in (bericht_netz or []) if g]
+    adapter = next((g for g in rest if slot and g.get("en") == "Adapter " + slot), None)
+    if adapter:   # Adapter der aktiven Verbindung gleich neben der Verbindung
+        rest.remove(adapter)
+        gruppen.append(dict(adapter, title=tr("Network adapter"), en="Network adapter"))
+    elif iface:   # USB-Netzwerk u. a. ohne PCI-Eintrag : wenigstens der Treiber
+        tr_pfad = "/sys/class/net/%s/device/driver" % iface
+        gruppen.append(_gruppe("Network adapter", ("Kernel driver", os.path.basename(os.path.realpath(tr_pfad)) if os.path.exists(tr_pfad) else "")))
+    # Je Zeitraum : vnstat nur, wenn seine Datenbank den ganzen Zeitraum abdeckt (vor dessen Beginn angelegt) ; sonst der
+    # eigene Zähler – ein frisch installiertes vnstat kennt sonst nur die letzten Minuten
+    vn = vnstat_summen()
+    eigen = zaehler.summen()
+    heute = datetime.date.today()
+    beginn = {"heute": heute, "woche": heute - datetime.timedelta(days=heute.weekday()), "monat": heute.replace(day=1)}
+    zeilen = [("Right now", ["↓ " + rate[0], "↑ " + rate[1], ""] if rate[0] else ["–", "–", ""]),
+              ("This session (since boot)", [_bytes_text(rx), _bytes_text(tx), _bytes_text(rx + tx)])]
+    quellen = set()
+    for en, name in (("Today", "heute"), ("This week", "woche"), ("This month", "monat")):
+        mit_vn = vn is not None and vn[1] < beginn[name]
+        quellen.add("vnstat" if mit_vn else "eigen")
+        r, t = (vn[0] if mit_vn and vn else eigen)[name]
+        zeilen.append((en, [_bytes_text(r), _bytes_text(t), _bytes_text(r + t)]))
+    eigen_text = _zw("counted by DriveDeck since {date}", date=zaehler.seit)
+    if quellen == {"vnstat"}:
+        quelle = "vnstat"
+    elif "vnstat" in quellen and vn:
+        quelle = _verbinde(_zw("vnstat since {date}", date=vn[1].isoformat()), eigen_text)
+    else:
+        quelle = eigen_text
+    zeilen.append(("Source", quelle))
+    gruppen.append(_gruppe("Data usage", *zeilen, breit=True, spalten=["Download", "Upload", "Total"]))
+    return [g for g in gruppen + rest if g], (jetzt, rx, tx)
 
 
 _BERICHT: list[Any] = [None]
@@ -3612,12 +4161,15 @@ def lade_bericht(neu=False):
     das Ergebnis bleibt für die Sitzung im Speicher (die Hardware ändert sich im Betrieb nicht)."""
     with _BERICHT_SPERRE:
         if _BERICHT[0] is not None and not neu:
+            for c in _BERICHT[0]["categories"]:   # USB-Geräte kommen und gehen : diese Kategorie immer frisch
+                if c["id"] == "storage":
+                    c["groups"] = _sicher(sammle_busse)
             return _BERICHT[0]
         if _DMI["daten"] is None:
             _dmi_ohne_root()
-        namen = ("cpu", "board", "gpu", "display", "ram", "system", "net")
-        funktionen = (sammle_cpu, sammle_board, sammle_gpu, sammle_display, sammle_ram, sammle_system, sammle_netz)
-        with ThreadPoolExecutor(max_workers=7) as pool:
+        namen = ("cpu", "board", "gpu", "display", "ram", "system", "net", "busse")
+        funktionen = (sammle_cpu, sammle_board, sammle_gpu, sammle_display, sammle_ram, sammle_system, sammle_netz, sammle_busse)
+        with ThreadPoolExecutor(max_workers=8) as pool:
             ergebnis = dict(zip(namen, pool.map(_sicher, funktionen)))
         kat = lambda i, en, ic, gr: {"id": i, "en": en, "title": tr(en), "icon": disk_icon(ic), "groups": gr}
         _BERICHT[0] = {
@@ -3625,6 +4177,7 @@ def lade_bericht(neu=False):
                 kat("cpu", "CPU & Board", ["cpu", "computer"], ergebnis["cpu"] + ergebnis["board"]),
                 kat("gpu", "GPU & Display", ["video-card", "video-display"], ergebnis["gpu"] + ergebnis["display"]),
                 kat("ram", "Memory", ["memory", "drive-harddisk"], ergebnis["ram"]),
+                kat("storage", "Storage & buses", ["drive-harddisk", "media-flash", "drive-removable-media"], ergebnis["busse"]),
                 kat("system", "System & Drivers", ["preferences-system", "computer"], ergebnis["system"]),
                 kat("net", "Network", ["network-wired", "network-workgroup"], ergebnis["net"])],
             "modules": sorted(modul_liste()),
@@ -3639,7 +4192,7 @@ def bericht_text(b):
     for c in b["categories"]:
         z += ["", "=== %s ===" % c["en"]]
         for g in c["groups"]:
-            z += ["", "[%s]" % g["title"]] + ["  %s: %s" % (i["k"], i["v"]) for i in g["items"]]
+            z += ["", "[%s]" % g.get("en", g["title"])] + ["  %s: %s" % (i.get("en", i["k"]), i.get("ven", i["v"])) for i in g["items"]]
     z += ["", "=== All loaded kernel modules (%d) ===" % len(b["modules"]), ", ".join(b["modules"]), ""]
     return "\n".join(z)
 
@@ -3661,6 +4214,10 @@ class Backend(QObject):
     smartInfoChanged = pyqtSignal()
     compactToolbarChanged = pyqtSignal()
     notificationsChanged = pyqtSignal()
+    sensorsUpdated = pyqtSignal(list)   # Hintergrund-Thread -> GUI-Thread
+    sensorsChanged = pyqtSignal()
+    netLiveUpdated = pyqtSignal(list)
+    netLiveChanged = pyqtSignal()
     unmountAdminOffered = pyqtSignal(str, str)   # Einhängepunkt, Name : umount ohne Rechte -> einmal pkexec anbieten
     _smartGelesen = pyqtSignal(str, object)   # Thread -> GUI-Thread (verbunden in __init__)
     netUpdated = pyqtSignal(list)
@@ -3744,6 +4301,26 @@ class Backend(QObject):
         self._smartGelesen.connect(self._smartSetzen)
         self._warn = self._einst["warn_threshold_percent"]
         self._gemeldet: set[tuple[str, str]] = set()   # (Anlass, Gerät) : schon gemeldet in dieser Sitzung
+        self._sensors: list[Any] = []
+        self._sensorSpanne: dict[str, tuple[float, float]] = {}   # Sensor -> (Minimum, Maximum) dieser Sitzung
+        self._sensorAktiv = threading.Event()
+        self._sensorThread: threading.Thread | None = None
+        self.sensorsUpdated.connect(self._setSensors)
+        # Datenverbrauch : eigener Zähler, im Hintergrund jede Minute fortgeschrieben (auch bei geschlossenem Fenster)
+        self._netZaehler = NetzZaehler()
+        self._netLive: list[Any] = []
+        self._netMessung: tuple[float, int, int] | None = None
+        self.netLiveUpdated.connect(self._setNetLive)
+
+        def zaehlen():
+            while True:
+                try:
+                    self._netZaehler.stichprobe()
+                except Exception as e:
+                    print("[drivedeck] net_usage :", e)
+                if _ENDE.wait(60):
+                    return
+        threading.Thread(target=zaehlen, daemon=True).start()
         if self._einst["desktop_name"] != self._einst["custom_name"] or self._einst["custom_name"]:
             self._desktopAbgleichen()   # nachholen, falls das Beenden den letzten Abgleich abgeschnitten hat ; und nach einer Neuinstallation
         self._starten(self._verifierMaj)
@@ -3809,6 +4386,10 @@ class Backend(QObject):
         """Programmende : alle Schleifen wecken und stoppen, höchstens « warte » Sekunden auf sie warten. Danach fasst kein
         Dauer-Thread mehr Qt an, während QApplication abgebaut wird."""
         self.speichernJetzt()
+        try:
+            self._netZaehler.stichprobe(speichern=True)   # Datenverbrauch bis zum Ende mitzählen
+        except Exception as e:
+            print("[drivedeck] net_usage :", e)
         _ENDE.set()
         self._aktivEvent.set()
         for ev in (self._diskWake, self._netWake, self._prnWake, self._scanWake, self._trashWake):
@@ -4529,6 +5110,95 @@ class Backend(QObject):
                 for titel, text in meldungen:
                     desktop_benachrichtigung(titel, text)
             threading.Thread(target=senden, daemon=True).start()
+
+    @pyqtProperty(list, notify=sensorsChanged)
+    def sensors(self):
+        """Gruppen {title, en, items:[{k, en, v, sub}]} der Sensoren : aktueller Wert, darunter Minimum und Maximum der Sitzung."""
+        return self._sensors
+
+    def _setSensors(self, gruppen):
+        self._sensors = gruppen
+        self.sensorsChanged.emit()
+
+    @pyqtSlot(bool)
+    def setSensorsActive(self, an):
+        """Sensoren nur lesen, solange das Systemdaten-Fenster offen ist (alle 2 s, Hintergrund-Thread)."""
+        if not an:
+            self._sensorAktiv.clear()
+            return
+        self._sensorAktiv.set()
+        if self._sensorThread is not None and self._sensorThread.is_alive():
+            return
+
+        def schleife():
+            while self._sensorAktiv.is_set() and not _ENDE.is_set():
+                try:
+                    self.sensorsUpdated.emit(self._sensorGruppen(hwmon_lesen()))
+                except Exception as e:
+                    print("[drivedeck] sensoren :", e)
+                try:   # Netzwerk-Reiter : Verbindung und Verbrauch live
+                    self._netZaehler.stichprobe()
+                    bericht = _BERICHT[0]
+                    netz = next((c["groups"] for c in bericht["categories"] if c["id"] == "net"), []) if bericht else []
+                    gruppen, self._netMessung = netz_live(self._netZaehler, self._netMessung, netz)
+                    self.netLiveUpdated.emit(gruppen)
+                except Exception as e:
+                    print("[drivedeck] netz :", e)
+                _ENDE.wait(2.0)
+        self._sensorThread = threading.Thread(target=schleife, daemon=True)
+        self._sensorThread.start()
+
+    def _sensorGruppen(self, chips):
+        gruppen = []
+        for schluessel, titel, en, werte in chips:
+            items = []
+            for sk, label, wert, einheit in werte:
+                k = schluessel + "/" + sk
+                lo, hi = self._sensorSpanne.get(k, (wert, wert))
+                lo, hi = min(lo, wert), max(hi, wert)
+                self._sensorSpanne[k] = (lo, hi)
+                if einheit == "RPM" and hi <= 0:   # freier Lüfteranschluss : erst zeigen, wenn er in dieser Sitzung einmal lief
+                    continue
+                items.append({"k": label, "en": label, "v": sensor_text(wert, einheit), "col": 1 if einheit == "RPM" else 0,
+                              "sub": tr("min {min} · max {max}").replace("{min}", sensor_text(lo, einheit))
+                                                                 .replace("{max}", sensor_text(hi, einheit))})
+            if not items:
+                continue
+            items.sort(key=lambda it: it["col"])   # Temperaturen, dann Lüfter (stabil)
+            breit = len(items) > 6   # z. B. Super-I/O der Hauptplatine : volle Breite, Temperaturen links, Lüfter rechts
+            g = {"title": titel, "en": en, "items": items, "wide": breit,
+                 "split": breit and items[0]["col"] == 0 and items[-1]["col"] == 1}
+            if en.startswith("Mainboard") and schluessel.startswith("hwmon"):
+                regel = luefter_regelung("/sys/class/hwmon/" + schluessel.split(":")[0])
+                if regel:
+                    items.append({"k": tr("Fan control"), "en": "Fan control", "v": regel["v"], "ven": regel["ven"],
+                                  "sub": "", "col": 2})
+            gruppen.append(g)
+        # ähnlich große Karten paarweise (CPU + GPU, Speicher + Kühlung …), breite Karten nach den ersten zwei Paaren
+        schmal = [g for g in gruppen if not g["wide"]]
+        pos = min(4, len(schmal) // 2 * 2)
+        return schmal[:pos] + [g for g in gruppen if g["wide"]] + schmal[pos:]
+
+    @pyqtProperty(list, notify=netLiveChanged)
+    def netLive(self):
+        """Gruppen des Netzwerk-Reiters (aktive Verbindung, Adapter, Datenverbrauch, weitere Adapter), alle 2 s neu."""
+        return self._netLive
+
+    def _setNetLive(self, gruppen):
+        self._netLive = gruppen
+        self.netLiveChanged.emit()
+
+    @pyqtProperty("QVariantMap", constant=True)
+    def hwWindow(self):
+        """Gespeicherte Größe des Systemdaten-Fensters {w, h, max}."""
+        return dict(self._einst["hw_window"])
+
+    @pyqtSlot(int, int, bool)
+    def saveHwWindow(self, b, h, maximiert):
+        neu = _hw_fenster({"w": b, "h": h, "max": maximiert})
+        if neu != self._einst["hw_window"]:
+            self._einst["hw_window"] = neu
+            self._verzoegert("einst", lambda: speichere_einstellungen(dict(self._einst)))
 
     @pyqtProperty("QVariantMap", notify=smartInfoChanged)
     def smartInfo(self):
@@ -7799,41 +8469,227 @@ QQC2.ApplicationWindow {
         }
     }
 
-    // hardwareInfo : ausführliche Hardware-Übersicht mit Reitern (Übersicht, CPU & Board, GPU & Display, Speicher, System, Netzwerk)
-    QQC2.Dialog {
-        id: hwInfoDialog
-        objectName: "hwInfoDialog"
-        modal: true
-        anchors.centerIn: QQC2.Overlay.overlay
-        title: win.trad("System specs")
-        onClosed: backend.trimMemory()
-        width: Math.min(940, win.width - 40)
-        height: Math.min(660, win.height - 40)
+    // ---- Systemdaten : eigenes, frei skalierbares Fenster (Hardware-Inspector). Links die Kategorien, rechts Karten mit
+    // Schlüssel/Wert-Zeilen (ab 960 px Inhaltsbreite zweispaltig), oben Suche (Strg+F), unten Kopieren und Export.
+    // Tastatur : Tab Suche -> Kategorien -> Inhalt -> Knöpfe ; Pfeiltasten wählen Kategorie bzw. Zeile ; Eingabe kopiert ; Esc leert
+    // die Suche, sonst schließt sie das Fenster.
+    function openHardware() {
+        if (!hwWin.visible) {
+            const g = backend.hwWindow
+            hwWin.width = Math.max(hwWin.minimumWidth, g.w)
+            hwWin.height = Math.max(hwWin.minimumHeight, g.h)
+            hwWin.tab = 0
+            hwWin.suche = ""
+            hwWin.cur = -1
+            if (g.max)
+                hwWin.showMaximized()
+            else
+                hwWin.showNormal()
+        }
+        hwWin.requestActivate()   // kein raise() : unter Wayland nicht unterstützt (nur eine Warnung)
+    }
+    QQC2.ApplicationWindow {
+        id: hwWin
+        objectName: "hwWin"
+        title: win.trad("System specs") + " – " + win.title
+        visible: false
+        flags: Qt.Window
+        minimumWidth: 820
+        minimumHeight: 580
+        width: 1180
+        height: 780
+        color: Kirigami.Theme.backgroundColor
+        font.family: win.uiFont
+        font.letterSpacing: win.uiTracking
+        Kirigami.Theme.colorSet: Kirigami.Theme.Window
+        Kirigami.Theme.inherit: false
         property var overview: []
         property var report: ({ categories: [] })
         property int tab: 0
+        property string suche: ""
+        property int cur: -1                 // gewählte Zeile im Inhalt (Tastatur), Index in « flach »
         property bool copied: false
+        property int normalW: 1180           // letzte Größe im Fenstermodus (wird beim Schließen gespeichert)
+        property int normalH: 780
+        property bool sensorenWarten: true   // die ersten 3 s : « Sensoren werden gelesen … », danach der Hinweis ohne Sensoren
         readonly property bool reportReady: report.categories !== undefined && report.categories.length > 0
-        readonly property var tabs: [{ title: win.trad("Overview"), icon: "computer" }].concat(reportReady ? report.categories : [])
-        readonly property var groups: (tab > 0 && reportReady && report.categories[tab - 1]) ? report.categories[tab - 1].groups : []
+        // Kategorien : Übersicht, die Kategorien des Berichts, « Sensoren & Lüfter » gleich nach « Speicher & Busse »
+        readonly property var tabs: {
+            const t = [{ id: "overview", title: win.trad("Overview"), icon: "computer" }]
+            const cats = reportReady ? report.categories : []
+            for (let i = 0; i < cats.length; i++) {
+                t.push({ id: cats[i].id, title: cats[i].title, icon: cats[i].icon })
+                if (cats[i].id === "storage")
+                    t.push({ id: "sensors", title: win.trad("Sensors & fans"), icon: "temperature-normal" })
+            }
+            if (cats.length === 0)
+                t.push({ id: "sensors", title: win.trad("Sensors & fans"), icon: "temperature-normal" })
+            return t
+        }
+        readonly property var aktTab: tabs[Math.min(tab, tabs.length - 1)]
+        // Hinweis : bewusst Schleifen statt map/filter/reduce mit Rückruffunktionen – eine verschachtelte JS-Funktion schaltet
+        // die unqualified-Prüfung von qmllint für den Rest der Datei ab
+        function gruppenVon(id) {
+            const res = []
+            if (id === "overview") {
+                for (let i = 0; i < overview.length; i++) {
+                    const items = []
+                    for (let j = 0; j < overview[i].lines.length; j++)
+                        items.push({ k: "", v: overview[i].lines[j], sub: "" })
+                    res.push({ title: overview[i].title, icon: overview[i].icon, items: items })
+                }
+                return res
+            }
+            if (id === "sensors")
+                return backend.sensors
+            if (id === "net" && backend.netLive.length > 0)
+                return backend.netLive   // Verbindung und Verbrauch live, dazu die Adapter aus dem Bericht
+            const cats = reportReady ? report.categories : []
+            for (let i = 0; i < cats.length; i++) {
+                if (cats[i].id === id)
+                    return cats[i].groups
+            }
+            return res
+        }
+        function passt(t, q) { return (t || "").toLowerCase().indexOf(q) >= 0 }
+        function filtern(gruppen, q) {
+            if (q === "")
+                return gruppen
+            const res = []
+            for (let i = 0; i < gruppen.length; i++) {
+                const g = gruppen[i]
+                let items = g.items
+                if (!passt(g.title, q)) {
+                    items = []
+                    for (let j = 0; j < g.items.length; j++) {
+                        const it = g.items[j]
+                        if (passt(it.k, q) || passt(it.v, q) || passt(it.sub, q))
+                            items.push(it)
+                    }
+                }
+                if (items.length > 0)
+                    res.push({ title: g.title, icon: g.icon, items: items, wide: g.wide === true, split: g.split === true, cols: g.cols || [] })
+            }
+            return res
+        }
+        function treffer(id) {
+            const q = suche.trim().toLowerCase()
+            if (q === "")
+                return 0
+            const gs = filtern(gruppenVon(id), q)
+            let n = 0
+            for (let i = 0; i < gs.length; i++)
+                n += gs[i].items.length
+            return n
+        }
+        // gezeigte Gruppen mit fortlaufender Zeilennummer (« base ») für die Tastaturwahl
+        readonly property var gezeigt: {
+            const gs = filtern(gruppenVon(aktTab.id), suche.trim().toLowerCase())
+            const res = []
+            let n = 0
+            for (let i = 0; i < gs.length; i++) {
+                res.push({ title: gs[i].title, icon: gs[i].icon, items: gs[i].items, base: n, wide: gs[i].wide === true,
+                          split: gs[i].split === true, cols: gs[i].cols || [] })
+                n += gs[i].items.length
+            }
+            return res
+        }
+        onFlachChanged: if (cur >= flach.length) cur = flach.length - 1   // Suche/Kategorie : Auswahl nie hinter dem Ende
+        readonly property var flach: {
+            const res = []
+            for (let i = 0; i < gezeigt.length; i++)
+                for (let j = 0; j < gezeigt[i].items.length; j++)
+                    res.push(gezeigt[i].items[j])
+            return res
+        }
+        // Zeilen zu je zwei Karten in der Reihenfolge des Berichts (beide Karten einer Zeile gleich hoch) ; breite Karten
+        // (Listen, Tabellen) und eine übrig bleibende Karte stehen allein über die volle Breite. Einspaltig : eine Karte je Zeile.
+        function zeilen(gs, zwei) {
+            const res = []
+            let offen = null
+            for (let i = 0; i < gs.length; i++) {
+                const g = gs[i]
+                if (!zwei || g.wide) {
+                    if (offen !== null) { res.push([offen]); offen = null }
+                    res.push([g])
+                } else if (offen === null) {
+                    offen = g
+                } else {
+                    res.push([offen, g])
+                    offen = null
+                }
+            }
+            if (offen !== null)
+                res.push([offen])
+            return res
+        }
+        function kopieren(it) {
+            if (!it)
+                return
+            backend.copyText(it.k !== "" ? it.k + ": " + it.v + (it.sub ? " (" + it.sub + ")" : "") : it.v)
+            copied = true
+            hwCopiedTimer.restart()
+        }
         function startExport(suffix) {
             hwFileDialog.suffix = suffix
             hwFileDialog.currentFile = backend.exportSuggestion.replace(/txt$/, suffix)
             hwFileDialog.open()
         }
-        onAboutToShow: {
-            tab = 0
-            copied = false
-            overview = []
-            backend.loadSpecs()
-            backend.loadReport()   // beim ersten Mal ~1 s im Hintergrund, danach sofort aus dem Speicher
+        onSucheChanged: {
+            cur = -1
+            // aktuelle Kategorie ohne Treffer : zur ersten mit Treffern wechseln
+            if (suche.trim() !== "" && treffer(aktTab.id) === 0) {
+                for (let i = 0; i < tabs.length; i++) {
+                    if (treffer(tabs[i].id) > 0) { tab = i; break }
+                }
+            }
         }
+        onTabChanged: {
+            cur = -1
+            const f = hwScroll.contentItem as Flickable
+            if (f)
+                f.contentY = 0
+        }
+        onVisibleChanged: {
+            backend.setSensorsActive(visible)
+            if (visible) {
+                copied = false
+                overview = []
+                sensorenWarten = true
+                hwSensorTimer.restart()
+                backend.loadSpecs()
+                backend.loadReport()   // beim ersten Mal ~1 s im Hintergrund, danach sofort aus dem Speicher
+                hwSuche.text = ""
+                hwList.forceActiveFocus()
+            } else {
+                backend.trimMemory()
+            }
+        }
+        onWidthChanged: if (visibility === Window.Windowed) normalW = width
+        onHeightChanged: if (visibility === Window.Windowed) normalH = height
+        onClosing: backend.saveHwWindow(normalW, normalH, visibility === Window.Maximized)
         Connections {
             target: backend
-            function onSpecsReady(zeilen) { hwInfoDialog.overview = zeilen }
-            function onReportReady(b) { hwInfoDialog.report = b }
+            function onSpecsReady(zeilen) { hwWin.overview = zeilen }
+            function onReportReady(b) { hwWin.report = b }
         }
-        Timer { id: copiedTimer; interval: 1800; onTriggered: hwInfoDialog.copied = false }
+        Timer { id: hwCopiedTimer; interval: 1600; onTriggered: hwWin.copied = false }
+        Timer { id: hwSensorTimer; interval: 3000; onTriggered: hwWin.sensorenWarten = false }
+        Shortcut {
+            sequences: [StandardKey.Find]
+            context: Qt.WindowShortcut
+            onActivated: { hwSuche.forceActiveFocus(); hwSuche.selectAll() }
+        }
+        Shortcut {   // Esc : erst die Suche leeren, dann schließen
+            sequence: "Escape"
+            context: Qt.WindowShortcut
+            onActivated: {
+                if (hwWin.suche !== "")
+                    hwSuche.text = ""
+                else
+                    hwWin.close()
+            }
+        }
         FileDialog {
             id: hwFileDialog
             property string suffix: "txt"
@@ -7844,231 +8700,493 @@ QQC2.ApplicationWindow {
             onAccepted: backend.exportReport(selectedFile.toString())
         }
 
-        contentItem: RowLayout {
-            spacing: 12
-            // Kategorien links (wie bei HWiNFO)
-            Rectangle {
-                Layout.preferredWidth: 190
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 0
+            Kirigami.Theme.colorSet: Kirigami.Theme.View
+            Kirigami.Theme.inherit: false
+
+            // Kopfzeile : Titel der Kategorie, rechts die Suche
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 56
+                Layout.leftMargin: 20
+                Layout.rightMargin: 16
+                spacing: 12
+                Kirigami.Icon {
+                    source: hwWin.aktTab.icon
+                    Layout.preferredWidth: 20
+                    Layout.preferredHeight: 20
+                }
+                QQC2.Label {
+                    Layout.fillWidth: true
+                    text: hwWin.suche.trim() !== "" ? win.trad("Search results") + " · " + hwWin.aktTab.title : hwWin.aktTab.title
+                    font.family: win.uiFont
+                    font.pixelSize: win.px15
+                    font.weight: Font.DemiBold
+                    elide: Text.ElideRight
+                    Accessible.role: Accessible.Heading
+                }
+                QQC2.TextField {
+                    id: hwSuche
+                    objectName: "hwSearch"
+                    Layout.preferredWidth: Math.round(280 * win.fontGrow)
+                    placeholderText: win.trad("Search (Ctrl+F)")
+                    leftPadding: 30
+                    onTextChanged: hwWin.suche = text
+                    Accessible.name: win.trad("Search (Ctrl+F)")
+                    Keys.onDownPressed: hwInhalt.forceActiveFocus()
+                    Kirigami.Icon {
+                        source: "search"
+                        width: 16
+                        height: 16
+                        x: 8
+                        anchors.verticalCenter: parent.verticalCenter
+                        color: win.textTertiary
+                    }
+                }
+            }
+            Hairline { Layout.preferredHeight: win.sectionLineW }
+
+            RowLayout {
+                Layout.fillWidth: true
                 Layout.fillHeight: true
-                radius: 8
-                color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.05)
-                ColumnLayout {
-                    anchors.fill: parent
-                    anchors.margins: 6
-                    spacing: Kirigami.Units.smallSpacing
-                    Repeater {
-                        model: hwInfoDialog.tabs
-                        delegate: Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 40
-                            radius: 6
+                spacing: 0
+
+                // Kategorien : ruhige Pillen wie in der Seitenleiste des Hauptfensters ; bei einer Suche die Trefferzahl
+                Rectangle {
+                    Layout.preferredWidth: Math.round(208 * win.fontGrow)
+                    Layout.fillHeight: true
+                    color: win.sideTint
+                    ListView {
+                        id: hwList
+                        objectName: "hwCategories"
+                        anchors.fill: parent
+                        anchors.topMargin: 8
+                        anchors.bottomMargin: 8
+                        model: hwWin.tabs
+                        currentIndex: hwWin.tab
+                        onCurrentIndexChanged: if (currentIndex >= 0 && currentIndex !== hwWin.tab) hwWin.tab = currentIndex
+                        keyNavigationEnabled: true
+                        activeFocusOnTab: true
+                        boundsBehavior: Flickable.StopAtBounds
+                        clip: true
+                        Accessible.role: Accessible.List
+                        Accessible.name: win.trad("Categories")
+                        delegate: Item {
                             id: hwTab
-                            readonly property bool sel: hwInfoDialog.tab === index
-                            color: sel ? Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.22)
-                                       : (tabMouse.containsMouse ? Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.07) : "transparent")
-                            border.width: sel ? 1 : 0
-                            border.color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.7)
+                            required property var modelData
+                            required property int index
+                            readonly property bool sel: hwWin.tab === index
+                            readonly property int n: hwWin.treffer(modelData.id)
+                            width: ListView.view.width
+                            height: Math.round(34 * win.fontGrow)
+                            Accessible.role: Accessible.ListItem
+                            Accessible.name: modelData.title + (n > 0 ? ", " + n : "")
+                            Accessible.selected: sel
+                            HoverHandler { id: hwTabHover }
+                            Rectangle {
+                                anchors.fill: parent
+                                anchors.leftMargin: 8
+                                anchors.rightMargin: 8
+                                anchors.topMargin: 1
+                                anchors.bottomMargin: 1
+                                radius: win.rControl
+                                color: hwTab.sel ? win.selFill(hwList.activeFocus) : Qt.alpha(Kirigami.Theme.textColor, hwTabHover.hovered ? 0.07 : 0)
+                                Behavior on color { ColorAnimation { duration: win.animMs; easing.type: Easing.OutCubic } }
+                            }
                             RowLayout {
                                 anchors.fill: parent
-                                anchors.leftMargin: Kirigami.Units.largeSpacing
-                                anchors.rightMargin: 8
-                                spacing: Kirigami.Units.largeSpacing
+                                anchors.leftMargin: 20
+                                anchors.rightMargin: 16
+                                spacing: 8
                                 Kirigami.Icon {
-                                    Layout.preferredWidth: 22
-                                    Layout.preferredHeight: 22
-                                    source: modelData.icon
+                                    source: hwTab.modelData.icon
+                                    Layout.preferredWidth: Math.round(18 * win.fontGrow)
+                                    Layout.preferredHeight: Math.round(18 * win.fontGrow)
                                 }
                                 QQC2.Label {
                                     Layout.fillWidth: true
-                                    text: modelData.title
+                                    text: hwTab.modelData.title
+                                    font.family: win.uiFont
+                                    font.pixelSize: win.px13
                                     elide: Text.ElideRight
-                                    font.bold: hwTab.sel
+                                }
+                                Rectangle {   // Trefferzahl der Suche : kleine Glas-Pille
+                                    visible: hwTab.n > 0
+                                    implicitHeight: hwTabN.implicitHeight + 4
+                                    implicitWidth: Math.max(implicitHeight, hwTabN.implicitWidth + 12)
+                                    radius: height / 2
+                                    color: Qt.alpha(Kirigami.Theme.highlightColor, 0.16)
+                                    border.width: 1
+                                    border.color: Qt.alpha(Kirigami.Theme.highlightColor, 0.34)
+                                    QQC2.Label {
+                                        id: hwTabN
+                                        anchors.centerIn: parent
+                                        text: hwTab.n
+                                        font.family: win.uiFont
+                                        font.pixelSize: win.px11
+                                        font.weight: Font.DemiBold
+                                        font.features: { "tnum": 1 }
+                                        color: Qt.tint(Kirigami.Theme.highlightColor, win.darkTheme ? Qt.rgba(1, 1, 1, 0.6) : Qt.rgba(0, 0, 0, 0.5))
+                                    }
                                 }
                             }
-                            MouseArea {
-                                id: tabMouse
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                onClicked: hwInfoDialog.tab = index
-                            }
+                            TapHandler { onTapped: { hwWin.tab = hwTab.index; hwList.forceActiveFocus() } }
                         }
                     }
-                    Item { Layout.fillHeight: true }
                 }
-            }
-            // Inhalt rechts
-            ColumnLayout {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                spacing: 8
-                readonly property bool busy: hwInfoDialog.tab === 0 ? hwInfoDialog.overview.length === 0 : !hwInfoDialog.reportReady
-                Item { Layout.fillHeight: true; visible: parent.busy }
-                QQC2.BusyIndicator {
-                    Layout.alignment: Qt.AlignHCenter
-                    visible: parent.busy
-                    running: visible
+                Rectangle {   // Trenner Kategorien | Inhalt
+                    Layout.preferredWidth: win.sectionLineW
+                    Layout.fillHeight: true
+                    color: win.hairline
                 }
-                QQC2.Label {
-                    Layout.alignment: Qt.AlignHCenter
-                    visible: parent.busy
-                    text: win.trad("Reading hardware…")
-                    opacity: 0.75
-                }
-                Item { Layout.fillHeight: true; visible: parent.busy }
-                QQC2.ScrollView {
+
+                // Inhalt : Karten, ab 960 px zweispaltig ; Pfeiltasten wählen eine Zeile, Eingabe kopiert sie
+                Item {
+                    id: hwInhalt
+                    objectName: "hwContent"
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    visible: !parent.busy
-                    contentWidth: availableWidth
-                    clip: true
-                    ColumnLayout {
-                        width: parent.width
+                    activeFocusOnTab: true
+                    readonly property bool zweiSpaltig: width >= 960
+                    readonly property bool laedt: hwWin.aktTab.id === "overview" ? hwWin.overview.length === 0
+                                                 : (hwWin.aktTab.id === "sensors" ? backend.sensors.length === 0 && hwWin.sensorenWarten
+                                                                                  : !hwWin.reportReady)
+                    Accessible.role: Accessible.Pane
+                    Accessible.name: hwWin.aktTab.title
+                    function zeigen(item) {   // Zeile ins Bild scrollen
+                        const f = hwScroll.contentItem as Flickable
+                        if (!f)
+                            return
+                        const y = item.mapToItem(f.contentItem, 0, 0).y
+                        if (y < f.contentY)
+                            f.contentY = Math.max(0, y - 8)
+                        else if (y + item.height > f.contentY + f.height)
+                            f.contentY = Math.min(f.contentHeight - f.height, y + item.height + 8 - f.height)
+                    }
+                    Keys.onDownPressed: hwWin.cur = Math.min(hwWin.flach.length - 1, hwWin.cur + 1)   // -1 bei leerer Liste
+                    Keys.onUpPressed: hwWin.cur = Math.max(0, hwWin.cur - 1)
+                    Keys.onReturnPressed: hwWin.kopieren(hwWin.flach[hwWin.cur])
+                    Keys.onEnterPressed: hwWin.kopieren(hwWin.flach[hwWin.cur])
+                    Keys.onPressed: function(ev) {
+                        const f = hwScroll.contentItem as Flickable
+                        if (!f)
+                            return
+                        if (ev.key === Qt.Key_PageDown) { f.contentY = Math.min(Math.max(0, f.contentHeight - f.height), f.contentY + f.height * 0.9); ev.accepted = true }
+                        else if (ev.key === Qt.Key_PageUp) { f.contentY = Math.max(0, f.contentY - f.height * 0.9); ev.accepted = true }
+                        else if (ev.key === Qt.Key_C && (ev.modifiers & Qt.ControlModifier)) { hwWin.kopieren(hwWin.flach[hwWin.cur]); ev.accepted = true }
+                    }
+                    onActiveFocusChanged: if (activeFocus && hwWin.cur < 0 && hwWin.flach.length > 0) hwWin.cur = 0
+
+                    ColumnLayout {   // lädt noch
+                        anchors.centerIn: parent
+                        visible: hwInhalt.laedt
                         spacing: 8
-                        // Übersicht : eine Karte je Komponente
-                        Repeater {
-                            model: hwInfoDialog.tab === 0 ? hwInfoDialog.overview : []
-                            delegate: Rectangle {
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: rowCol.implicitHeight + 16
-                                radius: 8
-                                color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.05)
-                                border.width: 1
-                                border.color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.35)
-                                RowLayout {
-                                    anchors.fill: parent
-                                    anchors.margins: 8
-                                    spacing: Kirigami.Units.largeSpacing * 2
-                                    Kirigami.Icon {
-                                        Layout.preferredWidth: 32
-                                        Layout.preferredHeight: 32
-                                        Layout.alignment: Qt.AlignTop
-                                        source: modelData.icon
-                                    }
-                                    ColumnLayout {
-                                        id: rowCol
-                                        Layout.fillWidth: true
-                                        spacing: 1
-                                        QQC2.Label {
-                                            text: modelData.title.toUpperCase()
-                                            font.pointSize: win.badgeFont.pointSize
-                                            font.bold: true
-                                            font.letterSpacing: 1.2
-                                            color: Kirigami.Theme.highlightColor
-                                        }
-                                        Repeater {
-                                            model: modelData.lines
-                                            delegate: QQC2.Label {
-                                                Layout.fillWidth: true
-                                                wrapMode: Text.Wrap
-                                                text: modelData
-                                                opacity: index === 0 ? 1.0 : 0.75
-                                                font.bold: index === 0
-                                                font.pointSize: index === 0 ? Kirigami.Theme.defaultFont.pointSize : win.badgeFont.pointSize
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                        QQC2.BusyIndicator { Layout.alignment: Qt.AlignHCenter; running: parent.visible }
+                        QQC2.Label {
+                            Layout.alignment: Qt.AlignHCenter
+                            text: hwWin.aktTab.id === "sensors" ? win.trad("Reading sensors…") : win.trad("Reading hardware…")
+                            color: win.textSecondary
                         }
-                        // Detail-Reiter : eine Karte je Gruppe mit Schlüssel/Wert-Zeilen
-                        Repeater {
-                            model: hwInfoDialog.groups
-                            delegate: Rectangle {
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: grpCol.implicitHeight + 20
-                                radius: 8
-                                color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.05)
-                                border.width: 1
-                                border.color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.35)
-                                ColumnLayout {
-                                    id: grpCol
-                                    anchors.fill: parent
-                                    anchors.margins: 10
-                                    spacing: Kirigami.Units.smallSpacing
-                                    QQC2.Label {
-                                        text: modelData.title.toUpperCase()
-                                        font.pointSize: win.badgeFont.pointSize
-                                        font.bold: true
-                                        font.letterSpacing: 1.2
-                                        color: Kirigami.Theme.highlightColor
-                                    }
+                    }
+                    QQC2.Label {   // leer : keine Treffer oder keine Sensoren
+                        anchors.centerIn: parent
+                        width: Math.min(parent.width - 80, 520)
+                        visible: !hwInhalt.laedt && hwWin.gezeigt.length === 0
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.Wrap
+                        color: win.textSecondary
+                        text: hwWin.suche.trim() !== "" ? win.trad("No matches")
+                              : (hwWin.aktTab.id === "sensors" ? win.trad("No temperature or fan sensors were found. The sensor drivers of the mainboard may need to be loaded (for example with “sensors-detect”).")
+                                                               : win.trad("No information available."))
+                    }
+                    QQC2.ScrollView {
+                        id: hwScroll
+                        anchors.fill: parent
+                        anchors.margins: 20
+                        anchors.rightMargin: 12
+                        visible: !hwInhalt.laedt && hwWin.gezeigt.length > 0
+                        contentWidth: availableWidth
+                        clip: true
+                        ColumnLayout {
+                            id: hwKartenSpalte
+                            width: hwScroll.availableWidth - 8
+                            spacing: 16
+                            readonly property var reihen: hwWin.zeilen(hwWin.gezeigt, hwInhalt.zweiSpaltig)
+                            // Modelle sind Anzahlen, die Daten kommen über den Index : neue Messwerte (alle 2 s) ändern nur die
+                            // Bindungen, die Karten bleiben stehen (Hover, Tooltips, gedrückte Knöpfe überleben die Aktualisierung)
+                            Repeater {
+                                model: hwKartenSpalte.reihen.length
+                                delegate: RowLayout {   // eine Zeile : ein oder zwei Karten, gleich hoch (bündige Ober- und Unterkanten)
+                                    id: hwKartenZeile
+                                    required property int index
+                                    readonly property var modelData: hwKartenSpalte.reihen[index] || []
+                                    Layout.fillWidth: true
+                                    spacing: 16
                                     Repeater {
-                                        model: modelData.items
-                                        delegate: RowLayout {
+                                        model: hwKartenZeile.modelData.length
+                                        delegate: Rectangle {   // Karte
+                                            id: hwKarte
+                                            required property int index
+                                            readonly property var modelData: hwKartenZeile.modelData[index]
+                                                                             || ({ title: "", items: [], cols: [], base: 0 })
+                                            readonly property bool tabelle: hwKarte.modelData.cols.length > 0
                                             Layout.fillWidth: true
-                                            spacing: Kirigami.Units.largeSpacing * 2
-                                            QQC2.Label {
-                                                Layout.preferredWidth: 210
-                                                Layout.alignment: Qt.AlignTop
-                                                text: modelData.k
-                                                wrapMode: Text.Wrap
-                                                opacity: 0.75
-                                                font: win.badgeFont
-                                            }
-                                            QQC2.Label {
-                                                Layout.fillWidth: true
-                                                Layout.alignment: Qt.AlignTop
-                                                text: modelData.v
-                                                wrapMode: Text.Wrap
-                                                font.bold: true
+                                            Layout.fillHeight: true
+                                            Layout.preferredWidth: 1   // gleich breite Karten
+                                            Layout.alignment: Qt.AlignTop
+                                            implicitHeight: hwKarteCol.implicitHeight + 24
+                                            radius: win.rPanel
+                                            color: Qt.alpha(Kirigami.Theme.textColor, 0.035)
+                                            border.width: 1
+                                            border.color: win.hairline
+                                            ColumnLayout {
+                                                id: hwKarteCol
+                                                anchors.left: parent.left
+                                                anchors.right: parent.right
+                                                anchors.top: parent.top
+                                                anchors.margins: 12
+                                                spacing: 2
+                                                RowLayout {   // Kartentitel : 13 px DemiBold, normale Schreibweise
+                                                    Layout.fillWidth: true
+                                                    Layout.leftMargin: 8
+                                                    Layout.bottomMargin: 6
+                                                    spacing: 8
+                                                    Kirigami.Icon {
+                                                        visible: (hwKarte.modelData.icon || "") !== ""
+                                                        source: hwKarte.modelData.icon || ""
+                                                        Layout.preferredWidth: 18
+                                                        Layout.preferredHeight: 18
+                                                    }
+                                                    QQC2.Label {
+                                                        Layout.fillWidth: true
+                                                        text: hwKarte.modelData.title
+                                                        font.family: win.uiFont
+                                                        font.pixelSize: win.px13
+                                                        font.weight: Font.DemiBold
+                                                        elide: Text.ElideRight
+                                                        Accessible.role: Accessible.Heading
+                                                    }
+                                                    Repeater {   // Tabellenkopf (z. B. Download, Upload, Gesamt)
+                                                        model: hwKarte.modelData.cols
+                                                        delegate: QQC2.Label {
+                                                            required property var modelData
+                                                            Layout.preferredWidth: Math.round(110 * win.fontGrow)
+                                                            horizontalAlignment: Text.AlignRight
+                                                            text: modelData
+                                                            font: win.kvLabelFont
+                                                            color: win.textSecondary
+                                                        }
+                                                    }
+                                                    Item { visible: hwKarte.tabelle; Layout.preferredWidth: 8 }
+                                                }
+                                                GridLayout {   // Zeilen ; geteilte Karten (Hauptplatine) : Temperaturen links, Lüfter rechts
+                                                    id: hwKarteGrid
+                                                    readonly property bool geteilt: hwKarte.modelData.split === true && hwInhalt.zweiSpaltig
+                                                    readonly property int links: zaehlen(0)
+                                                    readonly property int rechts: zaehlen(1)
+                                                    function zaehlen(c) {
+                                                        let n = 0
+                                                        const its = hwKarte.modelData.items
+                                                        for (let i = 0; i < its.length; i++)
+                                                            if ((its[i].col || 0) === c) n++
+                                                        return n
+                                                    }
+                                                    Layout.fillWidth: true
+                                                    columns: geteilt ? 2 : 1
+                                                    columnSpacing: 16
+                                                    rowSpacing: 2
+                                                    Repeater {   // Spaltenköpfe der geteilten Karte
+                                                        model: hwKarteGrid.geteilt ? [win.trad("Temperatures"), win.trad("Fans")] : []
+                                                        delegate: QQC2.Label {
+                                                            required property var modelData
+                                                            required property int index
+                                                            Layout.row: 0
+                                                            Layout.column: index
+                                                            Layout.fillWidth: true
+                                                            Layout.preferredWidth: 1
+                                                            Layout.leftMargin: 8
+                                                            Layout.bottomMargin: 2
+                                                            text: modelData
+                                                            font: win.kvLabelFont
+                                                            color: win.textTertiary
+                                                            elide: Text.ElideRight
+                                                            Accessible.role: Accessible.Heading
+                                                        }
+                                                    }
+                                                Repeater {
+                                                    model: hwKarte.modelData.items.length
+                                                    delegate: Rectangle {   // Zeile : Klick (oder Eingabe) kopiert den Wert
+                                                        id: hwZeile
+                                                        required property int index
+                                                        readonly property var modelData: hwKarte.modelData.items[index] || ({ k: "", v: "" })
+                                                        readonly property int flat: hwKarte.modelData.base + index
+                                                        readonly property bool gewaehlt: hwInhalt.activeFocus && hwWin.cur === flat
+                                                        readonly property var zellen: modelData.cells || []
+                                                        readonly property int spalte: modelData.col || 0
+                                                        // geteilt : halbe Spalte (auch die Zeile darunter, damit ihr Wert mit der linken Spalte fluchtet)
+                                                        readonly property int schluesselW: hwKarteGrid.geteilt
+                                                                                           ? Math.min(Math.round((hwKarteGrid.width - hwKarteGrid.columnSpacing) / 4), Math.round(220 * win.fontGrow))
+                                                                                           : Math.min(Math.round(hwKarte.width * 0.38), Math.round(280 * win.fontGrow))
+                                                        // geteilt : Zeile 0 sind die Köpfe ; die Zeile über beide Spalten (Lüfterregelung) folgt unten
+                                                        Layout.row: !hwKarteGrid.geteilt ? index
+                                                                    : spalte === 0 ? 1 + index
+                                                                    : spalte === 1 ? 1 + index - hwKarteGrid.links
+                                                                    : 1 + Math.max(hwKarteGrid.links, hwKarteGrid.rechts) + index - hwKarteGrid.links - hwKarteGrid.rechts
+                                                        Layout.column: hwKarteGrid.geteilt && spalte === 1 ? 1 : 0
+                                                        Layout.columnSpan: hwKarteGrid.geteilt && spalte === 2 ? 2 : 1
+                                                        Layout.topMargin: hwKarteGrid.geteilt && spalte === 2 ? 8 : 0
+                                                        Layout.preferredWidth: 1   // beide Spalten gleich breit
+                                                        Layout.alignment: Qt.AlignTop
+                                                        Layout.fillWidth: true
+                                                        implicitHeight: Math.max(Math.round(26 * win.fontGrow), hwZeileRow.implicitHeight + 8)
+                                                        radius: win.rCard
+                                                        color: gewaehlt ? win.selFill(true) : (hwZeileHover.hovered ? win.hoverFill : "transparent")
+                                                        Behavior on color { ColorAnimation { duration: win.animMs; easing.type: Easing.OutCubic } }
+                                                        onGewaehltChanged: if (gewaehlt) hwInhalt.zeigen(hwZeile)
+                                                        Accessible.role: Accessible.StaticText
+                                                        Accessible.name: (modelData.k !== "" ? modelData.k + ": " : "") + modelData.v + (modelData.sub ? ", " + modelData.sub : "")
+                                                        RowLayout {
+                                                            id: hwZeileRow
+                                                            anchors.left: parent.left
+                                                            anchors.right: parent.right
+                                                            anchors.leftMargin: 8
+                                                            anchors.rightMargin: 8
+                                                            anchors.verticalCenter: parent.verticalCenter
+                                                            spacing: 12
+                                                            QQC2.Label {
+                                                                visible: hwZeile.modelData.k !== ""
+                                                                // Schlüsselspalte : 38 % der Karte, in breiten Karten höchstens 280 px (sonst rücken Schlüssel und Wert auseinander)
+                                                                Layout.preferredWidth: hwKarte.tabelle ? -1 : hwZeile.schluesselW
+                                                                Layout.maximumWidth: hwKarte.tabelle ? 100000 : hwZeile.schluesselW
+                                                                Layout.fillWidth: hwKarte.tabelle
+                                                                Layout.alignment: Qt.AlignTop
+                                                                text: hwZeile.modelData.k
+                                                                font: win.kvLabelFont
+                                                                color: win.textSecondary
+                                                                wrapMode: Text.Wrap
+                                                            }
+                                                            ColumnLayout {   // Wert (oder bei Tabellen : nichts, die Zellen folgen)
+                                                                visible: hwZeile.zellen.length === 0
+                                                                Layout.fillWidth: true
+                                                                spacing: 0
+                                                                QQC2.Label {
+                                                                    Layout.fillWidth: true
+                                                                    text: hwZeile.modelData.v
+                                                                    font.family: win.uiFont
+                                                                    font.pixelSize: win.px13
+                                                                    font.weight: hwZeile.modelData.k === "" && hwZeile.index === 0 ? Font.DemiBold : Font.Normal
+                                                                    font.features: { "tnum": 1 }
+                                                                    wrapMode: Text.Wrap
+                                                                }
+                                                                QQC2.Label {
+                                                                    Layout.fillWidth: true
+                                                                    visible: (hwZeile.modelData.sub || "") !== ""
+                                                                    text: hwZeile.modelData.sub || ""
+                                                                    font.family: win.uiFont
+                                                                    font.pixelSize: win.px11
+                                                                    font.features: { "tnum": 1 }
+                                                                    color: win.textSecondary
+                                                                }
+                                                            }
+                                                            Repeater {   // Tabellenzellen : rechtsbündig, Tabellenziffern, gleich breit wie der Kopf
+                                                                model: hwZeile.zellen
+                                                                delegate: QQC2.Label {
+                                                                    required property var modelData
+                                                                    required property int index
+                                                                    Layout.preferredWidth: Math.round(110 * win.fontGrow)
+                                                                    horizontalAlignment: Text.AlignRight
+                                                                    text: modelData
+                                                                    font.family: win.uiFont
+                                                                    font.pixelSize: win.px13
+                                                                    font.weight: index === 2 ? Font.DemiBold : Font.Normal
+                                                                    font.features: { "tnum": 1 }
+                                                                }
+                                                            }
+                                                        }
+                                                        HoverHandler { id: hwZeileHover; cursorShape: Qt.PointingHandCursor }
+                                                        TapHandler {
+                                                            onTapped: {
+                                                                hwWin.cur = hwZeile.flat
+                                                                hwWin.kopieren(hwZeile.modelData)
+                                                            }
+                                                        }
+                                                        QQC2.ToolTip.visible: hwZeileHover.hovered
+                                                        QQC2.ToolTip.delay: 900
+                                                        QQC2.ToolTip.text: win.trad("Click to copy")
+                                                    }
+                                                }
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
                         }
-                        // Speicherbänke und Sockel brauchen Root : nur auf Wunsch, mit Rückfrage von Plasma
-                        QQC2.Button {
-                            visible: (hwInfoDialog.tab === 1 || hwInfoDialog.tab === 3) && hwInfoDialog.report.needsRoot === true
-                            icon.name: "dialog-password"
-                            text: win.trad("Read slot details (administrator)")
-                            onClicked: backend.readPrivileged()
-                        }
                     }
+                    FocusRing { shown: hwInhalt.activeFocus && hwWin.cur < 0; innerRadius: 0; anchors.margins: 2 }
                 }
-                QQC2.Label {   // Rückmeldung nach dem Kopieren (blendet nach 1,8 s aus)
-                    Layout.alignment: Qt.AlignHCenter
-                    text: "\\u2713 " + win.trad("Copied to clipboard")
-                    color: Kirigami.Theme.positiveTextColor
-                    opacity: hwInfoDialog.copied ? 1 : 0
+            }
+
+            Hairline { Layout.preferredHeight: win.sectionLineW }
+            // Fußzeile
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 56
+                Layout.leftMargin: 16
+                Layout.rightMargin: 16
+                spacing: 8
+                QQC2.Button {   // Speicherbänke brauchen Root : nur auf Wunsch, mit Rückfrage von Plasma
+                    visible: (hwWin.aktTab.id === "cpu" || hwWin.aktTab.id === "ram") && hwWin.report.needsRoot === true
+                    icon.name: "dialog-password"
+                    text: win.trad("Read slot details (administrator)")
+                    onClicked: backend.readPrivileged()
+                }
+                QQC2.Label {   // Rückmeldung nach dem Kopieren
+                    text: "✓ " + win.trad("Copied to clipboard")
+                    color: win.sysGreen
+                    opacity: hwWin.copied ? 1 : 0
                     Behavior on opacity { NumberAnimation { duration: win.animMs; easing.type: Easing.OutCubic } }
+                    Accessible.role: Accessible.StaticText
+                    Accessible.name: hwWin.copied ? text : ""
                 }
-            }
-        }
-        footer: QQC2.DialogButtonBox {
-            standardButtons: QQC2.DialogButtonBox.Close
-            QQC2.Button {
-                text: win.trad("Copy specs")
-                icon.name: "edit-copy"
-                enabled: hwInfoDialog.overview.length > 0
-                QQC2.DialogButtonBox.buttonRole: QQC2.DialogButtonBox.ActionRole
-                onClicked: {
-                    backend.copySpecs()
-                    hwInfoDialog.copied = true
-                    copiedTimer.restart()
+                Item { Layout.fillWidth: true }
+                QQC2.Button {
+                    text: win.trad("Copy specs")
+                    icon.name: "edit-copy"
+                    enabled: hwWin.overview.length > 0
+                    onClicked: {
+                        backend.copySpecs()
+                        hwWin.copied = true
+                        hwCopiedTimer.restart()
+                    }
                 }
-            }
-            QQC2.Button {
-                text: win.trad("Export full report…")
-                icon.name: "document-export"
-                enabled: hwInfoDialog.reportReady
-                QQC2.DialogButtonBox.buttonRole: QQC2.DialogButtonBox.ActionRole
-                onClicked: exportMenuL.openMenu()
-                LazyMenu {
-                    id: exportMenuL
-                    sourceComponent: QQC2.Menu {
-                        id: exportMenu
-                        QQC2.MenuItem {
-                            text: win.trad("Text report") + " (.txt)"
-                            icon.name: "text-plain"
-                            onTriggered: hwInfoDialog.startExport("txt")
-                        }
-                        QQC2.MenuItem {
-                            text: win.trad("JSON report") + " (.json)"
-                            icon.name: "application-json"
-                            onTriggered: hwInfoDialog.startExport("json")
+                QQC2.Button {
+                    text: win.trad("Export full report…")
+                    icon.name: "document-export"
+                    enabled: hwWin.reportReady
+                    onClicked: hwExportMenuL.openMenu()
+                    LazyMenu {
+                        id: hwExportMenuL
+                        sourceComponent: QQC2.Menu {
+                            QQC2.MenuItem {
+                                text: win.trad("Text report") + " (.txt)"
+                                icon.name: "text-plain"
+                                onTriggered: hwWin.startExport("txt")
+                            }
+                            QQC2.MenuItem {
+                                text: win.trad("JSON report") + " (.json)"
+                                icon.name: "application-json"
+                                onTriggered: hwWin.startExport("json")
+                            }
                         }
                     }
+                }
+                QQC2.Button {
+                    text: win.trad("Close")
+                    icon.name: "window-close"
+                    onClicked: hwWin.close()
                 }
             }
         }
@@ -8632,7 +9750,7 @@ QQC2.ApplicationWindow {
                 else if (a === "about")
                     aboutDialog.open()
                 else if (a === "specs")
-                    hwInfoDialog.open()
+                    win.openHardware()
                 else if (a === "terminal" || a === "monitor")
                     backend.launchTool(a, "")
                 else if (a === "analyze")   // gewähltes lokales Laufwerk, sonst der persönliche Ordner
@@ -11347,7 +12465,7 @@ QQC2.ApplicationWindow {
 """
 
 
-APP_VERSION = '2.3.1'
+APP_VERSION = '2.4.0'
 APP_AUTEUR = """Original Copyright (C) 2026 naykkalak
 Modified and maintained by Christian (2026), with help from his son Leon"""
 APP_LICENCE = 'GPL-3.0-or-later'

@@ -19,6 +19,12 @@ msgstr "由 naykkalak 開發的 Fenestra「本機」社群分支：在 KDE Plasm
 msgid "ADF duplex"
 msgstr "ADF 雙面"
 
+msgid "AGESA / firmware"
+msgstr "AGESA / 韌體"
+
+msgid "ALSA kernel driver"
+msgstr "ALSA 核心驅動程式"
+
 msgid "About"
 msgstr "關於"
 
@@ -28,8 +34,14 @@ msgstr "關於 DriveDeck"
 msgid "Actions & tools"
 msgstr "動作與工具"
 
+msgid "Active connection"
+msgstr "使用中的連線"
+
 msgid "Activity"
 msgstr "活動"
+
+msgid "Adapter {slot}"
+msgstr "介面卡 {slot}"
 
 msgid "Add a network location"
 msgstr "新增網路位置"
@@ -52,17 +64,47 @@ msgstr "外觀"
 msgid "Application name:"
 msgstr "應用程式名稱:"
 
+msgid "Architecture"
+msgstr "架構"
+
+msgid "Audio subsystem"
+msgstr "音訊子系統"
+
+msgid "Audio, input and USB"
+msgstr "音訊、輸入與 USB"
+
 msgid "Author: {author}"
 msgstr "作者: {author}"
 
 msgid "Available"
 msgstr "可用"
 
+msgid "Available governors"
+msgstr "可用的調速器"
+
+msgid "Available modules"
+msgstr "可用的模組"
+
+msgid "BIOS / UEFI"
+msgstr "BIOS / UEFI"
+
+msgid "BIOS automatic"
+msgstr "BIOS 自動控制"
+
 msgid "Bad sectors"
 msgstr "壞軌"
 
 msgid "Black"
 msgstr "黑色"
+
+msgid "Boost"
+msgstr "加速"
+
+msgid "Boot mode"
+msgstr "開機模式"
+
+msgid "Build"
+msgstr "建置"
 
 msgid "Built-in"
 msgstr "內建"
@@ -72,6 +114,9 @@ msgstr "CD/DVD 光碟機"
 
 msgid "CPU & Board"
 msgstr "CPU 與主機板"
+
+msgid "Cache"
+msgstr "快取"
 
 msgid "Cannot add"
 msgstr "無法新增"
@@ -124,17 +169,38 @@ msgstr "無法卸載"
 msgid "Capacity: {size}"
 msgstr "容量: {size}"
 
+msgid "Categories"
+msgstr "類別"
+
+msgid "Chassis type"
+msgstr "機殼類型"
+
 msgid "Check for a new version once a week"
 msgstr "每週檢查一次新版本"
 
+msgid "Chipset (from the model name)"
+msgstr "晶片組(依型號名稱)"
+
 msgid "Choose a share…"
 msgstr "選擇共用…"
+
+msgid "Click to copy"
+msgstr "按一下即可複製"
 
 msgid "Close"
 msgstr "關閉"
 
 msgid "Command bar icons: Fluent UI System Icons, © Microsoft Corporation, MIT license."
 msgstr "命令列圖示: Fluent UI System Icons,© Microsoft Corporation,MIT 授權。"
+
+msgid "Compatibility"
+msgstr "相容設定檔"
+
+msgid "Compiler"
+msgstr "編譯器"
+
+msgid "Compositor"
+msgstr "合成器"
 
 msgid "Connected"
 msgstr "已連線"
@@ -160,6 +226,9 @@ msgstr "複製路徑"
 msgid "Copy specs"
 msgstr "複製規格"
 
+msgid "Core profile"
+msgstr "核心設定檔"
+
 msgid "Could not save the list:\n{error}"
 msgstr "無法儲存清單:\n{error}"
 
@@ -184,14 +253,26 @@ msgstr "自訂應用程式名稱(例如 本機、CyberDeck)"
 msgid "Cyan"
 msgstr "青色"
 
+msgid "DNS servers"
+msgstr "DNS 伺服器"
+
 msgid "Data read"
 msgstr "已讀取資料"
+
+msgid "Data usage"
+msgstr "資料用量"
 
 msgid "Data written"
 msgstr "已寫入資料"
 
+msgid "Date"
+msgstr "日期"
+
 msgid "Default"
 msgstr "預設"
+
+msgid "Default gateway"
+msgstr "預設閘道"
 
 msgid "Desktop"
 msgstr "桌面"
@@ -226,14 +307,26 @@ msgstr "磁碟故障 – 請備份檔案"
 msgid "Display name (optional):"
 msgstr "顯示名稱(選填):"
 
+msgid "Display server"
+msgstr "顯示伺服器"
+
+msgid "Distribution"
+msgstr "發行版"
+
 msgid "Documents"
 msgstr "文件"
+
+msgid "Download"
+msgstr "下載"
 
 msgid "Downloads"
 msgstr "下載"
 
 msgid "Drag folders here to pin them"
 msgstr "將資料夾拖曳到這裡以釘選"
+
+msgid "Drive"
+msgstr "磁碟機"
 
 msgid "Drive failing: {label}"
 msgstr "磁碟機故障:{label}"
@@ -247,11 +340,35 @@ msgstr "退出"
 msgid "Empty"
 msgstr "空的"
 
+msgid "Energy performance preference"
+msgstr "能源效能偏好"
+
+msgid "Error correction"
+msgstr "錯誤更正"
+
 msgid "Export full report…"
 msgstr "匯出完整報告…"
 
 msgid "Failed"
 msgstr "失敗"
+
+msgid "Family"
+msgstr "系列"
+
+msgid "Family / Model / Stepping"
+msgstr "系列 / 型號 / 步進"
+
+msgid "Fan"
+msgstr "風扇"
+
+msgid "Fan control"
+msgstr "風扇控制"
+
+msgid "Fan {n}"
+msgstr "風扇 {n}"
+
+msgid "Fans"
+msgstr "風扇"
 
 msgid "File system"
 msgstr "檔案系統"
@@ -292,11 +409,17 @@ msgstr "GPL-3.0 或更新版本"
 msgid "GPU & Display"
 msgstr "顯示卡與顯示器"
 
+msgid "GPU core"
+msgstr "GPU 核心"
+
 msgid "Game controller"
 msgstr "遊戲控制器"
 
 msgid "Good"
 msgstr "良好"
+
+msgid "Governor"
+msgstr "調速器"
 
 msgid "Graphics"
 msgstr "圖形"
@@ -313,6 +436,12 @@ msgstr "灰色"
 msgid "Health"
 msgstr "健康狀態"
 
+msgid "IPv4 address"
+msgstr "IPv4 位址"
+
+msgid "IPv6 address"
+msgstr "IPv6 位址"
+
 msgid "Incorrect username or password."
 msgstr "使用者名稱或密碼不正確。"
 
@@ -322,8 +451,23 @@ msgstr "墨水量"
 msgid "Installed"
 msgstr "安裝日期"
 
+msgid "Installed (usable)"
+msgstr "已安裝(可用)"
+
+msgid "Instance version"
+msgstr "執行個體版本"
+
+msgid "Instruction sets"
+msgstr "指令集"
+
 msgid "Insufficient rights"
 msgstr "權限不足"
+
+msgid "Interface"
+msgstr "介面"
+
+msgid "Interfaces"
+msgstr "介面"
 
 msgid "JSON report"
 msgstr "JSON 報告"
@@ -331,8 +475,20 @@ msgstr "JSON 報告"
 msgid "KWallet could not save the password: the gauge will not be shown."
 msgstr "KWallet 無法儲存密碼:將不會顯示空間條。"
 
+msgid "Kernel driver"
+msgstr "核心驅動程式"
+
+msgid "Kernel module"
+msgstr "核心模組"
+
 msgid "Keyboard"
 msgstr "鍵盤"
+
+msgid "L1 data"
+msgstr "L1 資料"
+
+msgid "L1 instruction"
+msgstr "L1 指令"
 
 msgid "License: {license}"
 msgstr "授權: {license}"
@@ -346,8 +502,17 @@ msgstr "淺灰色"
 msgid "Light magenta"
 msgstr "淺洋紅色"
 
+msgid "Link speed"
+msgstr "連結速度"
+
+msgid "Liquid cooler"
+msgstr "水冷散熱器"
+
 msgid "List"
 msgstr "列出"
+
+msgid "Loaded modules"
+msgstr "已載入模組"
 
 msgid "Local Disk"
 msgstr "本機磁碟"
@@ -355,14 +520,38 @@ msgstr "本機磁碟"
 msgid "Location unavailable"
 msgstr "位置無法使用"
 
+msgid "Logical CPUs"
+msgstr "邏輯 CPU"
+
+msgid "MAC address"
+msgstr "MAC 位址"
+
 msgid "Magenta"
 msgstr "洋紅色"
 
 msgid "Mainboard"
 msgstr "主機板"
 
+msgid "Manual · {p}"
+msgstr "手動 · {p}"
+
+msgid "Manufacturer"
+msgstr "製造商"
+
 msgid "Matte black"
 msgstr "霧面黑"
+
+msgid "Max. GPU clock"
+msgstr "最大 GPU 時脈"
+
+msgid "Max. capacity"
+msgstr "最大容量"
+
+msgid "Max. clock"
+msgstr "最大時脈"
+
+msgid "Max. memory clock"
+msgstr "最大記憶體時脈"
 
 msgid "Maximize"
 msgstr "最大化"
@@ -376,8 +565,26 @@ msgstr "已回報媒體錯誤"
 msgid "Memory"
 msgstr "記憶體"
 
+msgid "Memory controller"
+msgstr "記憶體控制器"
+
+msgid "Memory modules"
+msgstr "記憶體模組"
+
+msgid "Microcode"
+msgstr "微碼"
+
+msgid "Min. clock"
+msgstr "最小時脈"
+
 msgid "Minimize"
 msgstr "最小化"
+
+msgid "Model"
+msgstr "型號"
+
+msgid "Module {n}"
+msgstr "模組 {n}"
 
 msgid "Mount"
 msgstr "掛載"
@@ -406,6 +613,12 @@ msgstr "音樂"
 msgid "My NAS"
 msgstr "我的 NAS"
 
+msgid "NVMe controller {slot}"
+msgstr "NVMe 控制器 {slot}"
+
+msgid "NVMe drive"
+msgstr "NVMe 磁碟機"
+
 msgid "Name shown in the title bar and as the heading of the drive list. Leave empty for the default names."
 msgstr "顯示在標題列和磁碟機清單標題中的名稱。留空則使用預設名稱。"
 
@@ -420,6 +633,9 @@ msgstr "無法連線到「notify-send」,也無法連線到桌面通知服務。
 
 msgid "Network"
 msgstr "網路"
+
+msgid "Network adapter"
+msgstr "網路介面卡"
 
 msgid "Network location"
 msgstr "網路位置"
@@ -436,11 +652,17 @@ msgstr "無光碟"
 msgid "No information available."
 msgstr "沒有可用的資訊。"
 
+msgid "No matches"
+msgstr "沒有相符項目"
+
 msgid "No scanning program was found on this computer. Please install “skanpage” or “simple-scan”."
 msgstr "這部電腦上找不到掃描程式。請安裝「skanpage」或「simple-scan」。"
 
 msgid "No share visible with these credentials."
 msgstr "使用這些認證看不到任何共用。"
+
+msgid "No temperature or fan sensors were found. The sensor drivers of the mainboard may need to be loaded (for example with “sensors-detect”)."
+msgstr "找不到溫度或風扇感測器。可能需要載入主機板的感測器驅動程式(例如使用「sensors-detect」)。"
 
 msgid "No terminal program found"
 msgstr "找不到終端機程式"
@@ -481,8 +703,23 @@ msgstr "開啟設定"
 msgid "Open with {app}"
 msgstr "使用 {app} 開啟"
 
+msgid "Operating system"
+msgstr "作業系統"
+
+msgid "Outputs"
+msgstr "輸出"
+
 msgid "Overview"
 msgstr "概覽"
+
+msgid "PCIe link"
+msgstr "PCIe 連結"
+
+msgid "PCIe link (max.)"
+msgstr "PCIe 連結(最大)"
+
+msgid "PCIe link (now)"
+msgstr "PCIe 連結(目前)"
 
 msgid "Partial eject"
 msgstr "部分退出"
@@ -517,6 +754,12 @@ msgstr "釘選到快速存取"
 msgid "Power cycles"
 msgstr "開機次數"
 
+msgid "Power limit"
+msgstr "功耗限制"
+
+msgid "Power management"
+msgstr "電源管理"
+
 msgid "Power-on time"
 msgstr "通電時間"
 
@@ -538,6 +781,9 @@ msgstr "列印中"
 msgid "Processor"
 msgstr "處理器"
 
+msgid "Product"
+msgstr "產品"
+
 msgid "Program not found"
 msgstr "找不到程式"
 
@@ -546,6 +792,9 @@ msgstr "內容"
 
 msgid "Properties of {name}"
 msgstr "{name} 內容"
+
+msgid "Pulse server"
+msgstr "Pulse 伺服器"
 
 msgid "Quick access"
 msgstr "快速存取"
@@ -577,6 +826,9 @@ msgstr "讀取 SMART 逾時。"
 msgid "Reading hardware…"
 msgstr "正在讀取硬體…"
 
+msgid "Reading sensors…"
+msgstr "正在讀取感測器…"
+
 msgid "Ready"
 msgstr "就緒"
 
@@ -588,6 +840,9 @@ msgstr "可用空間等於或低於此值時顯示紅色指示和 ⚠ 符號。"
 
 msgid "Refresh"
 msgstr "重新整理"
+
+msgid "Release"
+msgstr "發行版本"
 
 msgid "Remember the password (KWallet) to show the free space"
 msgstr "記住密碼 (KWallet) 以顯示可用空間"
@@ -619,6 +874,9 @@ msgstr "重新命名…"
 msgid "Renaming is not supported for this format ({fstype})."
 msgstr "此格式 ({fstype}) 不支援重新命名。"
 
+msgid "Renderer"
+msgstr "轉譯器"
+
 msgid "Report saved"
 msgstr "報告已儲存"
 
@@ -631,8 +889,26 @@ msgstr "重設名稱"
 msgid "Restore"
 msgstr "還原"
 
+msgid "Right now"
+msgstr "目前"
+
 msgid "Running"
 msgstr "執行中"
+
+msgid "Running at"
+msgstr "運作時脈"
+
+msgid "SATA and RAID controllers"
+msgstr "SATA 與 RAID 控制器"
+
+msgid "SATA drive"
+msgstr "SATA 磁碟機"
+
+msgid "SATA link {n}"
+msgstr "SATA 連結 {n}"
+
+msgid "SATA links"
+msgstr "SATA 連結"
 
 msgid "SMART health"
 msgstr "SMART 健康狀態"
@@ -655,11 +931,23 @@ msgstr "SSD 最佳化失敗"
 msgid "Safely remove"
 msgstr "安全移除"
 
+msgid "Scaling driver"
+msgstr "調頻驅動程式"
+
+msgid "Scaling range"
+msgstr "時脈範圍"
+
 msgid "Scanner"
 msgstr "掃描器"
 
 msgid "Scan…"
 msgstr "掃描…"
+
+msgid "Search (Ctrl+F)"
+msgstr "搜尋 (Ctrl+F)"
+
+msgid "Search results"
+msgstr "搜尋結果"
 
 msgid "Searching…"
 msgstr "搜尋中…"
@@ -673,11 +961,17 @@ msgstr "自我測試失敗"
 msgid "Send test notification"
 msgstr "傳送測試通知"
 
+msgid "Sensors & fans"
+msgstr "感測器與風扇"
+
 msgid "Server address:"
 msgstr "伺服器位址:"
 
 msgid "Server unreachable. Check the address and that the server is turned on."
 msgstr "無法連線到伺服器。請檢查位址以及伺服器是否已開機。"
+
+msgid "Session type"
+msgstr "工作階段類型"
 
 msgid "Set as default printer"
 msgstr "設為預設印表機"
@@ -709,14 +1003,35 @@ msgstr "有磨損跡象 – 請查看內容"
 msgid "Size"
 msgstr "大小"
 
+msgid "Slots"
+msgstr "插槽"
+
+msgid "Slots, type, speed, manufacturer"
+msgstr "插槽、類型、速度、製造商"
+
+msgid "Socket"
+msgstr "插座"
+
+msgid "Sockets · cores per socket · threads per core"
+msgstr "插座 · 每插座核心 · 每核心執行緒"
+
 msgid "Sound"
 msgstr "音效"
+
+msgid "Sound card {n}"
+msgstr "音效卡 {n}"
+
+msgid "Source"
+msgstr "來源"
 
 msgid "Spare"
 msgstr "備用空間"
 
 msgid "Spare capacity below the limit"
 msgstr "備用空間低於門檻"
+
+msgid "Speed"
+msgstr "速度"
 
 msgid "Status"
 msgstr "狀態"
@@ -727,8 +1042,20 @@ msgstr "狀態:"
 msgid "Storage"
 msgstr "儲存空間"
 
+msgid "Storage & buses"
+msgstr "儲存裝置與匯流排"
+
 msgid "Storage I/O"
 msgstr "儲存 I/O"
+
+msgid "Storage and filesystems"
+msgstr "儲存裝置與檔案系統"
+
+msgid "Subsystem"
+msgstr "子系統"
+
+msgid "Swap"
+msgstr "置換"
 
 msgid "System"
 msgstr "系統"
@@ -763,8 +1090,14 @@ msgstr "溫度"
 msgid "Temperature warning"
 msgstr "溫度警告"
 
+msgid "Temperature {n}"
+msgstr "溫度 {n}"
+
 msgid "Temperature:"
 msgstr "溫度:"
+
+msgid "Temperatures"
+msgstr "溫度"
 
 msgid "Terminal"
 msgstr "終端機"
@@ -832,14 +1165,29 @@ msgstr "此磁碟機需要使用系統管理員密碼執行 smartctl(例如 USB 
 msgid "This location already exists in the list."
 msgstr "此位置已在清單中。"
 
+msgid "This month"
+msgstr "本月"
+
 msgid "This printer does not report ink levels"
 msgstr "此印表機不回報墨水量"
+
+msgid "This session (since boot)"
+msgstr "本次工作階段(開機以來)"
 
 msgid "This software is neither affiliated with nor endorsed by Microsoft Corporation. Windows is a trademark of Microsoft Corporation."
 msgstr "本軟體與 Microsoft Corporation 無關,也未獲其認可。Windows 是 Microsoft Corporation 的商標。"
 
+msgid "This week"
+msgstr "本週"
+
+msgid "Today"
+msgstr "今天"
+
 msgid "Toggle inspector"
 msgstr "顯示/隱藏檢查器"
+
+msgid "Total"
+msgstr "總計"
 
 msgid "Touchpad"
 msgstr "觸控板"
@@ -847,11 +1195,26 @@ msgstr "觸控板"
 msgid "Trash"
 msgstr "資源回收筒"
 
+msgid "Type"
+msgstr "類型"
+
 msgid "Type the password to be able to remember it."
 msgstr "請輸入密碼以便記住它。"
 
 msgid "Type:"
 msgstr "類型:"
+
+msgid "UEFI · Secure Boot off"
+msgstr "UEFI · 安全開機 關閉"
+
+msgid "UEFI · Secure Boot on"
+msgstr "UEFI · 安全開機 開啟"
+
+msgid "USB devices"
+msgstr "USB 裝置"
+
+msgid "USB host controllers"
+msgstr "USB 主機控制器"
 
 msgid "Uncorrectable sectors"
 msgstr "無法修正的磁區"
@@ -874,6 +1237,9 @@ msgstr "不安全的關機"
 msgid "Up to date"
 msgstr "已是最新"
 
+msgid "Upload"
+msgstr "上傳"
+
 msgid "Uptime"
 msgstr "運作時間"
 
@@ -886,6 +1252,15 @@ msgstr "已使用: {size}"
 msgid "Username (required):"
 msgstr "使用者名稱(必填):"
 
+msgid "VRAM type"
+msgstr "顯示記憶體類型"
+
+msgid "Vendor"
+msgstr "廠商"
+
+msgid "Version"
+msgstr "版本"
+
 msgid "Version {version} of DriveDeck is available. To update, download it and run ./install.sh again."
 msgstr "DriveDeck {version} 版本已推出。若要更新，請下載後重新執行 ./install.sh。"
 
@@ -897,6 +1272,9 @@ msgstr "影片"
 
 msgid "View"
 msgstr "檢視"
+
+msgid "Virtualization"
+msgstr "虛擬化"
 
 msgid "Volume name"
 msgstr "磁碟區名稱"
@@ -922,14 +1300,35 @@ msgstr "寫入"
 msgid "Yellow"
 msgstr "黃色"
 
+msgid "built into the kernel"
+msgstr "內建於核心"
+
+msgid "connected"
+msgstr "已連線"
+
+msgid "counted by DriveDeck since {date}"
+msgstr "自 {date} 起由 DriveDeck 計算"
+
 msgid "day"
 msgstr "天"
 
 msgid "days"
 msgstr "天"
 
+msgid "disabled"
+msgstr "已停用"
+
 msgid "driver {name}"
 msgstr "驅動程式 {name}"
+
+msgid "empty"
+msgstr "空"
+
+msgid "enabled"
+msgstr "已啟用"
+
+msgid "fancontrol active"
+msgstr "fancontrol 執行中"
 
 msgid "file manager"
 msgstr "檔案管理員"
@@ -937,11 +1336,23 @@ msgstr "檔案管理員"
 msgid "filled in from the list, or type it"
 msgstr "從清單填入,或手動輸入"
 
+msgid "full duplex"
+msgstr "全雙工"
+
 msgid "gdbus not found or timed out."
 msgstr "找不到 gdbus 或已逾時。"
 
+msgid "half duplex"
+msgstr "半雙工"
+
 msgid "limit {n} %"
 msgstr "門檻 {n} %"
+
+msgid "max."
+msgstr "最大"
+
+msgid "min {min} · max {max}"
+msgstr "最低 {min} · 最高 {max}"
 
 msgid "needs administrator rights"
 msgstr "需要系統管理員權限"
@@ -949,14 +1360,44 @@ msgstr "需要系統管理員權限"
 msgid "needs administrator rights – use the button below"
 msgstr "需要系統管理員權限 – 請使用下方按鈕"
 
+msgid "none"
+msgstr "無"
+
+msgid "not exposed by the driver"
+msgstr "驅動程式未提供"
+
+msgid "not exposed by the kernel"
+msgstr "核心未提供"
+
+msgid "off"
+msgstr "關"
+
+msgid "on"
+msgstr "開"
+
 msgid "only for “List”, never saved"
 msgstr "僅用於「列出」,不會儲存"
+
+msgid "port {port}"
+msgstr "連接埠 {port}"
+
+msgid "rank {n}"
+msgstr "rank {n}"
 
 msgid "running…"
 msgstr "執行中…"
 
 msgid "unknown error"
 msgstr "未知的錯誤"
+
+msgid "used by {list}"
+msgstr "由 {list} 使用"
+
+msgid "version {v}"
+msgstr "版本 {v}"
+
+msgid "vnstat since {date}"
+msgstr "自 {date} 起由 vnstat 統計"
 
 msgid "{cores} cores / {threads} threads"
 msgstr "{cores} 核心 / {threads} 執行緒"
@@ -979,6 +1420,21 @@ msgstr "{label} 即將用滿"
 msgid "{label} was unmounted but could not be powered off:\n{detail}\n\nYou can still unplug it."
 msgstr "{label} 已卸載,但無法關閉電源:\n{detail}\n\n您仍然可以直接拔除。"
 
+msgid "{link} – idle power state may lower it"
+msgstr "{link} – 省電狀態可能會降低"
+
+msgid "{mode} (preferred mode)"
+msgstr "{mode}(偏好模式)"
+
+msgid "{name} (Ethernet)"
+msgstr "{name}(乙太網路)"
+
+msgid "{name} (Wi-Fi)"
+msgstr "{name}(Wi-Fi)"
+
+msgid "{name} (modules)"
+msgstr "{name}(模組)"
+
 msgid "{n} items"
 msgstr "{n} 個項目"
 
@@ -987,6 +1443,18 @@ msgstr "{n} 個更新"
 
 msgid "{share} on {host}"
 msgstr "{host} 上的 {share}"
+
+msgid "{socket} (derived from the CPU family)"
+msgstr "{socket}(依 CPU 系列推斷)"
+
+msgid "{socket} (derived from the {chipset} chipset)"
+msgstr "{socket}(依 {chipset} 晶片組推斷)"
+
+msgid "{speed} (running {clock})"
+msgstr "{speed}(以 {clock} 運作)"
+
+msgid "{type} (from the model name)"
+msgstr "{type}(依型號名稱)"
 
 msgid "{used} in use ({pct} %)"
 msgstr "已使用 {used}({pct} %)"

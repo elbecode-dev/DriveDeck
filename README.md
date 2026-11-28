@@ -12,7 +12,7 @@ locations, printers and devices in one clean window, and it follows your Plasma 
 
 <p align="center"><img src="preview.png" alt="DriveDeck main window"></p>
 
-**Version 2.3.1** – feedback and bug reports are very welcome.
+**Version 2.4.0** – feedback and bug reports are very welcome.
 
 ---
 
@@ -178,13 +178,25 @@ small **live graph** of their read and write speed, and warn you when they are a
   arrive. They are off by default.
 - **Unmount.** *Unmount* in a drive's right-click menu only logs the drive out and leaves it powered on, unlike
   *Safely remove*. It is not offered for system folders (`/`, `/boot`, `/home` …) or optical drives.
-- **System information (HWiNFO-style).** The *System information* button opens a window with six tabs: *Overview*, *CPU & Board*
-  (model, family/model/stepping, microcode, caches, governor, board, chipset, BIOS), *GPU & Display* (VRAM, driver and
-  version, PCIe link, Wayland/X11, KWin, OpenGL, Vulkan), *Memory*, *System & Drivers* (kernel, key modules with versions,
-  PipeWire/ALSA) and *Network* (adapters and drivers). Everything is read in the background and cached for the session.
-  *Copy specs* copies a short summary for a forum post; *Export full report…* saves everything as text or JSON. RAM
-  slots and the CPU socket need root: the button *Read slot details (administrator)* runs `dmidecode` through `pkexec`
-  after Plasma asks for your password.
+- **System information (HWiNFO-style).** The *System information* button opens a separate, freely resizable window
+  (at least 820 × 580, remembers its size and whether it was maximized) with these categories: *Overview*, *CPU &
+  Board* (model, family/model/stepping, microcode, caches, governor, socket, board, chipset, BIOS), *GPU & Display* (VRAM,
+  driver and version, PCIe link, Wayland/X11, KWin, OpenGL, Vulkan), *Memory*, *Storage & buses* (NVMe/SATA controllers
+  with their PCIe link, SATA links, USB host controllers and every USB device with its negotiated speed – 12 Mb/s,
+  480 Mb/s, 5/10/20 Gb/s), *Sensors & fans* (all temperatures and fan speeds from `/sys/class/hwmon` plus NVIDIA via
+  `nvidia-smi`, updated every 2 seconds with the minimum and maximum of the session; the mainboard card shows temperatures
+  and fans side by side and whether the BIOS or `fancontrol` controls the fans – read-only, DriveDeck never changes fan
+  speeds), *System & Drivers* and *Network*
+  (the active connection with link speed, IPv4/IPv6 addresses, gateway, DNS servers and MAC address next to its adapter,
+  and the **data usage** right now, this session, today, this week and this month – from `vnstat` once its database covers the
+  period, otherwise from DriveDeck's own counter in `~/.local/share/drivedeck/net_usage.json`, which notices reboots through the
+  kernel's boot ID). From 960 px of content width the cards sit side by side in pairs of equal height; lists and tables
+  span the full width. `Ctrl+F` searches all categories at once and shows the
+  number of hits next to each category; a click on any row (or Enter on the row chosen with the arrow keys) copies it.
+  `Esc` clears the search, then closes the window. The CPU socket is derived from the chipset or the CPU family without
+  root (for example "AM4 (derived from the X570 chipset)"); exact RAM slot details still need *Read slot details
+  (administrator)*, which runs `dmidecode` through `pkexec`. *Copy specs* copies a short summary for a forum post;
+  *Export full report…* saves everything as text or JSON, always with English labels.
 
 <p align="center"><img src="preview-specs.png" alt="System information window" width="640"></p>
 
@@ -287,9 +299,20 @@ cd drivedeck
 bash install.sh
 ```
 
-Options: `--yes` installs missing packages without asking, `--no-deps` skips package installation, `--no-desktop-icon`
-skips the desktop shortcut. Package names were checked on Arch/CachyOS; on Fedora and Debian/Ubuntu a wrong name only
-means that one package is skipped.
+Options: `--yes` installs missing packages without asking, `--no-deps` skips package installation (and the extras below),
+`--no-desktop-icon` skips the desktop shortcut, `--no-extras` skips the optional extras. Package names were checked on
+Arch/CachyOS; on Fedora and Debian/Ubuntu a wrong name only means that one package is skipped.
+
+**Optional extras.** At the end, and only when you run the installer in a terminal, it offers two extras. Both default
+to *no*: pressing Enter skips them, and DriveDeck works fully without them.
+
+- **vnstat** keeps network statistics across reboots; DriveDeck then takes today, this week and this month from it.
+  On *y* the installer installs it (pacman, dnf, apt or zypper), runs `sudo systemctl enable --now vnstat` and
+  registers the interface of the default route (`sudo vnstat --add -i <interface>`).
+- **lm_sensors** finds the sensor chips of many mainboards and memory modules. On *y* the installer installs it and
+  runs `sudo sensors-detect --auto`; new drivers are loaded at the next restart at the latest.
+- **fancontrol** is never set up automatically. For your own fan curve, run `sudo pwmconfig` once and then
+  `sudo systemctl enable --now fancontrol`; DriveDeck then shows "fancontrol active" (it only reads the fan state).
 
 The program then appears as **DriveDeck** in your application menu (and on the desktop unless you use
 `bash install.sh --no-desktop-icon`).

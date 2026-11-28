@@ -19,6 +19,12 @@ msgstr "naykkalak tarafından geliştirilen Fenestra “Bu bilgisayar”ın topl
 msgid "ADF duplex"
 msgstr "ADF çift taraflı"
 
+msgid "AGESA / firmware"
+msgstr "AGESA / ürün yazılımı"
+
+msgid "ALSA kernel driver"
+msgstr "ALSA çekirdek sürücüsü"
+
 msgid "About"
 msgstr "Hakkında"
 
@@ -28,8 +34,14 @@ msgstr "DriveDeck hakkında"
 msgid "Actions & tools"
 msgstr "Eylemler ve araçlar"
 
+msgid "Active connection"
+msgstr "Etkin bağlantı"
+
 msgid "Activity"
 msgstr "Etkinlik"
+
+msgid "Adapter {slot}"
+msgstr "Bağdaştırıcı {slot}"
 
 msgid "Add a network location"
 msgstr "Ağ konumu ekle"
@@ -52,17 +64,47 @@ msgstr "Görünüm"
 msgid "Application name:"
 msgstr "Uygulama adı:"
 
+msgid "Architecture"
+msgstr "Mimari"
+
+msgid "Audio subsystem"
+msgstr "Ses alt sistemi"
+
+msgid "Audio, input and USB"
+msgstr "Ses, giriş ve USB"
+
 msgid "Author: {author}"
 msgstr "Yazar: {author}"
 
 msgid "Available"
 msgstr "Kullanılabilir"
 
+msgid "Available governors"
+msgstr "Kullanılabilir yöneticiler"
+
+msgid "Available modules"
+msgstr "Kullanılabilir modüller"
+
+msgid "BIOS / UEFI"
+msgstr "BIOS / UEFI"
+
+msgid "BIOS automatic"
+msgstr "BIOS otomatiği"
+
 msgid "Bad sectors"
 msgstr "Bozuk sektörler"
 
 msgid "Black"
 msgstr "Siyah"
+
+msgid "Boost"
+msgstr "Boost"
+
+msgid "Boot mode"
+msgstr "Önyükleme kipi"
+
+msgid "Build"
+msgstr "Derleme"
 
 msgid "Built-in"
 msgstr "Dahili"
@@ -72,6 +114,9 @@ msgstr "CD/DVD sürücüsü"
 
 msgid "CPU & Board"
 msgstr "İşlemci ve anakart"
+
+msgid "Cache"
+msgstr "Önbellek"
 
 msgid "Cannot add"
 msgstr "Eklenemiyor"
@@ -124,17 +169,38 @@ msgstr "Ayrılamıyor"
 msgid "Capacity: {size}"
 msgstr "Kapasite: {size}"
 
+msgid "Categories"
+msgstr "Kategoriler"
+
+msgid "Chassis type"
+msgstr "Kasa türü"
+
 msgid "Check for a new version once a week"
 msgstr "Haftada bir yeni sürüm denetle"
 
+msgid "Chipset (from the model name)"
+msgstr "Yonga seti (model adından)"
+
 msgid "Choose a share…"
 msgstr "Bir paylaşım seçin…"
+
+msgid "Click to copy"
+msgstr "Kopyalamak için tıklayın"
 
 msgid "Close"
 msgstr "Kapat"
 
 msgid "Command bar icons: Fluent UI System Icons, © Microsoft Corporation, MIT license."
 msgstr "Komut çubuğu simgeleri: Fluent UI System Icons, © Microsoft Corporation, MIT lisansı."
+
+msgid "Compatibility"
+msgstr "Uyumluluk"
+
+msgid "Compiler"
+msgstr "Derleyici"
+
+msgid "Compositor"
+msgstr "Bileşik yönetici"
 
 msgid "Connected"
 msgstr "Bağlı"
@@ -160,6 +226,9 @@ msgstr "Yolu kopyala"
 msgid "Copy specs"
 msgstr "Özellikleri kopyala"
 
+msgid "Core profile"
+msgstr "Core profili"
+
 msgid "Could not save the list:\n{error}"
 msgstr "Liste kaydedilemedi:\n{error}"
 
@@ -184,14 +253,26 @@ msgstr "Uygulama adını özelleştir (ör. Bu bilgisayar, CyberDeck)"
 msgid "Cyan"
 msgstr "Camgöbeği"
 
+msgid "DNS servers"
+msgstr "DNS sunucuları"
+
 msgid "Data read"
 msgstr "Okunan veri"
+
+msgid "Data usage"
+msgstr "Veri kullanımı"
 
 msgid "Data written"
 msgstr "Yazılan veri"
 
+msgid "Date"
+msgstr "Tarih"
+
 msgid "Default"
 msgstr "Varsayılan"
+
+msgid "Default gateway"
+msgstr "Varsayılan ağ geçidi"
 
 msgid "Desktop"
 msgstr "Masaüstü"
@@ -226,14 +307,26 @@ msgstr "Disk arızalı – dosyalarınızı yedekleyin"
 msgid "Display name (optional):"
 msgstr "Görünen ad (isteğe bağlı):"
 
+msgid "Display server"
+msgstr "Görüntü sunucusu"
+
+msgid "Distribution"
+msgstr "Dağıtım"
+
 msgid "Documents"
 msgstr "Belgeler"
+
+msgid "Download"
+msgstr "İndirme"
 
 msgid "Downloads"
 msgstr "İndirilenler"
 
 msgid "Drag folders here to pin them"
 msgstr "Sabitlemek için klasörleri buraya sürükleyin"
+
+msgid "Drive"
+msgstr "Sürücü"
 
 msgid "Drive failing: {label}"
 msgstr "Sürücü arızalanıyor: {label}"
@@ -247,11 +340,35 @@ msgstr "Çıkar"
 msgid "Empty"
 msgstr "Boş"
 
+msgid "Energy performance preference"
+msgstr "Enerji/performans tercihi"
+
+msgid "Error correction"
+msgstr "Hata düzeltme"
+
 msgid "Export full report…"
 msgstr "Tam raporu dışa aktar…"
 
 msgid "Failed"
 msgstr "Başarısız"
+
+msgid "Family"
+msgstr "Aile"
+
+msgid "Family / Model / Stepping"
+msgstr "Aile / model / adım"
+
+msgid "Fan"
+msgstr "Fan"
+
+msgid "Fan control"
+msgstr "Fan denetimi"
+
+msgid "Fan {n}"
+msgstr "Fan {n}"
+
+msgid "Fans"
+msgstr "Fanlar"
 
 msgid "File system"
 msgstr "Dosya sistemi"
@@ -292,11 +409,17 @@ msgstr "GPL-3.0 veya sonrası"
 msgid "GPU & Display"
 msgstr "Grafik ve ekran"
 
+msgid "GPU core"
+msgstr "GPU çekirdeği"
+
 msgid "Game controller"
 msgstr "Oyun kumandası"
 
 msgid "Good"
 msgstr "İyi"
+
+msgid "Governor"
+msgstr "Yönetici"
 
 msgid "Graphics"
 msgstr "Grafik"
@@ -313,6 +436,12 @@ msgstr "Gri"
 msgid "Health"
 msgstr "Sağlık"
 
+msgid "IPv4 address"
+msgstr "IPv4 adresi"
+
+msgid "IPv6 address"
+msgstr "IPv6 adresi"
+
 msgid "Incorrect username or password."
 msgstr "Kullanıcı adı veya parola hatalı."
 
@@ -322,8 +451,23 @@ msgstr "Mürekkep düzeyleri"
 msgid "Installed"
 msgstr "Kurulum"
 
+msgid "Installed (usable)"
+msgstr "Kurulu (kullanılabilir)"
+
+msgid "Instance version"
+msgstr "Örnek sürümü"
+
+msgid "Instruction sets"
+msgstr "Komut setleri"
+
 msgid "Insufficient rights"
 msgstr "Yetersiz haklar"
+
+msgid "Interface"
+msgstr "Arayüz"
+
+msgid "Interfaces"
+msgstr "Arayüzler"
 
 msgid "JSON report"
 msgstr "JSON raporu"
@@ -331,8 +475,20 @@ msgstr "JSON raporu"
 msgid "KWallet could not save the password: the gauge will not be shown."
 msgstr "KWallet parolayı kaydedemedi: boş alan göstergesi gösterilmeyecek."
 
+msgid "Kernel driver"
+msgstr "Çekirdek sürücüsü"
+
+msgid "Kernel module"
+msgstr "Çekirdek modülü"
+
 msgid "Keyboard"
 msgstr "Klavye"
+
+msgid "L1 data"
+msgstr "L1 veri"
+
+msgid "L1 instruction"
+msgstr "L1 komut"
 
 msgid "License: {license}"
 msgstr "Lisans: {license}"
@@ -346,8 +502,17 @@ msgstr "Açık gri"
 msgid "Light magenta"
 msgstr "Açık macenta"
 
+msgid "Link speed"
+msgstr "Bağlantı hızı"
+
+msgid "Liquid cooler"
+msgstr "Sıvı soğutucu"
+
 msgid "List"
 msgstr "Listele"
+
+msgid "Loaded modules"
+msgstr "Yüklü modüller"
 
 msgid "Local Disk"
 msgstr "Yerel disk"
@@ -355,14 +520,38 @@ msgstr "Yerel disk"
 msgid "Location unavailable"
 msgstr "Konum kullanılamıyor"
 
+msgid "Logical CPUs"
+msgstr "Mantıksal CPU'lar"
+
+msgid "MAC address"
+msgstr "MAC adresi"
+
 msgid "Magenta"
 msgstr "Macenta"
 
 msgid "Mainboard"
 msgstr "Anakart"
 
+msgid "Manual · {p}"
+msgstr "Elle · {p}"
+
+msgid "Manufacturer"
+msgstr "Üretici"
+
 msgid "Matte black"
 msgstr "Mat siyah"
+
+msgid "Max. GPU clock"
+msgstr "Maks. GPU saati"
+
+msgid "Max. capacity"
+msgstr "Maks. kapasite"
+
+msgid "Max. clock"
+msgstr "Maks. saat"
+
+msgid "Max. memory clock"
+msgstr "Maks. bellek saati"
 
 msgid "Maximize"
 msgstr "Ekranı kapla"
@@ -376,8 +565,26 @@ msgstr "Ortam hataları bildirildi"
 msgid "Memory"
 msgstr "Bellek"
 
+msgid "Memory controller"
+msgstr "Bellek denetleyicisi"
+
+msgid "Memory modules"
+msgstr "Bellek modülleri"
+
+msgid "Microcode"
+msgstr "Mikrokod"
+
+msgid "Min. clock"
+msgstr "Min. saat"
+
 msgid "Minimize"
 msgstr "Simge durumuna küçült"
+
+msgid "Model"
+msgstr "Model"
+
+msgid "Module {n}"
+msgstr "Modül {n}"
 
 msgid "Mount"
 msgstr "Bağla"
@@ -406,6 +613,12 @@ msgstr "Müzik"
 msgid "My NAS"
 msgstr "NAS'ım"
 
+msgid "NVMe controller {slot}"
+msgstr "NVMe denetleyicisi {slot}"
+
+msgid "NVMe drive"
+msgstr "NVMe sürücüsü"
+
 msgid "Name shown in the title bar and as the heading of the drive list. Leave empty for the default names."
 msgstr "Başlık çubuğunda ve sürücü listesinin başlığında gösterilen ad. Varsayılan adlar için boş bırakın."
 
@@ -420,6 +633,9 @@ msgstr "Ne “notify-send” ne de masaüstü bildirim hizmetine ulaşılabildi.
 
 msgid "Network"
 msgstr "Ağ"
+
+msgid "Network adapter"
+msgstr "Ağ bağdaştırıcısı"
 
 msgid "Network location"
 msgstr "Ağ konumu"
@@ -436,11 +652,17 @@ msgstr "Disk yok"
 msgid "No information available."
 msgstr "Kullanılabilir bilgi yok."
 
+msgid "No matches"
+msgstr "Eşleşme yok"
+
 msgid "No scanning program was found on this computer. Please install “skanpage” or “simple-scan”."
 msgstr "Bu bilgisayarda tarama programı bulunamadı. Lütfen “skanpage” veya “simple-scan” kurun."
 
 msgid "No share visible with these credentials."
 msgstr "Bu kimlik bilgileriyle görünen paylaşım yok."
+
+msgid "No temperature or fan sensors were found. The sensor drivers of the mainboard may need to be loaded (for example with “sensors-detect”)."
+msgstr "Sıcaklık veya fan sensörü bulunamadı. Anakartın sensör sürücülerinin yüklenmesi gerekebilir (örneğin “sensors-detect” ile)."
 
 msgid "No terminal program found"
 msgstr "Terminal programı bulunamadı"
@@ -481,8 +703,23 @@ msgstr "Ayarları aç"
 msgid "Open with {app}"
 msgstr "{app} ile aç"
 
+msgid "Operating system"
+msgstr "İşletim sistemi"
+
+msgid "Outputs"
+msgstr "Çıkışlar"
+
 msgid "Overview"
 msgstr "Genel bakış"
+
+msgid "PCIe link"
+msgstr "PCIe bağlantısı"
+
+msgid "PCIe link (max.)"
+msgstr "PCIe bağlantısı (maks.)"
+
+msgid "PCIe link (now)"
+msgstr "PCIe bağlantısı (şimdi)"
 
 msgid "Partial eject"
 msgstr "Kısmen çıkarıldı"
@@ -517,6 +754,12 @@ msgstr "Hızlı erişime sabitle"
 msgid "Power cycles"
 msgstr "Güç döngüleri"
 
+msgid "Power limit"
+msgstr "Güç sınırı"
+
+msgid "Power management"
+msgstr "Güç yönetimi"
+
 msgid "Power-on time"
 msgstr "Açık kalma süresi"
 
@@ -538,6 +781,9 @@ msgstr "Yazdırılıyor"
 msgid "Processor"
 msgstr "İşlemci"
 
+msgid "Product"
+msgstr "Ürün"
+
 msgid "Program not found"
 msgstr "Program bulunamadı"
 
@@ -546,6 +792,9 @@ msgstr "Özellikler"
 
 msgid "Properties of {name}"
 msgstr "{name} özellikleri"
+
+msgid "Pulse server"
+msgstr "Pulse sunucusu"
 
 msgid "Quick access"
 msgstr "Hızlı erişim"
@@ -577,6 +826,9 @@ msgstr "SMART okuma zaman aşımına uğradı."
 msgid "Reading hardware…"
 msgstr "Donanım okunuyor…"
 
+msgid "Reading sensors…"
+msgstr "Sensörler okunuyor…"
+
 msgid "Ready"
 msgstr "Hazır"
 
@@ -588,6 +840,9 @@ msgstr "Bu kadar veya daha az boş alanda kırmızı gösterge ve ⚠ simgesi."
 
 msgid "Refresh"
 msgstr "Yenile"
+
+msgid "Release"
+msgstr "Sürüm"
 
 msgid "Remember the password (KWallet) to show the free space"
 msgstr "Boş alanı göstermek için parolayı hatırla (KWallet)"
@@ -619,6 +874,9 @@ msgstr "Yeniden adlandır…"
 msgid "Renaming is not supported for this format ({fstype})."
 msgstr "Bu biçim ({fstype}) için yeniden adlandırma desteklenmiyor."
 
+msgid "Renderer"
+msgstr "İşleyici"
+
 msgid "Report saved"
 msgstr "Rapor kaydedildi"
 
@@ -631,8 +889,26 @@ msgstr "Adı sıfırla"
 msgid "Restore"
 msgstr "Önceki boyut"
 
+msgid "Right now"
+msgstr "Şu anda"
+
 msgid "Running"
 msgstr "Çalışıyor"
+
+msgid "Running at"
+msgstr "Çalışma hızı"
+
+msgid "SATA and RAID controllers"
+msgstr "SATA ve RAID denetleyicileri"
+
+msgid "SATA drive"
+msgstr "SATA sürücüsü"
+
+msgid "SATA link {n}"
+msgstr "SATA bağlantısı {n}"
+
+msgid "SATA links"
+msgstr "SATA bağlantıları"
 
 msgid "SMART health"
 msgstr "SMART sağlığı"
@@ -655,11 +931,23 @@ msgstr "SSD iyileştirme başarısız"
 msgid "Safely remove"
 msgstr "Güvenle kaldır"
 
+msgid "Scaling driver"
+msgstr "Ölçekleme sürücüsü"
+
+msgid "Scaling range"
+msgstr "Saat aralığı"
+
 msgid "Scanner"
 msgstr "Tarayıcı"
 
 msgid "Scan…"
 msgstr "Tara…"
+
+msgid "Search (Ctrl+F)"
+msgstr "Ara (Ctrl+F)"
+
+msgid "Search results"
+msgstr "Arama sonuçları"
 
 msgid "Searching…"
 msgstr "Aranıyor…"
@@ -673,11 +961,17 @@ msgstr "Kendi kendine test başarısız"
 msgid "Send test notification"
 msgstr "Test bildirimi gönder"
 
+msgid "Sensors & fans"
+msgstr "Sensörler ve fanlar"
+
 msgid "Server address:"
 msgstr "Sunucu adresi:"
 
 msgid "Server unreachable. Check the address and that the server is turned on."
 msgstr "Sunucuya ulaşılamıyor. Adresi ve sunucunun açık olduğunu denetleyin."
+
+msgid "Session type"
+msgstr "Oturum türü"
 
 msgid "Set as default printer"
 msgstr "Varsayılan yazıcı yap"
@@ -709,14 +1003,35 @@ msgstr "Yıpranma belirtileri – Özellikler'e bakın"
 msgid "Size"
 msgstr "Boyut"
 
+msgid "Slots"
+msgstr "Yuvalar"
+
+msgid "Slots, type, speed, manufacturer"
+msgstr "Yuvalar, tür, hız, üretici"
+
+msgid "Socket"
+msgstr "Soket"
+
+msgid "Sockets · cores per socket · threads per core"
+msgstr "Soketler · soket başına çekirdek · çekirdek başına iş parçacığı"
+
 msgid "Sound"
 msgstr "Ses"
+
+msgid "Sound card {n}"
+msgstr "Ses kartı {n}"
+
+msgid "Source"
+msgstr "Kaynak"
 
 msgid "Spare"
 msgstr "Yedek"
 
 msgid "Spare capacity below the limit"
 msgstr "Yedek sınırın altında"
+
+msgid "Speed"
+msgstr "Hız"
 
 msgid "Status"
 msgstr "Durum"
@@ -727,8 +1042,20 @@ msgstr "Durum:"
 msgid "Storage"
 msgstr "Depolama"
 
+msgid "Storage & buses"
+msgstr "Depolama ve veri yolları"
+
 msgid "Storage I/O"
 msgstr "Depolama G/Ç"
+
+msgid "Storage and filesystems"
+msgstr "Depolama ve dosya sistemleri"
+
+msgid "Subsystem"
+msgstr "Alt sistem"
+
+msgid "Swap"
+msgstr "Takas"
 
 msgid "System"
 msgstr "Sistem"
@@ -763,8 +1090,14 @@ msgstr "Sıcaklık"
 msgid "Temperature warning"
 msgstr "Sıcaklık uyarısı"
 
+msgid "Temperature {n}"
+msgstr "Sıcaklık {n}"
+
 msgid "Temperature:"
 msgstr "Sıcaklık:"
+
+msgid "Temperatures"
+msgstr "Sıcaklıklar"
 
 msgid "Terminal"
 msgstr "Terminal"
@@ -832,14 +1165,29 @@ msgstr "Bu sürücü yönetici parolasıyla smartctl gerektirir (ör. USB kutusu
 msgid "This location already exists in the list."
 msgstr "Bu konum listede zaten var."
 
+msgid "This month"
+msgstr "Bu ay"
+
 msgid "This printer does not report ink levels"
 msgstr "Bu yazıcı mürekkep düzeylerini bildirmiyor"
+
+msgid "This session (since boot)"
+msgstr "Bu oturum (sistem başlangıcından beri)"
 
 msgid "This software is neither affiliated with nor endorsed by Microsoft Corporation. Windows is a trademark of Microsoft Corporation."
 msgstr "Bu yazılım Microsoft Corporation ile bağlantılı değildir ve onun tarafından onaylanmamıştır. Windows, Microsoft Corporation'ın ticari markasıdır."
 
+msgid "This week"
+msgstr "Bu hafta"
+
+msgid "Today"
+msgstr "Bugün"
+
 msgid "Toggle inspector"
 msgstr "Denetçiyi göster/gizle"
+
+msgid "Total"
+msgstr "Toplam"
 
 msgid "Touchpad"
 msgstr "Dokunmatik yüzey"
@@ -847,11 +1195,26 @@ msgstr "Dokunmatik yüzey"
 msgid "Trash"
 msgstr "Çöp kutusu"
 
+msgid "Type"
+msgstr "Tür"
+
 msgid "Type the password to be able to remember it."
 msgstr "Parolayı hatırlayabilmek için parolayı yazın."
 
 msgid "Type:"
 msgstr "Tür:"
+
+msgid "UEFI · Secure Boot off"
+msgstr "UEFI · Secure Boot kapalı"
+
+msgid "UEFI · Secure Boot on"
+msgstr "UEFI · Secure Boot açık"
+
+msgid "USB devices"
+msgstr "USB aygıtları"
+
+msgid "USB host controllers"
+msgstr "USB ana denetleyicileri"
 
 msgid "Uncorrectable sectors"
 msgstr "Düzeltilemeyen sektörler"
@@ -874,6 +1237,9 @@ msgstr "Güvenli olmayan kapanmalar"
 msgid "Up to date"
 msgstr "Güncel"
 
+msgid "Upload"
+msgstr "Yükleme"
+
 msgid "Uptime"
 msgstr "Çalışma süresi"
 
@@ -886,6 +1252,15 @@ msgstr "Kullanılan: {size}"
 msgid "Username (required):"
 msgstr "Kullanıcı adı (gerekli):"
 
+msgid "VRAM type"
+msgstr "VRAM türü"
+
+msgid "Vendor"
+msgstr "Üretici"
+
+msgid "Version"
+msgstr "Sürüm"
+
 msgid "Version {version} of DriveDeck is available. To update, download it and run ./install.sh again."
 msgstr "DriveDeck {version} sürümü kullanılabilir. Güncellemek için indirip ./install.sh dosyasını yeniden çalıştırın."
 
@@ -897,6 +1272,9 @@ msgstr "Videolar"
 
 msgid "View"
 msgstr "Görüntüle"
+
+msgid "Virtualization"
+msgstr "Sanallaştırma"
 
 msgid "Volume name"
 msgstr "Birim adı"
@@ -922,14 +1300,35 @@ msgstr "Yazma"
 msgid "Yellow"
 msgstr "Sarı"
 
+msgid "built into the kernel"
+msgstr "çekirdeğe gömülü"
+
+msgid "connected"
+msgstr "bağlı"
+
+msgid "counted by DriveDeck since {date}"
+msgstr "{date} tarihinden beri DriveDeck tarafından sayıldı"
+
 msgid "day"
 msgstr "gün"
 
 msgid "days"
 msgstr "gün"
 
+msgid "disabled"
+msgstr "devre dışı"
+
 msgid "driver {name}"
 msgstr "sürücü {name}"
+
+msgid "empty"
+msgstr "boş"
+
+msgid "enabled"
+msgstr "etkin"
+
+msgid "fancontrol active"
+msgstr "fancontrol etkin"
 
 msgid "file manager"
 msgstr "dosya yöneticisi"
@@ -937,11 +1336,23 @@ msgstr "dosya yöneticisi"
 msgid "filled in from the list, or type it"
 msgstr "listeden doldurulur veya elle yazılır"
 
+msgid "full duplex"
+msgstr "tam çift yönlü"
+
 msgid "gdbus not found or timed out."
 msgstr "gdbus bulunamadı veya zaman aşımına uğradı."
 
+msgid "half duplex"
+msgstr "yarı çift yönlü"
+
 msgid "limit {n} %"
 msgstr "sınır %{n}"
+
+msgid "max."
+msgstr "maks."
+
+msgid "min {min} · max {max}"
+msgstr "min {min} · maks {max}"
 
 msgid "needs administrator rights"
 msgstr "yönetici hakları gerektirir"
@@ -949,14 +1360,44 @@ msgstr "yönetici hakları gerektirir"
 msgid "needs administrator rights – use the button below"
 msgstr "yönetici hakları gerektirir – aşağıdaki düğmeyi kullanın"
 
+msgid "none"
+msgstr "yok"
+
+msgid "not exposed by the driver"
+msgstr "sürücü bildirmiyor"
+
+msgid "not exposed by the kernel"
+msgstr "çekirdek bildirmiyor"
+
+msgid "off"
+msgstr "kapalı"
+
+msgid "on"
+msgstr "açık"
+
 msgid "only for “List”, never saved"
 msgstr "yalnızca “Listele” için, hiçbir zaman kaydedilmez"
+
+msgid "port {port}"
+msgstr "bağlantı noktası {port}"
+
+msgid "rank {n}"
+msgstr "rank {n}"
 
 msgid "running…"
 msgstr "çalışıyor…"
 
 msgid "unknown error"
 msgstr "bilinmeyen hata"
+
+msgid "used by {list}"
+msgstr "{list} tarafından kullanılıyor"
+
+msgid "version {v}"
+msgstr "sürüm {v}"
+
+msgid "vnstat since {date}"
+msgstr "{date} tarihinden beri vnstat"
 
 msgid "{cores} cores / {threads} threads"
 msgstr "{cores} çekirdek / {threads} iş parçacığı"
@@ -979,6 +1420,21 @@ msgstr "{label} neredeyse dolu"
 msgid "{label} was unmounted but could not be powered off:\n{detail}\n\nYou can still unplug it."
 msgstr "{label} bağlantısı kesildi ancak kapatılamadı:\n{detail}\n\nYine de çıkarabilirsiniz."
 
+msgid "{link} – idle power state may lower it"
+msgstr "{link} – güç tasarrufu bunu düşürebilir"
+
+msgid "{mode} (preferred mode)"
+msgstr "{mode} (tercih edilen kip)"
+
+msgid "{name} (Ethernet)"
+msgstr "{name} (Ethernet)"
+
+msgid "{name} (Wi-Fi)"
+msgstr "{name} (Wi-Fi)"
+
+msgid "{name} (modules)"
+msgstr "{name} (modüller)"
+
 msgid "{n} items"
 msgstr "{n} öğe"
 
@@ -987,6 +1443,18 @@ msgstr "{n} güncelleme"
 
 msgid "{share} on {host}"
 msgstr "{host} üzerinde {share}"
+
+msgid "{socket} (derived from the CPU family)"
+msgstr "{socket} (CPU ailesinden çıkarıldı)"
+
+msgid "{socket} (derived from the {chipset} chipset)"
+msgstr "{socket} ({chipset} yonga setinden çıkarıldı)"
+
+msgid "{speed} (running {clock})"
+msgstr "{speed} ({clock} hızında çalışıyor)"
+
+msgid "{type} (from the model name)"
+msgstr "{type} (model adından)"
 
 msgid "{used} in use ({pct} %)"
 msgstr "{used} kullanımda (%{pct})"

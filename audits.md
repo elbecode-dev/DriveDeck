@@ -592,6 +592,150 @@ and Enter fold, a click on the title folds, Esc returns to the main area); `pyri
 *unqualified* (1157); settings-dialog test 20/20; header lines still 0 px apart; 60 s stress run 0 QML messages, RSS
 225 MB. The glow and the chevron rotation were looked at on the real desktop by the user.
 
+## 5u. System information as a hardware inspector (2.4.0)
+
+**Request:** a freely resizable window with a remembered size and a two-column layout from 960 px, the main window's
+style, a *Sensors & fans* and a *Storage & buses* category, the socket without root, `Ctrl+F` search with hit counts,
+click to copy, and every label translated.
+
+**Implementation:** `QQC2.ApplicationWindow` `hwWin` (min. 820 × 580, start 1180 × 780) replaces the modal dialog;
+`openHardware()` restores size and maximized state from `backend.hwWindow`, `saveHwWindow()` stores the last windowed size
+on close. Cards are distributed greedily into the shorter column. `hwmon_lesen()` / `_sensorGruppen()` (min/max per sensor
+and session) run in a thread that `setSensorsActive()` starts when the window becomes visible and stops when it hides.
+`sammle_busse()` (PCI classes via `lspci -vmmk`, `/sys/bus/pci/devices/*/nvme`, `/sys/class/ata_link`,
+`/sys/bus/usb/devices`) and `sockel_ableiten()`. `_gruppe()` now translates titles and keys and keeps `en` / `ven` for
+the English export.
+
+**Found during the work:**
+- **qmllint analysed only part of the file.** With the new window the *unqualified* count dropped from 1157 to 325 while
+  the exit code stayed 0: the warnings ended at line 2435, just before the window. Removing pieces showed that JavaScript
+  callbacks (`map`, `filter`, `reduce`, `find` with a function) stop the analysis for the rest of the file. The window
+  now uses plain loops; the whole file is analysed again (1184 *unqualified*, last at line 6256 of 6319), which also
+  surfaced 12 real `missing-property` findings (`contentY` on `ScrollView.contentItem`) that are fixed with `as Flickable`.
+- **Row index past the end:** the window stress run showed "Cannot read property 'k' of undefined" when a search
+  shortened the list while a row was chosen; the choice is now clamped and copying checks its argument.
+- `raise()` is not supported on Wayland and only printed a warning; `requestActivate()` is enough.
+- Unconnected mainboard probes reported −1 °C; temperatures outside 0–127 °C and fan headers that never turned are hidden.
+- The chipset "B650M" (form factor suffix) was not recognised for the socket.
+
+**Checks:** window test 21/21 in Breeze Dark, Breeze Light and Vivid Violet Dark (opens at 1180 × 780 with min. 820 × 580,
+one column at 900 px, two at 1500 px, arrow keys in the categories, Tab into the content, Enter copies, `Ctrl+F` focuses
+the search, "nvme" finds the two NVMe controllers and shows hit counts, `Esc` clears and then closes, a click copies,
+sensors with min/max, the size is saved); without sensors 20/20 with the explanation; window stress run 40 s (2236
+actions, 113 re-openings, resizing, searching, switching) 0 QML messages, RSS 211 MB, sensor thread stopped after close;
+real data: two NVMe drives at PCIe 4.0 x4, eleven USB devices from 12 Mb/s to 10 Gb/s, "AM4 (derived from the X570
+chipset)", k10temp, NVMe, DIMM, nct6797, NZXT X53 and the RTX 4080; translation check: all 12 `.po` files complete
+(445 entries); `pyright` 0 errors; settings, header and line tests unchanged; 60 s main-window stress run 0 QML messages.
+
+**Not verified:** the window on the real desktop (the user looks at it before committing); AMD/Intel GPUs in the sensor
+list; USB4/Thunderbolt speeds; at 1180 px with a larger font scale the content is below 960 px and stays one column.
+
+## 5v. Card rows, merged cards and the Network tab (2.4.0)
+
+**Request:** logical pairs of equal height instead of shortest-column masonry, full-width cards for lists and tables,
+merged memory sensors and controllers, calm card titles, the remaining English values translated, and a Network tab with
+the active connection, its adapter and data usage (session, today, week, month; `vnstat` plus an own counter that
+survives reboots).
+
+**Implementation:** `zeilen()` builds rows of two cards in report order (a `wide` card or one left over gets a row of its
+own); every row is a `RowLayout` whose cards use `Layout.fillHeight`, so both cards take the taller height. `_gruppe()`
+learned `breit` (full width), `spalten` (table header, rows as cell lists) and value pairs (translated, English) through
+`_zw()` / `_verbinde()`. `netz_live()` builds the Network tab every 2 s while the window is open; `NetzZaehler` keeps the
+daily totals in `net_usage.json` (background sample every 60 s, saved at most every 5 minutes and in `shutdown()`).
+
+**Checks:** card rows measured in every tab in Breeze Dark and Light: top and height of the two cards of a row differ by
+**0 px** (overview 3 pairs; CPU 2 pairs + 1; GPU 1 + 1; memory 1; storage 2 + 1; sensors 3 + 1; system 1 + 4; network 1 + 2);
+counter unit tests 10/10 (first run, growth, reset without reboot, reboot via `boot_id`, reload without double counting,
+today/week/month boundaries, broken file); window test 21/21 (20/20 without sensors); window stress run 40 s (2203
+actions, 111 re-openings) and main-window stress run 60 s with 0 QML messages; settings, header and line tests unchanged;
+`pyright` 0 errors, `qmllint` 0 warnings outside *unqualified* (1196, analysed to line 6298 of 6363); all 12 `.po` files
+complete (480 entries). Real data: enp38s0 at 1000 Mb/s full duplex, IPv4/IPv6, gateway and DNS behind systemd-resolved,
+Intel I211 at PCIe 1.0 x1, data usage table with live rate.
+
+**vnstat (installed afterwards, 2.14):** the service runs, but a fresh database has no day entries yet – the parser then
+returns nothing and the own counter stays in use. Using vnstat as soon as it had a few minutes of data would have shown
+only those minutes for today, the week and the month, so the source is now chosen **per period**: vnstat only when its
+database was created before the period began. Tested with the real (empty) output and simulated output: created today →
+own counter; created 60 days ago → vnstat for all periods; created yesterday → vnstat for today, own counter for week and
+month, and the source line names both ("vnstat since … · counted by DriveDeck since …"); 7/7.
+
+**Not verified:** vnstat with real day entries (the database was minutes old); the first day after installing DriveDeck
+counts all traffic since the last boot as "today"; Wi-Fi without a link speed in sysfs.
+
+## 5w. Sensor card grouping and fan control (2.4.0 draft; the write part was removed again in 5x)
+
+**Request:** sensor cards of similar size side by side (CPU + GPU, memory + liquid cooler, drives in pairs), the mainboard
+card over the full width with temperatures and fans in two columns, the fan control state (BIOS vs. `fancontrol`) and
+optional PWM presets through `pkexec` with a 30 % floor in manual mode.
+
+**Implementation:** `_sensorGruppen()` sorts temperatures before fans (`col` 0/1), marks a card with more than six
+readings `wide` and, when it has both kinds, `split`; narrow cards keep the CPU → GPU → memory → cooler → drives order and
+wide cards are placed after the first two pairs. In QML the rows of a card sit in a `GridLayout` (one column, or two with
+explicit `Layout.row`/`Layout.column` when split and the window shows two columns); the fan control row (`col` 2) spans
+both columns, and its key column matches the left column so the values line up. `luefter_regelung()` reads
+`pwmN_enable`/`pwmN` and the fancontrol state; `pwm_auftraege()` builds `N:enable:pwm` jobs (and saves the automatic
+state before the first manual preset), `pwm_schreiben()` writes directly when the files are writable, otherwise runs
+`PWM_ROOT_SKRIPT` once through `pkexec` in a thread (`fanBusy` disables the buttons meanwhile; 126/127 = cancelled,
+silent; other exit codes are reported). The hardware window's repeaters now take counts as models and read their data by
+index: before, every 2 s sensor update replaced the whole JavaScript array and rebuilt every card – a preset button
+would have been destroyed between press and release, and hover and tooltips flickered.
+
+**Safety:** the root helper validates everything itself (path `/sys/class/hwmon/hwmon` + digits only, so no `..`;
+exactly three numeric fields; mode ≤ 5; duty ≤ 255; channel must exist) and raises manual duty below 77 to 77. Only
+chips classified as *Mainboard* get the row; liquid coolers (e.g. the X53 here) and GPUs are never written. Presets
+are disabled while `fancontrol` runs. *BIOS auto* without a saved state does not guess a mode but explains that the
+BIOS restores it at the next restart. A pump on a mainboard header slows down with the other headers – the tooltip
+says so.
+
+**Checks:** unit tests on a fake hwmon tree 26/26 (channel detection, BIOS/manual/mixed/daemon states, preset
+recognition, snapshot written once and kept, restore jobs, missing snapshot, direct write with floor, and the real root
+script: quiet preset, 30 % clamp, rejected `..` path, foreign directory, duty > 255, mode > 5, injected characters, two
+or four fields, missing channel). Window test of the sensors tab 14/14 in Breeze Dark, Breeze Light and German: rows
+*CPU + GPU*, *Memory + Liquid cooler*, *Mainboard* (6 temperatures | 4 fans, columns 589/590 px), *NVMe + NVMe*;
+pairs 0 px apart; fan control row last and full width; four presets with *BIOS auto* checked; a click on *Quiet* calls
+the writer with `1:1:115` for hwmon5 and saves the snapshot but does not copy the row; a click on the row still copies;
+buttons and rows survive a sensor update. Narrow window (one column) 8/8. All tabs still 0 px; window test 21/21
+(20/20 without sensors); window stress run without leaks, sensor thread stops after closing. `pyright` 0 errors,
+`qmllint` 0 warnings outside *unqualified* (1222, analysed to line 6383 of 6448); 14 new texts in all 12 `.po` files
+(495 entries).
+
+**Not verified:** a real `pkexec` write to the nct6797 (it needs the user's password; the helper was run against a fake
+tree, and the real PWM state – all seven channels in mode 5 – was only read); how the presets look in the real Breeze
+style (offscreen draws no button icons, so the check mark of the active preset was confirmed as a property only).
+
+## 5x. Fan control back to read-only (2.4.0)
+
+**Request:** keep the hardware inspector a clean, read-only monitor without root changes: remove the four presets, the
+`pkexec` root helper, the PWM write functions and the `fan_bios.json` logic; keep the two-column mainboard card and the
+plain *Fan control* info row; remove the texts that are no longer needed.
+
+**Removed:** `FAN_BIOS`, `PWM_MIN`, `FAN_PRESETS`, `PWM_ROOT_SKRIPT`, `_fan_kennung()`, `fan_bios_lesen()`,
+`fan_bios_speichern()`, `pwm_auftraege()`, `pwm_schreiben()`; in the backend `fanBusy`/`fanBusyChanged`, `_fanFertig`,
+`setFanPreset()` and `_fanErgebnis()`; in QML `hwWin.fanPresets`, the `hwFanWahl` flow with its buttons and `hwFanHover`
+(the row tooltip shows on hover again without the exception). The sensor items no longer carry a `fanctl` object.
+8 texts left all 12 `.po` files ("BIOS auto", "Quiet {p}", "Performance {p}", "Max {p}", the two button tooltips and the
+two error messages), now 487 entries each; `.mo` recompiled.
+
+**Kept:** `pwm_kanaele()` and `fancontrol_aktiv()` (only read `pwmN_enable`, `pwmN` and `systemctl is-active`), and
+`luefter_regelung()`, which now returns only `{v, ven}`: "fancontrol active", "BIOS automatic", or "Manual · N %" when
+another tool (pwmconfig, a vendor tool) has set the outputs to manual – showing "BIOS automatic" there would be wrong.
+The split card (temperatures | fans) and the full-width info row are unchanged; the count-model repeaters from 5w stay.
+
+**Not removed:** an existing `~/.local/share/drivedeck/fan_bios.json` from testing the draft is no longer read or
+written; it is left in place (DriveDeck deletes no user files on its own) and can simply be deleted. Note: `uninstall.sh --purge` does not remove it either – it only clears `~/.config/drivedeck` and the caches; `net_usage.json` in the same folder stays as well.
+The real PWM state here is again all seven channels in mode 5 (SmartFan IV).
+
+**Checks:** unit tests on a fake hwmon tree 9/9 (channel detection; BIOS, manual-set-elsewhere and fancontrol states;
+five calls leave every file byte- and mtime-identical; no `fan_bios.json` is created; a chip without PWM gives no row;
+none of the removed module or backend symbols exist). Window test of the sensors tab 12/12 in Breeze Dark, Breeze
+Light and German: rows *CPU + GPU*, *Memory + Liquid cooler*, *Mainboard* (6 temperatures | 4 fans), *NVMe + NVMe*,
+pairs 0 px apart, two equal columns, the info row last and full width with "BIOS automatic" / "BIOS-Automatik", no
+preset buttons, no write slot, rows survive a sensor update, a click on the row copies it; narrow window (one column)
+4/4. Window test 21/21 in Breeze Dark and Light; window stress run without leaks, sensor thread stops after closing.
+`pyright` 0 errors, `qmllint` 0 warnings outside *unqualified* (1215, analysed to line 6356 of 6421).
+
+**Not verified:** the card on the real desktop with the real Breeze style.
+
 ---
 
 ## 6. Not verified

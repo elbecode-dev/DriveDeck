@@ -19,6 +19,12 @@ msgstr "Een communityfork van Fenestra ‘Deze pc’ door naykkalak: je mappen, 
 msgid "ADF duplex"
 msgstr "ADF dubbelzijdig"
 
+msgid "AGESA / firmware"
+msgstr "AGESA / firmware"
+
+msgid "ALSA kernel driver"
+msgstr "ALSA-kernelstuurprogramma"
+
 msgid "About"
 msgstr "Info"
 
@@ -28,8 +34,14 @@ msgstr "Over DriveDeck"
 msgid "Actions & tools"
 msgstr "Acties en hulpmiddelen"
 
+msgid "Active connection"
+msgstr "Actieve verbinding"
+
 msgid "Activity"
 msgstr "Activiteit"
+
+msgid "Adapter {slot}"
+msgstr "Adapter {slot}"
 
 msgid "Add a network location"
 msgstr "Een netwerklocatie toevoegen"
@@ -52,17 +64,47 @@ msgstr "Weergave"
 msgid "Application name:"
 msgstr "Naam van de toepassing:"
 
+msgid "Architecture"
+msgstr "Architectuur"
+
+msgid "Audio subsystem"
+msgstr "Audiosubsysteem"
+
+msgid "Audio, input and USB"
+msgstr "Audio, invoer en USB"
+
 msgid "Author: {author}"
 msgstr "Auteur: {author}"
 
 msgid "Available"
 msgstr "Beschikbaar"
 
+msgid "Available governors"
+msgstr "Beschikbare governors"
+
+msgid "Available modules"
+msgstr "Beschikbare modules"
+
+msgid "BIOS / UEFI"
+msgstr "BIOS / UEFI"
+
+msgid "BIOS automatic"
+msgstr "BIOS-automatiek"
+
 msgid "Bad sectors"
 msgstr "Slechte sectoren"
 
 msgid "Black"
 msgstr "Zwart"
+
+msgid "Boost"
+msgstr "Boost"
+
+msgid "Boot mode"
+msgstr "Opstartmodus"
+
+msgid "Build"
+msgstr "Build"
 
 msgid "Built-in"
 msgstr "Ingebouwd"
@@ -72,6 +114,9 @@ msgstr "Cd/dvd-station"
 
 msgid "CPU & Board"
 msgstr "Processor en moederbord"
+
+msgid "Cache"
+msgstr "Cache"
 
 msgid "Cannot add"
 msgstr "Toevoegen niet mogelijk"
@@ -124,17 +169,38 @@ msgstr "Kan niet ontkoppelen"
 msgid "Capacity: {size}"
 msgstr "Capaciteit: {size}"
 
+msgid "Categories"
+msgstr "Categorieën"
+
+msgid "Chassis type"
+msgstr "Behuizingstype"
+
 msgid "Check for a new version once a week"
 msgstr "Eén keer per week op een nieuwe versie controleren"
 
+msgid "Chipset (from the model name)"
+msgstr "Chipset (uit de modelnaam)"
+
 msgid "Choose a share…"
 msgstr "Kies een share…"
+
+msgid "Click to copy"
+msgstr "Klik om te kopiëren"
 
 msgid "Close"
 msgstr "Sluiten"
 
 msgid "Command bar icons: Fluent UI System Icons, © Microsoft Corporation, MIT license."
 msgstr "Pictogrammen van de opdrachtbalk: Fluent UI System Icons, © Microsoft Corporation, MIT-licentie."
+
+msgid "Compatibility"
+msgstr "Compatibiliteit"
+
+msgid "Compiler"
+msgstr "Compiler"
+
+msgid "Compositor"
+msgstr "Compositor"
 
 msgid "Connected"
 msgstr "Verbonden"
@@ -160,6 +226,9 @@ msgstr "Pad kopiëren"
 msgid "Copy specs"
 msgstr "Specificaties kopiëren"
 
+msgid "Core profile"
+msgstr "Core-profiel"
+
 msgid "Could not save the list:\n{error}"
 msgstr "De lijst kon niet worden opgeslagen:\n{error}"
 
@@ -184,14 +253,26 @@ msgstr "De naam van de toepassing aanpassen (bijv. Deze pc, CyberDeck)"
 msgid "Cyan"
 msgstr "Cyaan"
 
+msgid "DNS servers"
+msgstr "DNS-servers"
+
 msgid "Data read"
 msgstr "Gelezen gegevens"
+
+msgid "Data usage"
+msgstr "Dataverbruik"
 
 msgid "Data written"
 msgstr "Geschreven gegevens"
 
+msgid "Date"
+msgstr "Datum"
+
 msgid "Default"
 msgstr "Standaard"
+
+msgid "Default gateway"
+msgstr "Standaardgateway"
 
 msgid "Desktop"
 msgstr "Bureaublad"
@@ -226,14 +307,26 @@ msgstr "Schijf defect – maak een back-up van uw bestanden"
 msgid "Display name (optional):"
 msgstr "Weergavenaam (optioneel):"
 
+msgid "Display server"
+msgstr "Weergaveserver"
+
+msgid "Distribution"
+msgstr "Distributie"
+
 msgid "Documents"
 msgstr "Documenten"
+
+msgid "Download"
+msgstr "Download"
 
 msgid "Downloads"
 msgstr "Downloads"
 
 msgid "Drag folders here to pin them"
 msgstr "Sleep mappen hierheen om ze vast te pinnen"
+
+msgid "Drive"
+msgstr "Station"
 
 msgid "Drive failing: {label}"
 msgstr "Station faalt: {label}"
@@ -247,11 +340,35 @@ msgstr "Uitwerpen"
 msgid "Empty"
 msgstr "Leeg"
 
+msgid "Energy performance preference"
+msgstr "Energie-/prestatievoorkeur"
+
+msgid "Error correction"
+msgstr "Foutcorrectie"
+
 msgid "Export full report…"
 msgstr "Volledig rapport exporteren…"
 
 msgid "Failed"
 msgstr "Mislukt"
+
+msgid "Family"
+msgstr "Familie"
+
+msgid "Family / Model / Stepping"
+msgstr "Familie / model / stepping"
+
+msgid "Fan"
+msgstr "Ventilator"
+
+msgid "Fan control"
+msgstr "Ventilatorregeling"
+
+msgid "Fan {n}"
+msgstr "Ventilator {n}"
+
+msgid "Fans"
+msgstr "Ventilatoren"
 
 msgid "File system"
 msgstr "Bestandssysteem"
@@ -292,11 +409,17 @@ msgstr "GPL-3.0 of later"
 msgid "GPU & Display"
 msgstr "Grafisch en beeldscherm"
 
+msgid "GPU core"
+msgstr "GPU-kern"
+
 msgid "Game controller"
 msgstr "Gamecontroller"
 
 msgid "Good"
 msgstr "Goed"
+
+msgid "Governor"
+msgstr "Governor"
 
 msgid "Graphics"
 msgstr "Grafisch"
@@ -313,6 +436,12 @@ msgstr "Grijs"
 msgid "Health"
 msgstr "Gezondheid"
 
+msgid "IPv4 address"
+msgstr "IPv4-adres"
+
+msgid "IPv6 address"
+msgstr "IPv6-adres"
+
 msgid "Incorrect username or password."
 msgstr "Gebruikersnaam of wachtwoord onjuist."
 
@@ -322,8 +451,23 @@ msgstr "Inktniveaus"
 msgid "Installed"
 msgstr "Geïnstalleerd"
 
+msgid "Installed (usable)"
+msgstr "Geïnstalleerd (bruikbaar)"
+
+msgid "Instance version"
+msgstr "Instantieversie"
+
+msgid "Instruction sets"
+msgstr "Instructiesets"
+
 msgid "Insufficient rights"
 msgstr "Onvoldoende rechten"
+
+msgid "Interface"
+msgstr "Interface"
+
+msgid "Interfaces"
+msgstr "Interfaces"
 
 msgid "JSON report"
 msgstr "JSON-rapport"
@@ -331,8 +475,20 @@ msgstr "JSON-rapport"
 msgid "KWallet could not save the password: the gauge will not be shown."
 msgstr "KWallet kon het wachtwoord niet opslaan: de ruimtebalk wordt niet getoond."
 
+msgid "Kernel driver"
+msgstr "Kernelstuurprogramma"
+
+msgid "Kernel module"
+msgstr "Kernelmodule"
+
 msgid "Keyboard"
 msgstr "Toetsenbord"
+
+msgid "L1 data"
+msgstr "L1 data"
+
+msgid "L1 instruction"
+msgstr "L1 instructies"
 
 msgid "License: {license}"
 msgstr "Licentie: {license}"
@@ -346,8 +502,17 @@ msgstr "Lichtgrijs"
 msgid "Light magenta"
 msgstr "Lichtmagenta"
 
+msgid "Link speed"
+msgstr "Verbindingssnelheid"
+
+msgid "Liquid cooler"
+msgstr "Waterkoeling"
+
 msgid "List"
 msgstr "Weergeven"
+
+msgid "Loaded modules"
+msgstr "Geladen modules"
 
 msgid "Local Disk"
 msgstr "Lokale schijf"
@@ -355,14 +520,38 @@ msgstr "Lokale schijf"
 msgid "Location unavailable"
 msgstr "Locatie niet beschikbaar"
 
+msgid "Logical CPUs"
+msgstr "Logische CPU's"
+
+msgid "MAC address"
+msgstr "MAC-adres"
+
 msgid "Magenta"
 msgstr "Magenta"
 
 msgid "Mainboard"
 msgstr "Moederbord"
 
+msgid "Manual · {p}"
+msgstr "Handmatig · {p}"
+
+msgid "Manufacturer"
+msgstr "Fabrikant"
+
 msgid "Matte black"
 msgstr "Matzwart"
+
+msgid "Max. GPU clock"
+msgstr "Max. GPU-klok"
+
+msgid "Max. capacity"
+msgstr "Max. capaciteit"
+
+msgid "Max. clock"
+msgstr "Max. klok"
+
+msgid "Max. memory clock"
+msgstr "Max. geheugenklok"
 
 msgid "Maximize"
 msgstr "Maximaliseren"
@@ -376,8 +565,26 @@ msgstr "Mediafouten gemeld"
 msgid "Memory"
 msgstr "Geheugen"
 
+msgid "Memory controller"
+msgstr "Geheugencontroller"
+
+msgid "Memory modules"
+msgstr "Geheugenmodules"
+
+msgid "Microcode"
+msgstr "Microcode"
+
+msgid "Min. clock"
+msgstr "Min. klok"
+
 msgid "Minimize"
 msgstr "Minimaliseren"
+
+msgid "Model"
+msgstr "Model"
+
+msgid "Module {n}"
+msgstr "Module {n}"
 
 msgid "Mount"
 msgstr "Koppelen"
@@ -406,6 +613,12 @@ msgstr "Muziek"
 msgid "My NAS"
 msgstr "Mijn NAS"
 
+msgid "NVMe controller {slot}"
+msgstr "NVMe-controller {slot}"
+
+msgid "NVMe drive"
+msgstr "NVMe-station"
+
 msgid "Name shown in the title bar and as the heading of the drive list. Leave empty for the default names."
 msgstr "Naam in de titelbalk en als kop van de lijst met stations. Laat leeg voor de standaardnamen."
 
@@ -420,6 +633,9 @@ msgstr "Noch ‘notify-send’ noch de meldingsdienst van het bureaublad was ber
 
 msgid "Network"
 msgstr "Netwerk"
+
+msgid "Network adapter"
+msgstr "Netwerkadapter"
 
 msgid "Network location"
 msgstr "Netwerklocatie"
@@ -436,11 +652,17 @@ msgstr "Geen schijf"
 msgid "No information available."
 msgstr "Geen informatie beschikbaar."
 
+msgid "No matches"
+msgstr "Geen resultaten"
+
 msgid "No scanning program was found on this computer. Please install “skanpage” or “simple-scan”."
 msgstr "Er is geen scanprogramma op deze computer gevonden. Installeer ‘skanpage’ of ‘simple-scan’."
 
 msgid "No share visible with these credentials."
 msgstr "Geen shares zichtbaar met deze inloggegevens."
+
+msgid "No temperature or fan sensors were found. The sensor drivers of the mainboard may need to be loaded (for example with “sensors-detect”)."
+msgstr "Er zijn geen temperatuur- of ventilatorsensoren gevonden. Mogelijk moeten de sensorstuurprogramma's van het moederbord worden geladen (bijvoorbeeld met ‘sensors-detect’)."
 
 msgid "No terminal program found"
 msgstr "Geen terminalprogramma gevonden"
@@ -481,8 +703,23 @@ msgstr "Instellingen openen"
 msgid "Open with {app}"
 msgstr "Openen met {app}"
 
+msgid "Operating system"
+msgstr "Besturingssysteem"
+
+msgid "Outputs"
+msgstr "Uitgangen"
+
 msgid "Overview"
 msgstr "Overzicht"
+
+msgid "PCIe link"
+msgstr "PCIe-verbinding"
+
+msgid "PCIe link (max.)"
+msgstr "PCIe-verbinding (max.)"
+
+msgid "PCIe link (now)"
+msgstr "PCIe-verbinding (nu)"
 
 msgid "Partial eject"
 msgstr "Gedeeltelijk uitgeworpen"
@@ -517,6 +754,12 @@ msgstr "Vastpinnen aan Snelle toegang"
 msgid "Power cycles"
 msgstr "Inschakelingen"
 
+msgid "Power limit"
+msgstr "Vermogenslimiet"
+
+msgid "Power management"
+msgstr "Energiebeheer"
+
 msgid "Power-on time"
 msgstr "Ingeschakelde tijd"
 
@@ -538,6 +781,9 @@ msgstr "Bezig met afdrukken"
 msgid "Processor"
 msgstr "Processor"
 
+msgid "Product"
+msgstr "Product"
+
 msgid "Program not found"
 msgstr "Programma niet gevonden"
 
@@ -546,6 +792,9 @@ msgstr "Eigenschappen"
 
 msgid "Properties of {name}"
 msgstr "Eigenschappen van {name}"
+
+msgid "Pulse server"
+msgstr "Pulse-server"
 
 msgid "Quick access"
 msgstr "Snelle toegang"
@@ -577,6 +826,9 @@ msgstr "Het lezen van SMART duurde te lang."
 msgid "Reading hardware…"
 msgstr "Hardware lezen…"
 
+msgid "Reading sensors…"
+msgstr "Sensoren lezen…"
+
 msgid "Ready"
 msgstr "Gereed"
 
@@ -588,6 +840,9 @@ msgstr "Rode meter en ⚠-symbool vanaf zo weinig vrije ruimte."
 
 msgid "Refresh"
 msgstr "Vernieuwen"
+
+msgid "Release"
+msgstr "Release"
 
 msgid "Remember the password (KWallet) to show the free space"
 msgstr "Wachtwoord onthouden (KWallet) om de vrije ruimte te tonen"
@@ -619,6 +874,9 @@ msgstr "Hernoemen…"
 msgid "Renaming is not supported for this format ({fstype})."
 msgstr "Naam wijzigen wordt voor deze indeling ({fstype}) niet ondersteund."
 
+msgid "Renderer"
+msgstr "Renderer"
+
 msgid "Report saved"
 msgstr "Rapport opgeslagen"
 
@@ -631,8 +889,26 @@ msgstr "Naam herstellen"
 msgid "Restore"
 msgstr "Vorig formaat"
 
+msgid "Right now"
+msgstr "Op dit moment"
+
 msgid "Running"
 msgstr "Actief"
+
+msgid "Running at"
+msgstr "Draait op"
+
+msgid "SATA and RAID controllers"
+msgstr "SATA- en RAID-controllers"
+
+msgid "SATA drive"
+msgstr "SATA-station"
+
+msgid "SATA link {n}"
+msgstr "SATA-verbinding {n}"
+
+msgid "SATA links"
+msgstr "SATA-verbindingen"
 
 msgid "SMART health"
 msgstr "SMART-gezondheid"
@@ -655,11 +931,23 @@ msgstr "SSD-optimalisatie mislukt"
 msgid "Safely remove"
 msgstr "Veilig verwijderen"
 
+msgid "Scaling driver"
+msgstr "Schaalstuurprogramma"
+
+msgid "Scaling range"
+msgstr "Klokbereik"
+
 msgid "Scanner"
 msgstr "Scanner"
 
 msgid "Scan…"
 msgstr "Scannen…"
+
+msgid "Search (Ctrl+F)"
+msgstr "Zoeken (Ctrl+F)"
+
+msgid "Search results"
+msgstr "Zoekresultaten"
 
 msgid "Searching…"
 msgstr "Zoeken…"
@@ -673,11 +961,17 @@ msgstr "Zelftest mislukt"
 msgid "Send test notification"
 msgstr "Testmelding verzenden"
 
+msgid "Sensors & fans"
+msgstr "Sensoren en ventilatoren"
+
 msgid "Server address:"
 msgstr "Serveradres:"
 
 msgid "Server unreachable. Check the address and that the server is turned on."
 msgstr "Server niet bereikbaar. Controleer het adres en of de server is ingeschakeld."
+
+msgid "Session type"
+msgstr "Sessietype"
 
 msgid "Set as default printer"
 msgstr "Als standaardprinter instellen"
@@ -709,14 +1003,35 @@ msgstr "Tekenen van slijtage – zie Eigenschappen"
 msgid "Size"
 msgstr "Grootte"
 
+msgid "Slots"
+msgstr "Sleuven"
+
+msgid "Slots, type, speed, manufacturer"
+msgstr "Sleuven, type, snelheid, fabrikant"
+
+msgid "Socket"
+msgstr "Socket"
+
+msgid "Sockets · cores per socket · threads per core"
+msgstr "Sockets · kernen per socket · threads per kern"
+
 msgid "Sound"
 msgstr "Geluid"
+
+msgid "Sound card {n}"
+msgstr "Geluidskaart {n}"
+
+msgid "Source"
+msgstr "Bron"
 
 msgid "Spare"
 msgstr "Reserve"
 
 msgid "Spare capacity below the limit"
 msgstr "Reserve onder de limiet"
+
+msgid "Speed"
+msgstr "Snelheid"
 
 msgid "Status"
 msgstr "Status"
@@ -727,8 +1042,20 @@ msgstr "Status:"
 msgid "Storage"
 msgstr "Opslag"
 
+msgid "Storage & buses"
+msgstr "Opslag en bussen"
+
 msgid "Storage I/O"
 msgstr "Opslag-I/O"
+
+msgid "Storage and filesystems"
+msgstr "Opslag en bestandssystemen"
+
+msgid "Subsystem"
+msgstr "Subsysteem"
+
+msgid "Swap"
+msgstr "Swap"
 
 msgid "System"
 msgstr "Systeem"
@@ -763,8 +1090,14 @@ msgstr "Temperatuur"
 msgid "Temperature warning"
 msgstr "Temperatuurwaarschuwing"
 
+msgid "Temperature {n}"
+msgstr "Temperatuur {n}"
+
 msgid "Temperature:"
 msgstr "Temperatuur:"
+
+msgid "Temperatures"
+msgstr "Temperaturen"
 
 msgid "Terminal"
 msgstr "Terminal"
@@ -832,14 +1165,29 @@ msgstr "Dit station heeft smartctl met het beheerderswachtwoord nodig (bijv. een
 msgid "This location already exists in the list."
 msgstr "Deze locatie staat al in de lijst."
 
+msgid "This month"
+msgstr "Deze maand"
+
 msgid "This printer does not report ink levels"
 msgstr "Deze printer meldt geen inktniveaus"
+
+msgid "This session (since boot)"
+msgstr "Deze sessie (sinds het opstarten)"
 
 msgid "This software is neither affiliated with nor endorsed by Microsoft Corporation. Windows is a trademark of Microsoft Corporation."
 msgstr "Deze software is niet verbonden aan Microsoft Corporation en wordt niet door Microsoft Corporation goedgekeurd. Windows is een handelsmerk van Microsoft Corporation."
 
+msgid "This week"
+msgstr "Deze week"
+
+msgid "Today"
+msgstr "Vandaag"
+
 msgid "Toggle inspector"
 msgstr "Inspector tonen/verbergen"
+
+msgid "Total"
+msgstr "Totaal"
 
 msgid "Touchpad"
 msgstr "Touchpad"
@@ -847,11 +1195,26 @@ msgstr "Touchpad"
 msgid "Trash"
 msgstr "Prullenbak"
 
+msgid "Type"
+msgstr "Type"
+
 msgid "Type the password to be able to remember it."
 msgstr "Typ het wachtwoord om het te kunnen onthouden."
 
 msgid "Type:"
 msgstr "Type:"
+
+msgid "UEFI · Secure Boot off"
+msgstr "UEFI · Secure Boot uit"
+
+msgid "UEFI · Secure Boot on"
+msgstr "UEFI · Secure Boot aan"
+
+msgid "USB devices"
+msgstr "USB-apparaten"
+
+msgid "USB host controllers"
+msgstr "USB-hostcontrollers"
 
 msgid "Uncorrectable sectors"
 msgstr "Niet-corrigeerbare sectoren"
@@ -874,6 +1237,9 @@ msgstr "Onveilige uitschakelingen"
 msgid "Up to date"
 msgstr "Bijgewerkt"
 
+msgid "Upload"
+msgstr "Upload"
+
 msgid "Uptime"
 msgstr "Actieve tijd"
 
@@ -886,6 +1252,15 @@ msgstr "In gebruik: {size}"
 msgid "Username (required):"
 msgstr "Gebruikersnaam (verplicht):"
 
+msgid "VRAM type"
+msgstr "VRAM-type"
+
+msgid "Vendor"
+msgstr "Fabrikant"
+
+msgid "Version"
+msgstr "Versie"
+
 msgid "Version {version} of DriveDeck is available. To update, download it and run ./install.sh again."
 msgstr "Versie {version} van DriveDeck is beschikbaar. Download deze en voer ./install.sh opnieuw uit om bij te werken."
 
@@ -897,6 +1272,9 @@ msgstr "Video's"
 
 msgid "View"
 msgstr "Bekijken"
+
+msgid "Virtualization"
+msgstr "Virtualisatie"
 
 msgid "Volume name"
 msgstr "Volumenaam"
@@ -922,14 +1300,35 @@ msgstr "Schrijven"
 msgid "Yellow"
 msgstr "Geel"
 
+msgid "built into the kernel"
+msgstr "ingebouwd in de kernel"
+
+msgid "connected"
+msgstr "verbonden"
+
+msgid "counted by DriveDeck since {date}"
+msgstr "geteld door DriveDeck sinds {date}"
+
 msgid "day"
 msgstr "dag"
 
 msgid "days"
 msgstr "dagen"
 
+msgid "disabled"
+msgstr "uitgeschakeld"
+
 msgid "driver {name}"
 msgstr "stuurprogramma {name}"
+
+msgid "empty"
+msgstr "leeg"
+
+msgid "enabled"
+msgstr "ingeschakeld"
+
+msgid "fancontrol active"
+msgstr "fancontrol actief"
 
 msgid "file manager"
 msgstr "bestandsbeheerder"
@@ -937,11 +1336,23 @@ msgstr "bestandsbeheerder"
 msgid "filled in from the list, or type it"
 msgstr "ingevuld via de lijst, of zelf typen"
 
+msgid "full duplex"
+msgstr "volledig duplex"
+
 msgid "gdbus not found or timed out."
 msgstr "gdbus niet gevonden of time-out."
 
+msgid "half duplex"
+msgstr "half duplex"
+
 msgid "limit {n} %"
 msgstr "limiet {n} %"
+
+msgid "max."
+msgstr "max."
+
+msgid "min {min} · max {max}"
+msgstr "min {min} · max {max}"
 
 msgid "needs administrator rights"
 msgstr "vereist beheerdersrechten"
@@ -949,14 +1360,44 @@ msgstr "vereist beheerdersrechten"
 msgid "needs administrator rights – use the button below"
 msgstr "vereist beheerdersrechten – gebruik de knop hieronder"
 
+msgid "none"
+msgstr "geen"
+
+msgid "not exposed by the driver"
+msgstr "niet gemeld door het stuurprogramma"
+
+msgid "not exposed by the kernel"
+msgstr "niet gemeld door de kernel"
+
+msgid "off"
+msgstr "uit"
+
+msgid "on"
+msgstr "aan"
+
 msgid "only for “List”, never saved"
 msgstr "alleen voor ‘Weergeven’, wordt nooit opgeslagen"
+
+msgid "port {port}"
+msgstr "poort {port}"
+
+msgid "rank {n}"
+msgstr "rank {n}"
 
 msgid "running…"
 msgstr "actief…"
 
 msgid "unknown error"
 msgstr "onbekende fout"
+
+msgid "used by {list}"
+msgstr "gebruikt door {list}"
+
+msgid "version {v}"
+msgstr "versie {v}"
+
+msgid "vnstat since {date}"
+msgstr "vnstat sinds {date}"
 
 msgid "{cores} cores / {threads} threads"
 msgstr "{cores} kernen / {threads} threads"
@@ -979,6 +1420,21 @@ msgstr "{label} is bijna vol"
 msgid "{label} was unmounted but could not be powered off:\n{detail}\n\nYou can still unplug it."
 msgstr "{label} is ontkoppeld, maar kon niet worden uitgeschakeld:\n{detail}\n\nU kunt het toch loskoppelen."
 
+msgid "{link} – idle power state may lower it"
+msgstr "{link} – energiebesparing kan deze verlagen"
+
+msgid "{mode} (preferred mode)"
+msgstr "{mode} (voorkeursmodus)"
+
+msgid "{name} (Ethernet)"
+msgstr "{name} (Ethernet)"
+
+msgid "{name} (Wi-Fi)"
+msgstr "{name} (wifi)"
+
+msgid "{name} (modules)"
+msgstr "{name} (modules)"
+
 msgid "{n} items"
 msgstr "{n} items"
 
@@ -987,6 +1443,18 @@ msgstr "{n} updates"
 
 msgid "{share} on {host}"
 msgstr "{share} op {host}"
+
+msgid "{socket} (derived from the CPU family)"
+msgstr "{socket} (afgeleid van de CPU-familie)"
+
+msgid "{socket} (derived from the {chipset} chipset)"
+msgstr "{socket} (afgeleid van de {chipset}-chipset)"
+
+msgid "{speed} (running {clock})"
+msgstr "{speed} (draait op {clock})"
+
+msgid "{type} (from the model name)"
+msgstr "{type} (uit de modelnaam)"
 
 msgid "{used} in use ({pct} %)"
 msgstr "{used} in gebruik ({pct} %)"

@@ -19,6 +19,12 @@ msgstr "Форк сообщества приложения Fenestra «Этот �
 msgid "ADF duplex"
 msgstr "АПД, двусторонний"
 
+msgid "AGESA / firmware"
+msgstr "AGESA / прошивка"
+
+msgid "ALSA kernel driver"
+msgstr "Драйвер ядра ALSA"
+
 msgid "About"
 msgstr "О программе"
 
@@ -28,8 +34,14 @@ msgstr "О DriveDeck"
 msgid "Actions & tools"
 msgstr "Действия и инструменты"
 
+msgid "Active connection"
+msgstr "Активное подключение"
+
 msgid "Activity"
 msgstr "Активность"
+
+msgid "Adapter {slot}"
+msgstr "Адаптер {slot}"
 
 msgid "Add a network location"
 msgstr "Добавить сетевое расположение"
@@ -52,17 +64,47 @@ msgstr "Внешний вид"
 msgid "Application name:"
 msgstr "Название приложения:"
 
+msgid "Architecture"
+msgstr "Архитектура"
+
+msgid "Audio subsystem"
+msgstr "Звуковая подсистема"
+
+msgid "Audio, input and USB"
+msgstr "Звук, ввод и USB"
+
 msgid "Author: {author}"
 msgstr "Автор: {author}"
 
 msgid "Available"
 msgstr "Доступно"
 
+msgid "Available governors"
+msgstr "Доступные регуляторы"
+
+msgid "Available modules"
+msgstr "Доступные модули"
+
+msgid "BIOS / UEFI"
+msgstr "BIOS / UEFI"
+
+msgid "BIOS automatic"
+msgstr "Автоматика BIOS"
+
 msgid "Bad sectors"
 msgstr "Повреждённые секторы"
 
 msgid "Black"
 msgstr "Чёрный"
+
+msgid "Boost"
+msgstr "Boost"
+
+msgid "Boot mode"
+msgstr "Режим загрузки"
+
+msgid "Build"
+msgstr "Сборка"
 
 msgid "Built-in"
 msgstr "Встроенное"
@@ -72,6 +114,9 @@ msgstr "CD/DVD-дисковод"
 
 msgid "CPU & Board"
 msgstr "Процессор и плата"
+
+msgid "Cache"
+msgstr "Кэш"
 
 msgid "Cannot add"
 msgstr "Не удаётся добавить"
@@ -124,17 +169,38 @@ msgstr "Не удалось отмонтировать"
 msgid "Capacity: {size}"
 msgstr "Ёмкость: {size}"
 
+msgid "Categories"
+msgstr "Категории"
+
+msgid "Chassis type"
+msgstr "Тип корпуса"
+
 msgid "Check for a new version once a week"
 msgstr "Проверять наличие новой версии раз в неделю"
 
+msgid "Chipset (from the model name)"
+msgstr "Чипсет (по названию модели)"
+
 msgid "Choose a share…"
 msgstr "Выберите общий ресурс…"
+
+msgid "Click to copy"
+msgstr "Нажмите, чтобы скопировать"
 
 msgid "Close"
 msgstr "Закрыть"
 
 msgid "Command bar icons: Fluent UI System Icons, © Microsoft Corporation, MIT license."
 msgstr "Значки панели команд: Fluent UI System Icons, © Microsoft Corporation, лицензия MIT."
+
+msgid "Compatibility"
+msgstr "Совместимость"
+
+msgid "Compiler"
+msgstr "Компилятор"
+
+msgid "Compositor"
+msgstr "Композитор"
 
 msgid "Connected"
 msgstr "Подключено"
@@ -160,6 +226,9 @@ msgstr "Копировать путь"
 msgid "Copy specs"
 msgstr "Копировать характеристики"
 
+msgid "Core profile"
+msgstr "Профиль core"
+
 msgid "Could not save the list:\n{error}"
 msgstr "Не удалось сохранить список:\n{error}"
 
@@ -184,14 +253,26 @@ msgstr "Изменить название приложения (например
 msgid "Cyan"
 msgstr "Голубой"
 
+msgid "DNS servers"
+msgstr "DNS-серверы"
+
 msgid "Data read"
 msgstr "Прочитано"
+
+msgid "Data usage"
+msgstr "Расход трафика"
 
 msgid "Data written"
 msgstr "Записано"
 
+msgid "Date"
+msgstr "Дата"
+
 msgid "Default"
 msgstr "По умолчанию"
+
+msgid "Default gateway"
+msgstr "Основной шлюз"
 
 msgid "Desktop"
 msgstr "Рабочий стол"
@@ -226,14 +307,26 @@ msgstr "Диск неисправен – сохраните свои файлы
 msgid "Display name (optional):"
 msgstr "Отображаемое имя (необязательно):"
 
+msgid "Display server"
+msgstr "Графический сервер"
+
+msgid "Distribution"
+msgstr "Дистрибутив"
+
 msgid "Documents"
 msgstr "Документы"
+
+msgid "Download"
+msgstr "Загрузка"
 
 msgid "Downloads"
 msgstr "Загрузки"
 
 msgid "Drag folders here to pin them"
 msgstr "Перетащите сюда папки, чтобы закрепить их"
+
+msgid "Drive"
+msgstr "Диск"
 
 msgid "Drive failing: {label}"
 msgstr "Диск выходит из строя: {label}"
@@ -247,11 +340,35 @@ msgstr "Извлечь"
 msgid "Empty"
 msgstr "Пусто"
 
+msgid "Energy performance preference"
+msgstr "Предпочтение энергия/производительность"
+
+msgid "Error correction"
+msgstr "Коррекция ошибок"
+
 msgid "Export full report…"
 msgstr "Экспортировать полный отчёт…"
 
 msgid "Failed"
 msgstr "Сбой"
+
+msgid "Family"
+msgstr "Семейство"
+
+msgid "Family / Model / Stepping"
+msgstr "Семейство / модель / степпинг"
+
+msgid "Fan"
+msgstr "Вентилятор"
+
+msgid "Fan control"
+msgstr "Управление вентиляторами"
+
+msgid "Fan {n}"
+msgstr "Вентилятор {n}"
+
+msgid "Fans"
+msgstr "Вентиляторы"
 
 msgid "File system"
 msgstr "Файловая система"
@@ -292,11 +409,17 @@ msgstr "GPL-3.0 или более поздняя"
 msgid "GPU & Display"
 msgstr "Графика и дисплей"
 
+msgid "GPU core"
+msgstr "Ядро GPU"
+
 msgid "Game controller"
 msgstr "Игровой контроллер"
 
 msgid "Good"
 msgstr "Хорошее"
+
+msgid "Governor"
+msgstr "Регулятор"
 
 msgid "Graphics"
 msgstr "Графика"
@@ -313,6 +436,12 @@ msgstr "Серый"
 msgid "Health"
 msgstr "Состояние"
 
+msgid "IPv4 address"
+msgstr "Адрес IPv4"
+
+msgid "IPv6 address"
+msgstr "Адрес IPv6"
+
 msgid "Incorrect username or password."
 msgstr "Неверное имя пользователя или пароль."
 
@@ -322,8 +451,23 @@ msgstr "Уровень чернил"
 msgid "Installed"
 msgstr "Установлено"
 
+msgid "Installed (usable)"
+msgstr "Установлено (доступно)"
+
+msgid "Instance version"
+msgstr "Версия экземпляра"
+
+msgid "Instruction sets"
+msgstr "Наборы инструкций"
+
 msgid "Insufficient rights"
 msgstr "Недостаточно прав"
+
+msgid "Interface"
+msgstr "Интерфейс"
+
+msgid "Interfaces"
+msgstr "Интерфейсы"
 
 msgid "JSON report"
 msgstr "Отчёт JSON"
@@ -331,8 +475,20 @@ msgstr "Отчёт JSON"
 msgid "KWallet could not save the password: the gauge will not be shown."
 msgstr "KWallet не смог сохранить пароль: шкала свободного места не будет показана."
 
+msgid "Kernel driver"
+msgstr "Драйвер ядра"
+
+msgid "Kernel module"
+msgstr "Модуль ядра"
+
 msgid "Keyboard"
 msgstr "Клавиатура"
+
+msgid "L1 data"
+msgstr "L1 данных"
+
+msgid "L1 instruction"
+msgstr "L1 инструкций"
 
 msgid "License: {license}"
 msgstr "Лицензия: {license}"
@@ -346,8 +502,17 @@ msgstr "Светло-серый"
 msgid "Light magenta"
 msgstr "Светло-пурпурный"
 
+msgid "Link speed"
+msgstr "Скорость соединения"
+
+msgid "Liquid cooler"
+msgstr "Жидкостное охлаждение"
+
 msgid "List"
 msgstr "Показать"
+
+msgid "Loaded modules"
+msgstr "Загруженные модули"
 
 msgid "Local Disk"
 msgstr "Локальный диск"
@@ -355,14 +520,38 @@ msgstr "Локальный диск"
 msgid "Location unavailable"
 msgstr "Расположение недоступно"
 
+msgid "Logical CPUs"
+msgstr "Логические процессоры"
+
+msgid "MAC address"
+msgstr "MAC-адрес"
+
 msgid "Magenta"
 msgstr "Пурпурный"
 
 msgid "Mainboard"
 msgstr "Материнская плата"
 
+msgid "Manual · {p}"
+msgstr "Вручную · {p}"
+
+msgid "Manufacturer"
+msgstr "Производитель"
+
 msgid "Matte black"
 msgstr "Матовый чёрный"
+
+msgid "Max. GPU clock"
+msgstr "Макс. частота GPU"
+
+msgid "Max. capacity"
+msgstr "Макс. объём"
+
+msgid "Max. clock"
+msgstr "Макс. частота"
+
+msgid "Max. memory clock"
+msgstr "Макс. частота памяти"
 
 msgid "Maximize"
 msgstr "Развернуть"
@@ -376,8 +565,26 @@ msgstr "Сообщено об ошибках носителя"
 msgid "Memory"
 msgstr "Память"
 
+msgid "Memory controller"
+msgstr "Контроллер памяти"
+
+msgid "Memory modules"
+msgstr "Модули памяти"
+
+msgid "Microcode"
+msgstr "Микрокод"
+
+msgid "Min. clock"
+msgstr "Мин. частота"
+
 msgid "Minimize"
 msgstr "Свернуть"
+
+msgid "Model"
+msgstr "Модель"
+
+msgid "Module {n}"
+msgstr "Модуль {n}"
 
 msgid "Mount"
 msgstr "Смонтировать"
@@ -406,6 +613,12 @@ msgstr "Музыка"
 msgid "My NAS"
 msgstr "Мой NAS"
 
+msgid "NVMe controller {slot}"
+msgstr "Контроллер NVMe {slot}"
+
+msgid "NVMe drive"
+msgstr "Диск NVMe"
+
 msgid "Name shown in the title bar and as the heading of the drive list. Leave empty for the default names."
 msgstr "Название в заголовке окна и над списком дисков. Оставьте пустым, чтобы использовать названия по умолчанию."
 
@@ -420,6 +633,9 @@ msgstr "Не удалось обратиться ни к «notify-send», ни �
 
 msgid "Network"
 msgstr "Сеть"
+
+msgid "Network adapter"
+msgstr "Сетевой адаптер"
 
 msgid "Network location"
 msgstr "Сетевое расположение"
@@ -436,11 +652,17 @@ msgstr "Нет диска"
 msgid "No information available."
 msgstr "Нет доступной информации."
 
+msgid "No matches"
+msgstr "Ничего не найдено"
+
 msgid "No scanning program was found on this computer. Please install “skanpage” or “simple-scan”."
 msgstr "На этом компьютере не найдена программа для сканирования. Установите «skanpage» или «simple-scan»."
 
 msgid "No share visible with these credentials."
 msgstr "С этими учётными данными общие ресурсы не видны."
+
+msgid "No temperature or fan sensors were found. The sensor drivers of the mainboard may need to be loaded (for example with “sensors-detect”)."
+msgstr "Датчики температуры и вентиляторов не найдены. Возможно, нужно загрузить драйверы датчиков материнской платы (например, с помощью «sensors-detect»)."
 
 msgid "No terminal program found"
 msgstr "Программа терминала не найдена"
@@ -481,8 +703,23 @@ msgstr "Открыть настройки"
 msgid "Open with {app}"
 msgstr "Открыть в {app}"
 
+msgid "Operating system"
+msgstr "Операционная система"
+
+msgid "Outputs"
+msgstr "Выходы"
+
 msgid "Overview"
 msgstr "Обзор"
+
+msgid "PCIe link"
+msgstr "Канал PCIe"
+
+msgid "PCIe link (max.)"
+msgstr "Канал PCIe (макс.)"
+
+msgid "PCIe link (now)"
+msgstr "Канал PCIe (сейчас)"
 
 msgid "Partial eject"
 msgstr "Частичное извлечение"
@@ -517,6 +754,12 @@ msgstr "Закрепить в быстром доступе"
 msgid "Power cycles"
 msgstr "Циклы включения"
 
+msgid "Power limit"
+msgstr "Предел мощности"
+
+msgid "Power management"
+msgstr "Управление питанием"
+
 msgid "Power-on time"
 msgstr "Время работы диска"
 
@@ -538,6 +781,9 @@ msgstr "Печать"
 msgid "Processor"
 msgstr "Процессор"
 
+msgid "Product"
+msgstr "Продукт"
+
 msgid "Program not found"
 msgstr "Программа не найдена"
 
@@ -546,6 +792,9 @@ msgstr "Свойства"
 
 msgid "Properties of {name}"
 msgstr "Свойства: {name}"
+
+msgid "Pulse server"
+msgstr "Сервер Pulse"
 
 msgid "Quick access"
 msgstr "Быстрый доступ"
@@ -577,6 +826,9 @@ msgstr "Время чтения SMART истекло."
 msgid "Reading hardware…"
 msgstr "Чтение сведений об оборудовании…"
 
+msgid "Reading sensors…"
+msgstr "Чтение датчиков…"
+
 msgid "Ready"
 msgstr "Готов"
 
@@ -588,6 +840,9 @@ msgstr "Красный индикатор и символ ⚠ при таком 
 
 msgid "Refresh"
 msgstr "Обновить"
+
+msgid "Release"
+msgstr "Выпуск"
 
 msgid "Remember the password (KWallet) to show the free space"
 msgstr "Запомнить пароль (KWallet), чтобы показывать свободное место"
@@ -619,6 +874,9 @@ msgstr "Переименовать…"
 msgid "Renaming is not supported for this format ({fstype})."
 msgstr "Переименование не поддерживается для этого формата ({fstype})."
 
+msgid "Renderer"
+msgstr "Рендерер"
+
 msgid "Report saved"
 msgstr "Отчёт сохранён"
 
@@ -631,8 +889,26 @@ msgstr "Сбросить название"
 msgid "Restore"
 msgstr "Восстановить"
 
+msgid "Right now"
+msgstr "Сейчас"
+
 msgid "Running"
 msgstr "Выполняется"
+
+msgid "Running at"
+msgstr "Работает на"
+
+msgid "SATA and RAID controllers"
+msgstr "Контроллеры SATA и RAID"
+
+msgid "SATA drive"
+msgstr "Диск SATA"
+
+msgid "SATA link {n}"
+msgstr "Канал SATA {n}"
+
+msgid "SATA links"
+msgstr "Каналы SATA"
 
 msgid "SMART health"
 msgstr "Состояние SMART"
@@ -655,11 +931,23 @@ msgstr "Сбой оптимизации SSD"
 msgid "Safely remove"
 msgstr "Безопасно извлечь"
 
+msgid "Scaling driver"
+msgstr "Драйвер частоты"
+
+msgid "Scaling range"
+msgstr "Диапазон частот"
+
 msgid "Scanner"
 msgstr "Сканер"
 
 msgid "Scan…"
 msgstr "Сканировать…"
+
+msgid "Search (Ctrl+F)"
+msgstr "Поиск (Ctrl+F)"
+
+msgid "Search results"
+msgstr "Результаты поиска"
 
 msgid "Searching…"
 msgstr "Поиск…"
@@ -673,11 +961,17 @@ msgstr "Самотест не пройден"
 msgid "Send test notification"
 msgstr "Отправить тестовое уведомление"
 
+msgid "Sensors & fans"
+msgstr "Датчики и вентиляторы"
+
 msgid "Server address:"
 msgstr "Адрес сервера:"
 
 msgid "Server unreachable. Check the address and that the server is turned on."
 msgstr "Сервер недоступен. Проверьте адрес и убедитесь, что сервер включён."
+
+msgid "Session type"
+msgstr "Тип сеанса"
 
 msgid "Set as default printer"
 msgstr "Использовать по умолчанию"
@@ -709,14 +1003,35 @@ msgstr "Признаки износа – см. Свойства"
 msgid "Size"
 msgstr "Размер"
 
+msgid "Slots"
+msgstr "Слоты"
+
+msgid "Slots, type, speed, manufacturer"
+msgstr "Слоты, тип, скорость, производитель"
+
+msgid "Socket"
+msgstr "Сокет"
+
+msgid "Sockets · cores per socket · threads per core"
+msgstr "Сокеты · ядер на сокет · потоков на ядро"
+
 msgid "Sound"
 msgstr "Звук"
+
+msgid "Sound card {n}"
+msgstr "Звуковая карта {n}"
+
+msgid "Source"
+msgstr "Источник"
 
 msgid "Spare"
 msgstr "Резерв"
 
 msgid "Spare capacity below the limit"
 msgstr "Резерв ниже порога"
+
+msgid "Speed"
+msgstr "Скорость"
 
 msgid "Status"
 msgstr "Состояние"
@@ -727,8 +1042,20 @@ msgstr "Состояние:"
 msgid "Storage"
 msgstr "Хранилище"
 
+msgid "Storage & buses"
+msgstr "Накопители и шины"
+
 msgid "Storage I/O"
 msgstr "Ввод-вывод дисков"
+
+msgid "Storage and filesystems"
+msgstr "Хранилище и файловые системы"
+
+msgid "Subsystem"
+msgstr "Подсистема"
+
+msgid "Swap"
+msgstr "Подкачка"
 
 msgid "System"
 msgstr "Система"
@@ -763,8 +1090,14 @@ msgstr "Температура"
 msgid "Temperature warning"
 msgstr "Предупреждение о температуре"
 
+msgid "Temperature {n}"
+msgstr "Температура {n}"
+
 msgid "Temperature:"
 msgstr "Температура:"
+
+msgid "Temperatures"
+msgstr "Температуры"
 
 msgid "Terminal"
 msgstr "Терминал"
@@ -832,14 +1165,29 @@ msgstr "Для этого диска нужен smartctl с паролем ад�
 msgid "This location already exists in the list."
 msgstr "Это расположение уже есть в списке."
 
+msgid "This month"
+msgstr "Этот месяц"
+
 msgid "This printer does not report ink levels"
 msgstr "Этот принтер не сообщает уровень чернил"
+
+msgid "This session (since boot)"
+msgstr "Этот сеанс (с запуска системы)"
 
 msgid "This software is neither affiliated with nor endorsed by Microsoft Corporation. Windows is a trademark of Microsoft Corporation."
 msgstr "Это программное обеспечение не связано с корпорацией Microsoft и не одобрено ею. Windows является товарным знаком корпорации Microsoft."
 
+msgid "This week"
+msgstr "Эта неделя"
+
+msgid "Today"
+msgstr "Сегодня"
+
 msgid "Toggle inspector"
 msgstr "Показать или скрыть инспектор"
+
+msgid "Total"
+msgstr "Всего"
 
 msgid "Touchpad"
 msgstr "Сенсорная панель"
@@ -847,11 +1195,26 @@ msgstr "Сенсорная панель"
 msgid "Trash"
 msgstr "Корзина"
 
+msgid "Type"
+msgstr "Тип"
+
 msgid "Type the password to be able to remember it."
 msgstr "Введите пароль, чтобы его можно было запомнить."
 
 msgid "Type:"
 msgstr "Тип:"
+
+msgid "UEFI · Secure Boot off"
+msgstr "UEFI · Secure Boot выкл."
+
+msgid "UEFI · Secure Boot on"
+msgstr "UEFI · Secure Boot вкл."
+
+msgid "USB devices"
+msgstr "USB-устройства"
+
+msgid "USB host controllers"
+msgstr "Хост-контроллеры USB"
 
 msgid "Uncorrectable sectors"
 msgstr "Неисправимые секторы"
@@ -874,6 +1237,9 @@ msgstr "Небезопасные выключения"
 msgid "Up to date"
 msgstr "Актуально"
 
+msgid "Upload"
+msgstr "Отдача"
+
 msgid "Uptime"
 msgstr "Время работы"
 
@@ -886,6 +1252,15 @@ msgstr "Занято: {size}"
 msgid "Username (required):"
 msgstr "Имя пользователя (обязательно):"
 
+msgid "VRAM type"
+msgstr "Тип VRAM"
+
+msgid "Vendor"
+msgstr "Производитель"
+
+msgid "Version"
+msgstr "Версия"
+
 msgid "Version {version} of DriveDeck is available. To update, download it and run ./install.sh again."
 msgstr "Доступна версия {version} программы «DriveDeck». Чтобы обновить, скачайте её и снова запустите ./install.sh."
 
@@ -897,6 +1272,9 @@ msgstr "Видео"
 
 msgid "View"
 msgstr "Открыть"
+
+msgid "Virtualization"
+msgstr "Виртуализация"
 
 msgid "Volume name"
 msgstr "Имя тома"
@@ -922,14 +1300,35 @@ msgstr "Запись"
 msgid "Yellow"
 msgstr "Жёлтый"
 
+msgid "built into the kernel"
+msgstr "встроен в ядро"
+
+msgid "connected"
+msgstr "подключено"
+
+msgid "counted by DriveDeck since {date}"
+msgstr "подсчитано DriveDeck с {date}"
+
 msgid "day"
 msgstr "день"
 
 msgid "days"
 msgstr "дн."
 
+msgid "disabled"
+msgstr "выключено"
+
 msgid "driver {name}"
 msgstr "драйвер {name}"
+
+msgid "empty"
+msgstr "пусто"
+
+msgid "enabled"
+msgstr "включено"
+
+msgid "fancontrol active"
+msgstr "fancontrol активен"
 
 msgid "file manager"
 msgstr "файловый менеджер"
@@ -937,11 +1336,23 @@ msgstr "файловый менеджер"
 msgid "filled in from the list, or type it"
 msgstr "заполняется из списка или вводится вручную"
 
+msgid "full duplex"
+msgstr "полный дуплекс"
+
 msgid "gdbus not found or timed out."
 msgstr "gdbus не найден или превышено время ожидания."
 
+msgid "half duplex"
+msgstr "полудуплекс"
+
 msgid "limit {n} %"
 msgstr "порог {n} %"
+
+msgid "max."
+msgstr "макс."
+
+msgid "min {min} · max {max}"
+msgstr "мин {min} · макс {max}"
 
 msgid "needs administrator rights"
 msgstr "нужны права администратора"
@@ -949,14 +1360,44 @@ msgstr "нужны права администратора"
 msgid "needs administrator rights – use the button below"
 msgstr "нужны права администратора – используйте кнопку ниже"
 
+msgid "none"
+msgstr "нет"
+
+msgid "not exposed by the driver"
+msgstr "драйвер не сообщает"
+
+msgid "not exposed by the kernel"
+msgstr "ядро не сообщает"
+
+msgid "off"
+msgstr "выкл."
+
+msgid "on"
+msgstr "вкл."
+
 msgid "only for “List”, never saved"
 msgstr "только для «Показать», нигде не сохраняется"
+
+msgid "port {port}"
+msgstr "порт {port}"
+
+msgid "rank {n}"
+msgstr "ранг {n}"
 
 msgid "running…"
 msgstr "выполняется…"
 
 msgid "unknown error"
 msgstr "неизвестная ошибка"
+
+msgid "used by {list}"
+msgstr "используется {list}"
+
+msgid "version {v}"
+msgstr "версия {v}"
+
+msgid "vnstat since {date}"
+msgstr "vnstat с {date}"
 
 msgid "{cores} cores / {threads} threads"
 msgstr "ядер: {cores} / потоков: {threads}"
@@ -979,6 +1420,21 @@ msgstr "{label} почти заполнен"
 msgid "{label} was unmounted but could not be powered off:\n{detail}\n\nYou can still unplug it."
 msgstr "{label} размонтирован, но его не удалось отключить от питания:\n{detail}\n\nВы всё равно можете его отсоединить."
 
+msgid "{link} – idle power state may lower it"
+msgstr "{link} – режим энергосбережения может её снижать"
+
+msgid "{mode} (preferred mode)"
+msgstr "{mode} (предпочтительный режим)"
+
+msgid "{name} (Ethernet)"
+msgstr "{name} (Ethernet)"
+
+msgid "{name} (Wi-Fi)"
+msgstr "{name} (Wi-Fi)"
+
+msgid "{name} (modules)"
+msgstr "{name} (модули)"
+
 msgid "{n} items"
 msgstr "{n} эл."
 
@@ -987,6 +1443,18 @@ msgstr "Обновлений: {n}"
 
 msgid "{share} on {host}"
 msgstr "{share} на {host}"
+
+msgid "{socket} (derived from the CPU family)"
+msgstr "{socket} (по семейству процессора)"
+
+msgid "{socket} (derived from the {chipset} chipset)"
+msgstr "{socket} (по чипсету {chipset})"
+
+msgid "{speed} (running {clock})"
+msgstr "{speed} (работает на {clock})"
+
+msgid "{type} (from the model name)"
+msgstr "{type} (по названию модели)"
 
 msgid "{used} in use ({pct} %)"
 msgstr "занято {used} ({pct} %)"

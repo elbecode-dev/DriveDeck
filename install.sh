@@ -6,6 +6,7 @@
 #   ./install.sh --no-desktop-icon install without the desktop shortcut
 #   ./install.sh --no-deps         do not install system packages (only report what is missing)
 #   ./install.sh --yes             install missing packages without asking
+#   ./install.sh --no-extras       do not offer the optional extras (vnstat, lm_sensors) at the end
 set -euo pipefail
 
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -16,16 +17,19 @@ APPS="$HOME/.local/share/applications"
 DESKTOP_ICON=1
 DEPS=1
 ASSUME_YES=0
+EXTRAS=1
 for arg in "$@"; do
     case "$arg" in
         --no-desktop-icon) DESKTOP_ICON=0 ;;
         --no-deps)         DEPS=0 ;;
         --yes|-y)          ASSUME_YES=1 ;;
+        --no-extras)       EXTRAS=0 ;;
         -h|--help)
-            echo "Usage: ./install.sh [--no-desktop-icon] [--no-deps] [--yes]"
+            echo "Usage: ./install.sh [--no-desktop-icon] [--no-deps] [--yes] [--no-extras]"
             echo "  --no-desktop-icon  install without the desktop shortcut"
             echo "  --no-deps          do not install system packages (only report what is missing)"
             echo "  --yes, -y          install missing packages without asking"
+            echo "  --no-extras        do not offer the optional extras at the end (vnstat, lm_sensors)"
             exit 0 ;;
         *) echo "Unknown option: $arg (see ./install.sh --help)"; exit 1 ;;
     esac
@@ -189,7 +193,7 @@ pyqt_diagnose() {
     done
     if [ -n "$files" ] && [ "$ok" = 0 ]; then
         echo "  Python $(python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])' 2>/dev/null || echo 3) only loads modules ending in: $suffixes"
-        echo "  but the PyQt6 files are named: $(echo $files | tr '\n' ' ')"
+        echo "  but the PyQt6 files are named: $(echo "$files" | tr '\n' ' ')"
         echo "  They probably come from another source (third-party repository or a manual build). Reinstall PyQt6 from"
         echo "  your distribution, for example:"
         case "$PM" in
@@ -265,3 +269,89 @@ echo "Done. Open \"DriveDeck\" from the application menu or the desktop shortcut
 echo "If DriveDeck is already running, close it first, otherwise the old version stays open."
 echo "Tip: disk temperatures of SATA drives need the kernel module once:  sudo modprobe drivetemp"
 echo "To update later: download the new version (or git pull) and run this script again (your settings are kept)."
+
+# ---- optional extras : only when asked, only in a terminal, always "no" unless you type y ---------------------------------
+# vnstat keeps network statistics across reboots (DriveDeck's data usage then comes from it); lm_sensors finds more
+# mainboard and memory sensors. Neither is needed : DriveDeck counts data usage itself and reads every sensor the kernel has.
+ask_extra() {   # ask_extra "question" : yes only when you answer y/j ; Enter, anything else or no terminal = no
+    local a; read -r -p "$1 [y/N] " a || return 1
+    case "$a" in [yYjJ]*) return 0 ;; *) return 1 ;; esac
+}
+extra_pkg() {   # extra_pkg pacman dnf apt zypper : the package name for this system's package manager
+    if command -v pacman >/dev/null; then echo "$1"
+    elif command -v dnf >/dev/null; then echo "$2"
+    elif command -v apt-get >/dev/null; then echo "$3"
+    elif command -v zypper >/dev/null; then echo "$4"
+    fi
+}
+install_extra() {   # install_extra package
+    if command -v pacman >/dev/null; then run_root pacman -S --needed --noconfirm "$1"
+    elif command -v dnf >/dev/null; then run_root dnf install -y "$1"
+    elif command -v apt-get >/dev/null; then run_root apt-get install -y "$1"
+    elif command -v zypper >/dev/null; then run_root zypper --non-interactive install "$1"
+    else return 1
+    fi
+}
+if [ "$EXTRAS" = 1 ] && [ "$DEPS" = 1 ] && [ -t 0 ] && [ -t 1 ] && { [ "$(id -u)" = 0 ] || command -v sudo >/dev/null; } \
+        && [ -n "$(extra_pkg x x x x)" ]; then
+    offered=0
+    if ! command -v vnstat >/dev/null; then
+        offered=1
+        echo
+        echo "Optional: vnstat keeps network statistics across reboots. DriveDeck then takes today, this week and this month"
+        echo "from it (otherwise DriveDeck counts the data usage itself while the computer runs)."
+        if ask_extra "Install and enable vnstat (sudo asks for your password)?"; then
+            if install_extra "$(extra_pkg vnstat vnstat vnstat vnstat)" && command -v vnstat >/dev/null; then
+                if command -v systemctl >/dev/null && run_root systemctl enable --now vnstat >/dev/null 2>&1; then
+                    echo "  vnstat service enabled"
+                else
+                    echo "  could not enable the vnstat service: run  sudo systemctl enable --now vnstat"
+                fi
+                iface="$( { ip -o -4 route show to default 2>/dev/null || true; } | awk '{print $5}' | head -n 1)"
+                if [ -n "$iface" ]; then
+                    # the service creates its database on its first start : wait for it (at most 5 s) before adding
+                    for _ in 1 2 3 4 5; do vnstat --dbiflist 1 >/dev/null 2>&1 && break; sleep 1; done
+                    if vnstat --dbiflist 1 2>/dev/null | grep -qx "$iface"; then
+                        echo "  vnstat already watches $iface"
+                    elif run_root vnstat --add -i "$iface" >/dev/null 2>&1; then
+                        echo "  vnstat now watches $iface (the first numbers appear within a few minutes)"
+                    else
+                        echo "  could not add $iface: run  sudo vnstat --add -i $iface"
+                    fi
+                else
+                    echo "  no default route found: vnstat watches every interface it finds by itself"
+                fi
+            else
+                echo "  vnstat could not be installed (DriveDeck keeps counting by itself)"
+            fi
+        else
+            echo "  Skipped."
+        fi
+    fi
+    if ! command -v sensors >/dev/null; then
+        offered=1
+        echo
+        echo "Optional: lm_sensors detects the sensor chips of many mainboards and memory modules, so DriveDeck can show"
+        echo "more temperatures and fan speeds."
+        if ask_extra "Install lm_sensors and detect the sensors (sudo asks for your password)?"; then
+            if install_extra "$(extra_pkg lm_sensors lm_sensors lm-sensors sensors)" && command -v sensors-detect >/dev/null; then
+                if run_root sensors-detect --auto >/dev/null 2>&1; then
+                    echo "  sensors detected; new drivers are loaded at the next restart at the latest"
+                else
+                    echo "  sensors-detect did not finish: run  sudo sensors-detect"
+                fi
+            else
+                echo "  lm_sensors could not be installed"
+            fi
+        else
+            echo "  Skipped."
+        fi
+    fi
+    if [ "$offered" = 1 ]; then echo; fi
+    # never set up automatically : a fan curve depends on your hardware
+    if ! { command -v systemctl >/dev/null && systemctl is-active --quiet fancontrol 2>/dev/null; }; then
+        echo "Fan curves: DriveDeck shows whether the BIOS or fancontrol controls the fans and offers simple presets."
+        echo "For your own curve, run  sudo pwmconfig  once and then  sudo systemctl enable --now fancontrol"
+        echo "(both come with lm_sensors; on Debian and Ubuntu install the fancontrol package)."
+    fi
+fi

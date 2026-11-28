@@ -19,6 +19,12 @@ msgstr "Un fork comunitario de Fenestra «Este equipo» de naykkalak: tus carpet
 msgid "ADF duplex"
 msgstr "ADF a doble cara"
 
+msgid "AGESA / firmware"
+msgstr "AGESA / firmware"
+
+msgid "ALSA kernel driver"
+msgstr "Controlador del kernel ALSA"
+
 msgid "About"
 msgstr "Acerca de"
 
@@ -28,8 +34,14 @@ msgstr "Acerca de DriveDeck"
 msgid "Actions & tools"
 msgstr "Acciones y herramientas"
 
+msgid "Active connection"
+msgstr "Conexión activa"
+
 msgid "Activity"
 msgstr "Actividad"
+
+msgid "Adapter {slot}"
+msgstr "Adaptador {slot}"
 
 msgid "Add a network location"
 msgstr "Agregar una ubicación de red"
@@ -52,17 +64,47 @@ msgstr "Apariencia"
 msgid "Application name:"
 msgstr "Nombre de la aplicación:"
 
+msgid "Architecture"
+msgstr "Arquitectura"
+
+msgid "Audio subsystem"
+msgstr "Subsistema de audio"
+
+msgid "Audio, input and USB"
+msgstr "Audio, entrada y USB"
+
 msgid "Author: {author}"
 msgstr "Autor: {author}"
 
 msgid "Available"
 msgstr "Disponible"
 
+msgid "Available governors"
+msgstr "Gobernadores disponibles"
+
+msgid "Available modules"
+msgstr "Módulos disponibles"
+
+msgid "BIOS / UEFI"
+msgstr "BIOS / UEFI"
+
+msgid "BIOS automatic"
+msgstr "Automático (BIOS)"
+
 msgid "Bad sectors"
 msgstr "Sectores defectuosos"
 
 msgid "Black"
 msgstr "Negro"
+
+msgid "Boost"
+msgstr "Boost"
+
+msgid "Boot mode"
+msgstr "Modo de arranque"
+
+msgid "Build"
+msgstr "Compilación"
 
 msgid "Built-in"
 msgstr "Integrado"
@@ -72,6 +114,9 @@ msgstr "Unidad de CD/DVD"
 
 msgid "CPU & Board"
 msgstr "CPU y placa base"
+
+msgid "Cache"
+msgstr "Caché"
 
 msgid "Cannot add"
 msgstr "No se puede agregar"
@@ -124,17 +169,38 @@ msgstr "No se puede desmontar"
 msgid "Capacity: {size}"
 msgstr "Capacidad: {size}"
 
+msgid "Categories"
+msgstr "Categorías"
+
+msgid "Chassis type"
+msgstr "Tipo de chasis"
+
 msgid "Check for a new version once a week"
 msgstr "Buscar una nueva versión una vez por semana"
 
+msgid "Chipset (from the model name)"
+msgstr "Chipset (según el nombre del modelo)"
+
 msgid "Choose a share…"
 msgstr "Elegir un recurso compartido…"
+
+msgid "Click to copy"
+msgstr "Haz clic para copiar"
 
 msgid "Close"
 msgstr "Cerrar"
 
 msgid "Command bar icons: Fluent UI System Icons, © Microsoft Corporation, MIT license."
 msgstr "Iconos de la barra de comandos: Fluent UI System Icons, © Microsoft Corporation, licencia MIT."
+
+msgid "Compatibility"
+msgstr "Compatibilidad"
+
+msgid "Compiler"
+msgstr "Compilador"
+
+msgid "Compositor"
+msgstr "Compositor"
 
 msgid "Connected"
 msgstr "Conectado"
@@ -160,6 +226,9 @@ msgstr "Copiar ruta"
 msgid "Copy specs"
 msgstr "Copiar especificaciones"
 
+msgid "Core profile"
+msgstr "Perfil core"
+
 msgid "Could not save the list:\n{error}"
 msgstr "No se pudo guardar la lista:\n{error}"
 
@@ -184,14 +253,26 @@ msgstr "Personalizar el nombre de la aplicación (p. ej. Este equipo, CyberDeck)
 msgid "Cyan"
 msgstr "Cian"
 
+msgid "DNS servers"
+msgstr "Servidores DNS"
+
 msgid "Data read"
 msgstr "Datos leídos"
+
+msgid "Data usage"
+msgstr "Consumo de datos"
 
 msgid "Data written"
 msgstr "Datos escritos"
 
+msgid "Date"
+msgstr "Fecha"
+
 msgid "Default"
 msgstr "Predeterminada"
+
+msgid "Default gateway"
+msgstr "Puerta de enlace predeterminada"
 
 msgid "Desktop"
 msgstr "Escritorio"
@@ -226,14 +307,26 @@ msgstr "Disco defectuoso – haga una copia de sus archivos"
 msgid "Display name (optional):"
 msgstr "Nombre para mostrar (opcional):"
 
+msgid "Display server"
+msgstr "Servidor gráfico"
+
+msgid "Distribution"
+msgstr "Distribución"
+
 msgid "Documents"
 msgstr "Documentos"
+
+msgid "Download"
+msgstr "Descarga"
 
 msgid "Downloads"
 msgstr "Descargas"
 
 msgid "Drag folders here to pin them"
 msgstr "Arrastra carpetas aquí para anclarlas"
+
+msgid "Drive"
+msgstr "Unidad"
 
 msgid "Drive failing: {label}"
 msgstr "La unidad está fallando: {label}"
@@ -247,11 +340,35 @@ msgstr "Expulsar"
 msgid "Empty"
 msgstr "Vacía"
 
+msgid "Energy performance preference"
+msgstr "Preferencia energía/rendimiento"
+
+msgid "Error correction"
+msgstr "Corrección de errores"
+
 msgid "Export full report…"
 msgstr "Exportar informe completo…"
 
 msgid "Failed"
 msgstr "Error"
+
+msgid "Family"
+msgstr "Familia"
+
+msgid "Family / Model / Stepping"
+msgstr "Familia / modelo / stepping"
+
+msgid "Fan"
+msgstr "Ventilador"
+
+msgid "Fan control"
+msgstr "Control de ventiladores"
+
+msgid "Fan {n}"
+msgstr "Ventilador {n}"
+
+msgid "Fans"
+msgstr "Ventiladores"
 
 msgid "File system"
 msgstr "Sistema de archivos"
@@ -292,11 +409,17 @@ msgstr "GPL-3.0 o posterior"
 msgid "GPU & Display"
 msgstr "Gráficos y pantalla"
 
+msgid "GPU core"
+msgstr "Núcleo de la GPU"
+
 msgid "Game controller"
 msgstr "Mando de juego"
 
 msgid "Good"
 msgstr "Bueno"
+
+msgid "Governor"
+msgstr "Gobernador"
 
 msgid "Graphics"
 msgstr "Gráficos"
@@ -313,6 +436,12 @@ msgstr "Gris"
 msgid "Health"
 msgstr "Salud"
 
+msgid "IPv4 address"
+msgstr "Dirección IPv4"
+
+msgid "IPv6 address"
+msgstr "Dirección IPv6"
+
 msgid "Incorrect username or password."
 msgstr "Nombre de usuario o contraseña incorrectos."
 
@@ -322,8 +451,23 @@ msgstr "Niveles de tinta"
 msgid "Installed"
 msgstr "Instalado"
 
+msgid "Installed (usable)"
+msgstr "Instalada (utilizable)"
+
+msgid "Instance version"
+msgstr "Versión de la instancia"
+
+msgid "Instruction sets"
+msgstr "Conjuntos de instrucciones"
+
 msgid "Insufficient rights"
 msgstr "Permisos insuficientes"
+
+msgid "Interface"
+msgstr "Interfaz"
+
+msgid "Interfaces"
+msgstr "Interfaces"
 
 msgid "JSON report"
 msgstr "Informe JSON"
@@ -331,8 +475,20 @@ msgstr "Informe JSON"
 msgid "KWallet could not save the password: the gauge will not be shown."
 msgstr "KWallet no ha podido guardar la contraseña: no se mostrará la barra de espacio."
 
+msgid "Kernel driver"
+msgstr "Controlador del kernel"
+
+msgid "Kernel module"
+msgstr "Módulo del kernel"
+
 msgid "Keyboard"
 msgstr "Teclado"
+
+msgid "L1 data"
+msgstr "L1 datos"
+
+msgid "L1 instruction"
+msgstr "L1 instrucciones"
 
 msgid "License: {license}"
 msgstr "Licencia: {license}"
@@ -346,8 +502,17 @@ msgstr "Gris claro"
 msgid "Light magenta"
 msgstr "Magenta claro"
 
+msgid "Link speed"
+msgstr "Velocidad del enlace"
+
+msgid "Liquid cooler"
+msgstr "Refrigeración líquida"
+
 msgid "List"
 msgstr "Listar"
+
+msgid "Loaded modules"
+msgstr "Módulos cargados"
 
 msgid "Local Disk"
 msgstr "Disco local"
@@ -355,14 +520,38 @@ msgstr "Disco local"
 msgid "Location unavailable"
 msgstr "Ubicación no disponible"
 
+msgid "Logical CPUs"
+msgstr "CPU lógicas"
+
+msgid "MAC address"
+msgstr "Dirección MAC"
+
 msgid "Magenta"
 msgstr "Magenta"
 
 msgid "Mainboard"
 msgstr "Placa base"
 
+msgid "Manual · {p}"
+msgstr "Manual · {p}"
+
+msgid "Manufacturer"
+msgstr "Fabricante"
+
 msgid "Matte black"
 msgstr "Negro mate"
+
+msgid "Max. GPU clock"
+msgstr "Reloj máx. de la GPU"
+
+msgid "Max. capacity"
+msgstr "Capacidad máx."
+
+msgid "Max. clock"
+msgstr "Reloj máx."
+
+msgid "Max. memory clock"
+msgstr "Reloj máx. de la memoria"
 
 msgid "Maximize"
 msgstr "Maximizar"
@@ -376,8 +565,26 @@ msgstr "Errores de medio notificados"
 msgid "Memory"
 msgstr "Memoria"
 
+msgid "Memory controller"
+msgstr "Controlador de memoria"
+
+msgid "Memory modules"
+msgstr "Módulos de memoria"
+
+msgid "Microcode"
+msgstr "Microcódigo"
+
+msgid "Min. clock"
+msgstr "Reloj mín."
+
 msgid "Minimize"
 msgstr "Minimizar"
+
+msgid "Model"
+msgstr "Modelo"
+
+msgid "Module {n}"
+msgstr "Módulo {n}"
 
 msgid "Mount"
 msgstr "Montar"
@@ -406,6 +613,12 @@ msgstr "Música"
 msgid "My NAS"
 msgstr "Mi NAS"
 
+msgid "NVMe controller {slot}"
+msgstr "Controlador NVMe {slot}"
+
+msgid "NVMe drive"
+msgstr "Unidad NVMe"
+
 msgid "Name shown in the title bar and as the heading of the drive list. Leave empty for the default names."
 msgstr "Nombre que se muestra en la barra de título y como encabezado de la lista de unidades. Déjalo vacío para usar los nombres predeterminados."
 
@@ -420,6 +633,9 @@ msgstr "No se pudo contactar ni con «notify-send» ni con el servicio de notifi
 
 msgid "Network"
 msgstr "Red"
+
+msgid "Network adapter"
+msgstr "Adaptador de red"
 
 msgid "Network location"
 msgstr "Ubicación de red"
@@ -436,11 +652,17 @@ msgstr "Sin disco"
 msgid "No information available."
 msgstr "No hay información disponible."
 
+msgid "No matches"
+msgstr "Sin coincidencias"
+
 msgid "No scanning program was found on this computer. Please install “skanpage” or “simple-scan”."
 msgstr "No se encontró ningún programa de escaneo en este equipo. Instala «skanpage» o «simple-scan»."
 
 msgid "No share visible with these credentials."
 msgstr "No se ve ningún recurso compartido con estas credenciales."
+
+msgid "No temperature or fan sensors were found. The sensor drivers of the mainboard may need to be loaded (for example with “sensors-detect”)."
+msgstr "No se encontraron sensores de temperatura ni de ventiladores. Puede que haya que cargar los controladores de sensores de la placa base (por ejemplo con «sensors-detect»)."
 
 msgid "No terminal program found"
 msgstr "No se encontró ningún programa de terminal"
@@ -481,8 +703,23 @@ msgstr "Abrir configuración"
 msgid "Open with {app}"
 msgstr "Abrir con {app}"
 
+msgid "Operating system"
+msgstr "Sistema operativo"
+
+msgid "Outputs"
+msgstr "Salidas"
+
 msgid "Overview"
 msgstr "Resumen"
+
+msgid "PCIe link"
+msgstr "Enlace PCIe"
+
+msgid "PCIe link (max.)"
+msgstr "Enlace PCIe (máx.)"
+
+msgid "PCIe link (now)"
+msgstr "Enlace PCIe (actual)"
 
 msgid "Partial eject"
 msgstr "Expulsión parcial"
@@ -517,6 +754,12 @@ msgstr "Anclar a Acceso rápido"
 msgid "Power cycles"
 msgstr "Ciclos de encendido"
 
+msgid "Power limit"
+msgstr "Límite de potencia"
+
+msgid "Power management"
+msgstr "Gestión de energía"
+
 msgid "Power-on time"
 msgstr "Tiempo encendido"
 
@@ -538,6 +781,9 @@ msgstr "Imprimiendo"
 msgid "Processor"
 msgstr "Procesador"
 
+msgid "Product"
+msgstr "Producto"
+
 msgid "Program not found"
 msgstr "Programa no encontrado"
 
@@ -546,6 +792,9 @@ msgstr "Propiedades"
 
 msgid "Properties of {name}"
 msgstr "Propiedades de {name}"
+
+msgid "Pulse server"
+msgstr "Servidor Pulse"
 
 msgid "Quick access"
 msgstr "Acceso rápido"
@@ -577,6 +826,9 @@ msgstr "La lectura de SMART ha tardado demasiado."
 msgid "Reading hardware…"
 msgstr "Leyendo hardware…"
 
+msgid "Reading sensors…"
+msgstr "Leyendo sensores…"
+
 msgid "Ready"
 msgstr "Lista"
 
@@ -588,6 +840,9 @@ msgstr "Indicador rojo y símbolo ⚠ a partir de este espacio libre o menos."
 
 msgid "Refresh"
 msgstr "Actualizar"
+
+msgid "Release"
+msgstr "Versión"
 
 msgid "Remember the password (KWallet) to show the free space"
 msgstr "Recordar la contraseña (KWallet) para mostrar el espacio libre"
@@ -619,6 +874,9 @@ msgstr "Cambiar nombre…"
 msgid "Renaming is not supported for this format ({fstype})."
 msgstr "No se admite cambiar el nombre en este formato ({fstype})."
 
+msgid "Renderer"
+msgstr "Renderizador"
+
 msgid "Report saved"
 msgstr "Informe guardado"
 
@@ -631,8 +889,26 @@ msgstr "Restablecer nombre"
 msgid "Restore"
 msgstr "Restaurar"
 
+msgid "Right now"
+msgstr "Ahora mismo"
+
 msgid "Running"
 msgstr "En ejecución"
+
+msgid "Running at"
+msgstr "Funcionando a"
+
+msgid "SATA and RAID controllers"
+msgstr "Controladores SATA y RAID"
+
+msgid "SATA drive"
+msgstr "Unidad SATA"
+
+msgid "SATA link {n}"
+msgstr "Enlace SATA {n}"
+
+msgid "SATA links"
+msgstr "Enlaces SATA"
 
 msgid "SMART health"
 msgstr "Salud SMART"
@@ -655,11 +931,23 @@ msgstr "La optimización de SSD falló"
 msgid "Safely remove"
 msgstr "Quitar de forma segura"
 
+msgid "Scaling driver"
+msgstr "Controlador de frecuencia"
+
+msgid "Scaling range"
+msgstr "Rango de frecuencia"
+
 msgid "Scanner"
 msgstr "Escáner"
 
 msgid "Scan…"
 msgstr "Escanear…"
+
+msgid "Search (Ctrl+F)"
+msgstr "Buscar (Ctrl+F)"
+
+msgid "Search results"
+msgstr "Resultados de la búsqueda"
 
 msgid "Searching…"
 msgstr "Buscando…"
@@ -673,11 +961,17 @@ msgstr "La autoprueba falló"
 msgid "Send test notification"
 msgstr "Enviar notificación de prueba"
 
+msgid "Sensors & fans"
+msgstr "Sensores y ventiladores"
+
 msgid "Server address:"
 msgstr "Dirección del servidor:"
 
 msgid "Server unreachable. Check the address and that the server is turned on."
 msgstr "Servidor inaccesible. Compruebe la dirección y que el servidor esté encendido."
+
+msgid "Session type"
+msgstr "Tipo de sesión"
 
 msgid "Set as default printer"
 msgstr "Establecer como impresora predeterminada"
@@ -709,14 +1003,35 @@ msgstr "Signos de desgaste – ver Propiedades"
 msgid "Size"
 msgstr "Tamaño"
 
+msgid "Slots"
+msgstr "Ranuras"
+
+msgid "Slots, type, speed, manufacturer"
+msgstr "Ranuras, tipo, velocidad, fabricante"
+
+msgid "Socket"
+msgstr "Socket"
+
+msgid "Sockets · cores per socket · threads per core"
+msgstr "Sockets · núcleos por socket · hilos por núcleo"
+
 msgid "Sound"
 msgstr "Sonido"
+
+msgid "Sound card {n}"
+msgstr "Tarjeta de sonido {n}"
+
+msgid "Source"
+msgstr "Origen"
 
 msgid "Spare"
 msgstr "Reserva"
 
 msgid "Spare capacity below the limit"
 msgstr "Reserva por debajo del límite"
+
+msgid "Speed"
+msgstr "Velocidad"
 
 msgid "Status"
 msgstr "Estado"
@@ -727,8 +1042,20 @@ msgstr "Estado:"
 msgid "Storage"
 msgstr "Almacenamiento"
 
+msgid "Storage & buses"
+msgstr "Almacenamiento y buses"
+
 msgid "Storage I/O"
 msgstr "E/S de almacenamiento"
+
+msgid "Storage and filesystems"
+msgstr "Almacenamiento y sistemas de archivos"
+
+msgid "Subsystem"
+msgstr "Subsistema"
+
+msgid "Swap"
+msgstr "Swap"
 
 msgid "System"
 msgstr "Sistema"
@@ -763,8 +1090,14 @@ msgstr "Temperatura"
 msgid "Temperature warning"
 msgstr "Aviso de temperatura"
 
+msgid "Temperature {n}"
+msgstr "Temperatura {n}"
+
 msgid "Temperature:"
 msgstr "Temperatura:"
+
+msgid "Temperatures"
+msgstr "Temperaturas"
 
 msgid "Terminal"
 msgstr "Terminal"
@@ -832,14 +1165,29 @@ msgstr "Esta unidad necesita smartctl con la contraseña de administrador (p. ej
 msgid "This location already exists in the list."
 msgstr "Esta ubicación ya existe en la lista."
 
+msgid "This month"
+msgstr "Este mes"
+
 msgid "This printer does not report ink levels"
 msgstr "Esta impresora no informa de los niveles de tinta"
+
+msgid "This session (since boot)"
+msgstr "Esta sesión (desde el arranque)"
 
 msgid "This software is neither affiliated with nor endorsed by Microsoft Corporation. Windows is a trademark of Microsoft Corporation."
 msgstr "Este software no está afiliado a Microsoft Corporation ni cuenta con su aprobación. Windows es una marca comercial de Microsoft Corporation."
 
+msgid "This week"
+msgstr "Esta semana"
+
+msgid "Today"
+msgstr "Hoy"
+
 msgid "Toggle inspector"
 msgstr "Mostrar u ocultar el inspector"
+
+msgid "Total"
+msgstr "Total"
 
 msgid "Touchpad"
 msgstr "Panel táctil"
@@ -847,11 +1195,26 @@ msgstr "Panel táctil"
 msgid "Trash"
 msgstr "Papelera"
 
+msgid "Type"
+msgstr "Tipo"
+
 msgid "Type the password to be able to remember it."
 msgstr "Escriba la contraseña para poder recordarla."
 
 msgid "Type:"
 msgstr "Tipo:"
+
+msgid "UEFI · Secure Boot off"
+msgstr "UEFI · Secure Boot desactivado"
+
+msgid "UEFI · Secure Boot on"
+msgstr "UEFI · Secure Boot activado"
+
+msgid "USB devices"
+msgstr "Dispositivos USB"
+
+msgid "USB host controllers"
+msgstr "Controladores host USB"
 
 msgid "Uncorrectable sectors"
 msgstr "Sectores no corregibles"
@@ -874,6 +1237,9 @@ msgstr "Apagados inesperados"
 msgid "Up to date"
 msgstr "Actualizado"
 
+msgid "Upload"
+msgstr "Subida"
+
 msgid "Uptime"
 msgstr "Tiempo activo"
 
@@ -886,6 +1252,15 @@ msgstr "Usado: {size}"
 msgid "Username (required):"
 msgstr "Nombre de usuario (obligatorio):"
 
+msgid "VRAM type"
+msgstr "Tipo de VRAM"
+
+msgid "Vendor"
+msgstr "Fabricante"
+
+msgid "Version"
+msgstr "Versión"
+
 msgid "Version {version} of DriveDeck is available. To update, download it and run ./install.sh again."
 msgstr "La versión {version} de DriveDeck está disponible. Para actualizar, descárguela y vuelva a ejecutar ./install.sh."
 
@@ -897,6 +1272,9 @@ msgstr "Vídeos"
 
 msgid "View"
 msgstr "Ver"
+
+msgid "Virtualization"
+msgstr "Virtualización"
 
 msgid "Volume name"
 msgstr "Nombre del volumen"
@@ -922,14 +1300,35 @@ msgstr "Escritura"
 msgid "Yellow"
 msgstr "Amarillo"
 
+msgid "built into the kernel"
+msgstr "integrado en el kernel"
+
+msgid "connected"
+msgstr "conectado"
+
+msgid "counted by DriveDeck since {date}"
+msgstr "contado por DriveDeck desde {date}"
+
 msgid "day"
 msgstr "día"
 
 msgid "days"
 msgstr "días"
 
+msgid "disabled"
+msgstr "desactivado"
+
 msgid "driver {name}"
 msgstr "controlador {name}"
+
+msgid "empty"
+msgstr "vacía"
+
+msgid "enabled"
+msgstr "activado"
+
+msgid "fancontrol active"
+msgstr "fancontrol activo"
 
 msgid "file manager"
 msgstr "gestor de archivos"
@@ -937,11 +1336,23 @@ msgstr "gestor de archivos"
 msgid "filled in from the list, or type it"
 msgstr "rellenado desde la lista, o escríbalo"
 
+msgid "full duplex"
+msgstr "dúplex completo"
+
 msgid "gdbus not found or timed out."
 msgstr "gdbus no se ha encontrado o ha tardado demasiado."
 
+msgid "half duplex"
+msgstr "semidúplex"
+
 msgid "limit {n} %"
 msgstr "límite {n} %"
+
+msgid "max."
+msgstr "máx."
+
+msgid "min {min} · max {max}"
+msgstr "mín {min} · máx {max}"
 
 msgid "needs administrator rights"
 msgstr "requiere permisos de administrador"
@@ -949,14 +1360,44 @@ msgstr "requiere permisos de administrador"
 msgid "needs administrator rights – use the button below"
 msgstr "requiere permisos de administrador: usa el botón de abajo"
 
+msgid "none"
+msgstr "ninguno"
+
+msgid "not exposed by the driver"
+msgstr "no lo indica el controlador"
+
+msgid "not exposed by the kernel"
+msgstr "no lo indica el kernel"
+
+msgid "off"
+msgstr "desactivado"
+
+msgid "on"
+msgstr "activado"
+
 msgid "only for “List”, never saved"
 msgstr "solo para «Listar», nunca se guarda"
+
+msgid "port {port}"
+msgstr "puerto {port}"
+
+msgid "rank {n}"
+msgstr "rango {n}"
 
 msgid "running…"
 msgstr "en ejecución…"
 
 msgid "unknown error"
 msgstr "error desconocido"
+
+msgid "used by {list}"
+msgstr "usado por {list}"
+
+msgid "version {v}"
+msgstr "versión {v}"
+
+msgid "vnstat since {date}"
+msgstr "vnstat desde {date}"
 
 msgid "{cores} cores / {threads} threads"
 msgstr "{cores} núcleos / {threads} hilos"
@@ -979,6 +1420,21 @@ msgstr "{label} está casi lleno"
 msgid "{label} was unmounted but could not be powered off:\n{detail}\n\nYou can still unplug it."
 msgstr "{label} se ha desmontado, pero no se ha podido apagar:\n{detail}\n\nAun así puede desconectarlo."
 
+msgid "{link} – idle power state may lower it"
+msgstr "{link} – el ahorro de energía puede reducirlo"
+
+msgid "{mode} (preferred mode)"
+msgstr "{mode} (modo preferido)"
+
+msgid "{name} (Ethernet)"
+msgstr "{name} (Ethernet)"
+
+msgid "{name} (Wi-Fi)"
+msgstr "{name} (Wi-Fi)"
+
+msgid "{name} (modules)"
+msgstr "{name} (módulos)"
+
 msgid "{n} items"
 msgstr "{n} elementos"
 
@@ -987,6 +1443,18 @@ msgstr "{n} actualizaciones"
 
 msgid "{share} on {host}"
 msgstr "{share} en {host}"
+
+msgid "{socket} (derived from the CPU family)"
+msgstr "{socket} (deducido de la familia de la CPU)"
+
+msgid "{socket} (derived from the {chipset} chipset)"
+msgstr "{socket} (deducido del chipset {chipset})"
+
+msgid "{speed} (running {clock})"
+msgstr "{speed} (funcionando a {clock})"
+
+msgid "{type} (from the model name)"
+msgstr "{type} (según el nombre del modelo)"
 
 msgid "{used} in use ({pct} %)"
 msgstr "{used} en uso ({pct} %)"
