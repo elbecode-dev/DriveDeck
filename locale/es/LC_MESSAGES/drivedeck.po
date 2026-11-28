@@ -130,6 +130,9 @@ msgstr "Unidad de CD/DVD"
 msgid "CPU & Board"
 msgstr "CPU y placa base"
 
+msgid "CPU, RAM and network in the title bar"
+msgstr "CPU, RAM y red en la barra de título"
+
 msgid "Cache"
 msgstr "Caché"
 
@@ -358,8 +361,14 @@ msgstr "Arrastra carpetas aquí para anclarlas"
 msgid "Drive"
 msgstr "Unidad"
 
+msgid "Drive activity (read/write) on the cards"
+msgstr "Actividad de las unidades (lectura/escritura) en las tarjetas"
+
 msgid "Drive failing: {label}"
 msgstr "La unidad está fallando: {label}"
+
+msgid "Drive temperature on the cards"
+msgstr "Temperatura de las unidades en las tarjetas"
 
 msgid "DriveDeck runs “fstrim” on all mounted drives that support it. This needs administrator rights and can take a while."
 msgstr "DriveDeck ejecuta «fstrim» en todas las unidades montadas que lo admiten. Requiere permisos de administrador y puede tardar un poco."
@@ -556,6 +565,9 @@ msgstr "Refrigeración líquida"
 msgid "List"
 msgstr "Listar"
 
+msgid "Live displays"
+msgstr "Indicadores en vivo"
+
 msgid "Load"
 msgstr "Carga"
 
@@ -633,6 +645,9 @@ msgstr "Modelo"
 
 msgid "Module {n}"
 msgstr "Módulo {n}"
+
+msgid "Monochrome toolbar icons"
+msgstr "Iconos monocromos en la barra de herramientas"
 
 msgid "Mount"
 msgstr "Montar"
@@ -1051,8 +1066,8 @@ msgstr "Alimentador de hojas"
 msgid "Show"
 msgstr "Mostrar"
 
-msgid "Show and options"
-msgstr "Mostrar y opciones"
+msgid "Shown while neither the inspector nor the toolbar panel shows the live values."
+msgstr "Se muestra mientras ni el inspector ni el panel de la barra de herramientas muestren los valores en vivo."
 
 msgid "Signs of wear – see Properties"
 msgstr "Signos de desgaste – ver Propiedades"

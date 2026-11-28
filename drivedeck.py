@@ -1259,6 +1259,11 @@ def lade_einstellungen():
             "custom_name": name_begrenzen(data.get("custom_name", "")),
             "compact_toolbar": data.get("compact_toolbar") is True,   # immer die kompakte Leiste (sonst nur, wenn das Ribbon nicht passt)
             "notifications": data.get("notifications") is True,   # Desktop-Benachrichtigungen (Warnschwelle, SMART) : bewusst einschalten
+            # Live-Anzeigen (Issue #4) : standardmäßig an, abschaltbar
+            "title_monitor": data.get("title_monitor") is not False,   # CPU, RAM und Netz im Titelbalken
+            "drive_temp": data.get("drive_temp") is not False,         # Temperatur-Chip auf den Laufwerkskarten
+            "drive_io": data.get("drive_io") is not False,             # Lese-/Schreibverlauf auf den Laufwerkskarten
+            "mono_toolbar_icons": data.get("mono_toolbar_icons") is True,   # einfarbige Symbole in Ribbon und kompakter Leiste
             "desktop_name": name_begrenzen(data.get("desktop_name", "")),   # zuletzt in die Starter geschriebener Name
             "hw_window": _hw_fenster(data.get("hw_window"))}   # Größe des Systemdaten-Fensters
 
@@ -4470,6 +4475,7 @@ class Backend(QObject):
     smartInfoChanged = pyqtSignal()
     compactToolbarChanged = pyqtSignal()
     notificationsChanged = pyqtSignal()
+    displayPrefsChanged = pyqtSignal()   # Live-Anzeigen und Symbolstil
     sensorsUpdated = pyqtSignal(list)   # Hintergrund-Thread -> GUI-Thread
     sensorsChanged = pyqtSignal()
     netLiveUpdated = pyqtSignal(list)
@@ -5317,6 +5323,48 @@ class Backend(QObject):
             self._einst["compact_toolbar"] = bool(ja)
             self._verzoegert("einst", lambda: speichere_einstellungen(dict(self._einst)))
             self.compactToolbarChanged.emit()
+
+    def _anzeige(self, schluessel, ja):
+        if bool(ja) != self._einst[schluessel]:
+            self._einst[schluessel] = bool(ja)
+            self._verzoegert("einst", lambda: speichere_einstellungen(dict(self._einst)))
+            self.displayPrefsChanged.emit()
+
+    @pyqtProperty(bool, notify=displayPrefsChanged)
+    def titleMonitor(self):
+        """CPU, RAM und Netz als Text im Titelbalken (nur sichtbar, solange weder Inspector noch Ribbon-Panel sie zeigen)."""
+        return self._einst["title_monitor"]
+
+    @pyqtSlot(bool)
+    def setTitleMonitor(self, ja):
+        self._anzeige("title_monitor", ja)
+
+    @pyqtProperty(bool, notify=displayPrefsChanged)
+    def driveTemp(self):
+        """Temperatur-Chip auf den Laufwerkskarten (Inspector und Eigenschaften zeigen die Temperatur weiterhin)."""
+        return self._einst["drive_temp"]
+
+    @pyqtSlot(bool)
+    def setDriveTemp(self, ja):
+        self._anzeige("drive_temp", ja)
+
+    @pyqtProperty(bool, notify=displayPrefsChanged)
+    def driveIo(self):
+        """Lese-/Schreibverlauf (60 s) mit Momentanwerten auf den Laufwerkskarten."""
+        return self._einst["drive_io"]
+
+    @pyqtSlot(bool)
+    def setDriveIo(self, ja):
+        self._anzeige("drive_io", ja)
+
+    @pyqtProperty(bool, notify=displayPrefsChanged)
+    def monoToolbarIcons(self):
+        """Einfarbige (symbolische) Symbole in Ribbon und kompakter Leiste statt der farbigen."""
+        return self._einst["mono_toolbar_icons"]
+
+    @pyqtSlot(bool)
+    def setMonoToolbarIcons(self, ja):
+        self._anzeige("mono_toolbar_icons", ja)
 
     @pyqtProperty(bool, notify=notificationsChanged)
     def notifications(self):
@@ -7074,7 +7122,9 @@ QQC2.ApplicationWindow {
             // läuft auch mit Software-Rendering
             opacity: !qb.usable ? 0.42 : ((qbMouse.containsMouse || qbMouse.pressed || qb.activeFocus) ? 1.0 : 0.72)
             Behavior on opacity { NumberAnimation { duration: win.animMs; easing.type: Easing.OutCubic } }
-            readonly property string src: barIconsRuban[qb.iconName] || qb.iconName   // farbiger Ribbon-Satz, sonst Symbol des Themas
+            // farbiger Ribbon-Satz bzw. Symbol des Themas ; einfarbig : -symbolic-Variante als Maske in der Textfarbe
+            readonly property bool mono: backend.monoToolbarIcons
+            readonly property string src: mono ? (barIconsMono[qb.iconName] || qb.iconName) : (barIconsRuban[qb.iconName] || qb.iconName)
             readonly property bool isFile: src.indexOf("file://") === 0
             Image {
                 anchors.fill: parent
@@ -7090,6 +7140,8 @@ QQC2.ApplicationWindow {
                 anchors.fill: parent
                 visible: !qbIcon.isFile
                 source: qbIcon.isFile ? "" : qbIcon.src
+                isMask: qbIcon.mono
+                color: Kirigami.Theme.textColor
             }
         }
         QQC2.Label {
@@ -7162,7 +7214,9 @@ QQC2.ApplicationWindow {
             height: width
             opacity: !cb.usable ? 0.42 : ((cbMouse.containsMouse || cb.activeFocus) ? 1.0 : 0.8)
             Behavior on opacity { NumberAnimation { duration: win.animMs; easing.type: Easing.OutCubic } }
-            readonly property string src: barIconsRuban[cb.iconName] || cb.iconName
+            // farbiger Ribbon-Satz bzw. Symbol des Themas ; einfarbig : -symbolic-Variante als Maske in der Textfarbe
+            readonly property bool mono: backend.monoToolbarIcons
+            readonly property string src: mono ? (barIconsMono[cb.iconName] || cb.iconName) : (barIconsRuban[cb.iconName] || cb.iconName)
             readonly property bool isFile: src.indexOf("file://") === 0
             Image {
                 anchors.fill: parent
@@ -7178,6 +7232,8 @@ QQC2.ApplicationWindow {
                 anchors.fill: parent
                 visible: !cbIcon.isFile
                 source: cbIcon.isFile ? "" : cbIcon.src
+                isMask: cbIcon.mono
+                color: Kirigami.Theme.textColor
             }
         }
         MouseArea {
@@ -10070,6 +10126,43 @@ QQC2.ApplicationWindow {
                 checked: backend.compactToolbar
                 onToggled: { backend.setCompactToolbar(checked); checked = Qt.binding(function() { return backend.compactToolbar }) }
             }
+            QQC2.Switch {   // Issue #4 : farbige oder einfarbige (symbolische) Symbole in Ribbon und kompakter Leiste
+                objectName: "setMonoIcons"
+                Layout.fillWidth: true
+                text: win.trad("Monochrome toolbar icons")
+                checked: backend.monoToolbarIcons
+                onToggled: { backend.setMonoToolbarIcons(checked); checked = Qt.binding(function() { return backend.monoToolbarIcons }) }
+            }
+            QQC2.Label {
+                Layout.topMargin: 4
+                text: win.trad("Live displays")
+                color: win.textSecondary
+            }
+            ColumnLayout {   // Issue #4 : Live-Anzeigen einzeln abschaltbar
+                Layout.fillWidth: true
+                spacing: 0
+                QQC2.CheckBox {
+                    objectName: "setTitleMonitor"
+                    text: win.trad("CPU, RAM and network in the title bar")
+                    checked: backend.titleMonitor
+                    onToggled: { backend.setTitleMonitor(checked); checked = Qt.binding(function() { return backend.titleMonitor }) }
+                    QQC2.ToolTip.visible: hovered
+                    QQC2.ToolTip.delay: 600
+                    QQC2.ToolTip.text: win.trad("Shown while neither the inspector nor the toolbar panel shows the live values.")
+                }
+                QQC2.CheckBox {
+                    objectName: "setDriveTemp"
+                    text: win.trad("Drive temperature on the cards")
+                    checked: backend.driveTemp
+                    onToggled: { backend.setDriveTemp(checked); checked = Qt.binding(function() { return backend.driveTemp }) }
+                }
+                QQC2.CheckBox {
+                    objectName: "setDriveIo"
+                    text: win.trad("Drive activity (read/write) on the cards")
+                    checked: backend.driveIo
+                    onToggled: { backend.setDriveIo(checked); checked = Qt.binding(function() { return backend.driveIo }) }
+                }
+            }
             QQC2.Label {
                 Layout.topMargin: 4
                 text: win.trad("Show")
@@ -10334,7 +10427,7 @@ QQC2.ApplicationWindow {
                     id: miniTele
                     readonly property var st: (backend && backend.sysStats) ? backend.sysStats : ({})
                     readonly property var si: (backend && backend.sysInfo) ? backend.sysInfo : ({})
-                    visible: !win.inspectorShown && !win.showPanel && st.cpu !== undefined
+                    visible: backend.titleMonitor && !win.inspectorShown && !win.showPanel && st.cpu !== undefined
                     Layout.maximumWidth: Math.max(0, parent.width / 2 - titleLabel.implicitWidth / 2 - 60)
                     elide: Text.ElideRight
                     font: win.monoBadgeFont
@@ -10989,7 +11082,7 @@ QQC2.ApplicationWindow {
                         policy: QQC2.ScrollBar.AlwaysOn
                     }
                 }
-                // ===== Kompakte Symbolleiste ===== dieselben Befehle als Symbole, mittig ; « Anzeigen » im Menü « … »
+                // ===== Kompakte Symbolleiste ===== dieselben Befehle als Symbole, mittig
                 RowLayout {
                     id: compactRow
                     objectName: "compactRow"
@@ -11048,24 +11141,7 @@ QQC2.ApplicationWindow {
                     CompactBtn { title: win.trad("System information"); iconName: "info"; onActivated: barRoot.runCmd("specs") }
                     CompactBtn { title: win.trad("System Settings"); iconName: "settings"; onActivated: barRoot.runCmd("settings") }
                     CompactBtn { title: win.trad("About"); iconName: "about"; onActivated: barRoot.runCmd("about") }
-                    CompactSep {}
-                    CompactBtn {
-                        id: compactMoreBtn
-                        title: win.trad("Show and options")
-                        iconName: "overflow-menu"
-                        onActivated: compactMoreL.openMenu()
-                    }
-                }
-            }
-            // « … » : Einstieg in die Einstellungen (alle App-Einstellungen stehen an einem Ort, Strg+,)
-            LazyMenu {
-                id: compactMoreL
-                sourceComponent: QQC2.Menu {
-                    QQC2.MenuItem {
-                        text: win.trad("Settings…")
-                        icon.name: "configure"
-                        onTriggered: win.openSettings("")
-                    }
+                    // kein « … » mehr (Issue #4) : die Einstellungen öffnen das Zahnrad im Titelbalken, Strg+, und der Rechtsklick auf die Leiste
                 }
             }
             // Rechtsklick auf die Leiste (beide Modi) : kompakte Leiste immer oder nur bei Platzmangel
@@ -11345,7 +11421,7 @@ QQC2.ApplicationWindow {
                                 readonly property bool navSel: win.selectedKey === modelData.mountpoint
                                 onNavSelChanged: if (navSel) win.revealItem(diskRoot)
                                 Accessible.role: Accessible.Button
-                                Accessible.name: modelData.label + ", " + modelData.freeText + (tempChip.t !== undefined ? ", " + win.trad("Temperature") + " " + Math.round(tempChip.t.c) + " °C" : "") + (modelData.healthText ? ", " + modelData.healthText : "")
+                                Accessible.name: modelData.label + ", " + modelData.freeText + (tempChip.visible ? ", " + win.trad("Temperature") + " " + Math.round(tempChip.t.c) + " °C" : "") + (modelData.healthText ? ", " + modelData.healthText : "")
 
                                 RowLayout {
                                     anchors.fill: parent
@@ -11399,7 +11475,7 @@ QQC2.ApplicationWindow {
                                                 readonly property color tone: t === undefined ? "transparent"
                                                         : (t.level === "hot" ? win.sysRed : (t.level === "warn" ? win.sysOrange : Kirigami.Theme.textColor))
                                                 readonly property bool auffaellig: t !== undefined && t.level !== "ok"
-                                                visible: t !== undefined
+                                                visible: t !== undefined && backend.driveTemp
                                                 Accessible.role: Accessible.StaticText
                                                 Accessible.name: t !== undefined ? win.trad("Temperature") + ": " + Math.round(t.c) + " °C" : ""
                                                 radius: height / 2
@@ -11547,7 +11623,7 @@ QQC2.ApplicationWindow {
                                         readonly property bool anyIo: Object.keys(stats).length > 0   // ohne NumPy gibt es gar keine Werte : dann nichts zeigen
                                         readonly property string readText: io ? win.rateShort(io.readRate) : "-"
                                         readonly property string writeText: io ? win.rateShort(io.writeRate) : "-"
-                                        visible: anyIo && modelData.isUnmounted !== true && modelData.isOptical !== true
+                                        visible: backend.driveIo && anyIo && modelData.isUnmounted !== true && modelData.isOptical !== true
                                         Layout.preferredWidth: Math.round(82 * win.fontGrow)
                                         Layout.alignment: Qt.AlignVCenter
                                         spacing: 0
@@ -13274,6 +13350,25 @@ def bar_icons_ruban():
     return res
 
 
+def bar_icons_mono():
+    """Einfarbige Symbole der Befehlsleiste (Einstellung « Einfarbige Symbole ») : die -symbolic-Variante des Themas, in QML
+    als Maske in der Textfarbe gezeichnet ; fehlt sie, wird das normale Symbol zur Maske. Im GUI-Thread aufzurufen."""
+    wahl = {"props": ("document-properties-symbolic", "document-properties"),
+            "open": ("folder-open-symbolic", "document-open-symbolic", "document-open"),
+            "refresh": ("view-refresh-symbolic", "view-refresh"),
+            "add": ("folder-network-symbolic", "network-connect-symbolic", "folder-network"),
+            "drive-harddisk": ("drive-harddisk-symbolic", "drive-harddisk"),
+            "filelight": ("office-chart-pie-symbolic", "disk-quota-symbolic", "filelight"),
+            "utilities-system-monitor": ("office-chart-line-symbolic", "speedometer-symbolic", "utilities-system-monitor"),
+            "utilities-terminal": ("utilities-terminal-symbolic", "utilities-terminal"),
+            "info": ("computer-symbolic", "computer"),
+            "settings": ("preferences-system-symbolic", "configure-symbolic", "preferences-system"),
+            "about": ("help-about-symbolic", "help-about"),
+            "user-trash": ("user-trash-symbolic", "user-trash"),
+            "user-trash-full": ("user-trash-full-symbolic", "user-trash-symbolic", "user-trash-full")}
+    return {k: next((n for n in namen if symbol_vorhanden(n)), namen[-1]) for k, namen in wahl.items()}
+
+
 WIN_CONFIG = os.path.join(CONFIG_DIR, "fenetre.json")   # fenetreMemo
 
 
@@ -13395,6 +13490,7 @@ def main():
     ctx.setContextProperty("trTable", table_traductions(qml))
     ctx.setContextProperty("trDecimal", DECIMAL)
     ctx.setContextProperty("barIconsRuban", bar_icons_ruban())
+    ctx.setContextProperty("barIconsMono", bar_icons_mono())
     ctx.setContextProperty("aboutInfo", about_info())
     ctx.setContextProperty("sectInit", load_sections())
     ctx.setContextProperty("winInit", load_window_state())

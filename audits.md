@@ -786,6 +786,39 @@ refresh rate and scaling inside the window (offscreen `kscreen-doctor` cannot re
 shell: DP-3, 164 Hz, 100 %); AMD and Intel GPUs (VRAM from sysfs, no power-limit or clock tiles); several displays side by
 side; machines where `dmidecode` was run (memory speed and slot tiles).
 
+## 5z. Optional live displays and monochrome toolbar icons (issue #4, after 2.4.0)
+
+**Request (GitHub issue #4 by Sadi58):** make the title-bar monitor, the drive temperature and the drive I/O display
+optional, offer monochrome toolbar icons, offer the system window decoration, and avoid the duplicate settings entry.
+Agreed with the user: everything except the system window decoration, which needs its own work (frameless window, own
+buttons, resize grips, blur region and corner radius are tied together; on Wayland the flags cannot be switched
+reliably at run time).
+
+**Implementation:** four new keys in `settings.json` – `title_monitor`, `drive_temp`, `drive_io` (default on: only
+`false` turns them off) and `mono_toolbar_icons` (default off) – with the backend properties `titleMonitor`, `driveTemp`,
+`driveIo`, `monoToolbarIcons` (one `displayPrefsChanged` signal, one `_anzeige()` setter, saved delayed like the other
+settings). QML: `miniTele`, `tempChip` (and its part of the card's screen-reader name) and `ioArea` add the setting to
+their `visible`; `QuickBtn` and `CompactBtn` take `barIconsMono[...]` (from `bar_icons_mono()`, resolved once in the GUI
+thread: the first existing `-symbolic` name, else the normal icon) and draw it with `isMask` in the text colour. The
+settings dialog has a "Monochrome toolbar icons" switch and a "Live displays" group with three check boxes; the title-bar
+entry explains in a tooltip that it only appears while neither the inspector nor the ribbon panel shows the values.
+The compact toolbar's "…" button and its one-item menu are removed; "Show and options" left the `.po` files.
+
+**Not changed on purpose:** the sampling threads keep running when a display is off – the inspector (activity and
+storage I/O), the ribbon telemetry and the drive properties use the same data.
+
+**Checks:** new test 16/16 in Breeze Dark and Light: defaults on/off as above; no overflow button in the compact toolbar;
+`Ctrl+,` opens the dialog with all four new controls, reachable with Tab; monochrome mode masks all 12 toolbar icons with
+symbolic names (`document-properties-symbolic` … `user-trash-symbolic`) and switches back; temperature chips (5) and
+I/O areas (3) disappear when switched off; the title-bar monitor appears in a 1000 px window and disappears when switched
+off; the four keys are written to `settings.json` and read back. Settings test 20/20 (its Tab walk now takes 30 steps
+because the dialog has four more controls), window test 21/21, hardware window test 37/37, main-window stress run 60 s
+(4928 actions, 228 MB) without QML messages; screenshots of the ribbon and the compact toolbar in monochrome (Breeze Dark
+and Light). `pyright` 0 errors, `qmllint` 0 warnings outside *unqualified* (1321, analysed to line 6810 of 6875); all 12
+`.po` files complete (520 entries).
+
+**Not verified:** monochrome icons with the user's own icon theme on the real desktop.
+
 ---
 
 ## 6. Not verified

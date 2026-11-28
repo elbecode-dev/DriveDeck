@@ -12,7 +12,13 @@ hidden and everything else works).
 
 ## Unreleased
 
+### Added
+- **More choices in the settings** (issue #4, idea by Sadi58):
+  - **Monochrome toolbar icons:** the ribbon and the compact toolbar can use the symbolic (`-symbolic`) icons of the theme, drawn in the text colour, instead of the coloured set. Breeze has a symbolic icon for every command; where a theme lacks one, the normal icon is drawn as a monochrome mask.
+  - **Live displays**, each on by default and switchable: CPU, RAM and network in the title bar; the drive temperature on the cards; the drive activity (read/write history and current rates) on the cards. The inspector and the drive properties keep showing temperature and activity, so the measurements themselves keep running.
+
 ### Changed
+- The "…" button of the compact toolbar is gone: its menu only held "Settings…", which the gear in the title bar, `Ctrl+,` and the right-click menu of the toolbar already open (issue #4).
 - **Glanceable hardware window.** The main cards of every hardware tab (overview, CPU & board, GPU & display, memory, storage & buses, sensors & fans) now lead with what matters:
   - **Hero header:** a 36 px device symbol on a glass tile, the product name itself as the title (16 px bold – "AMD Ryzen 9 5900X", "NVIDIA GeForce RTX 4080 SUPER", "MPG X570 GAMING PRO CARBON WIFI", "KDE Plasma 6.8.3", the NVMe drive), an accent glass badge right next to it (socket, chipset, PCI slot, session type) and a muted subline (vendor, architecture, family/model/stepping, subsystem, driver).
   - **KPI tiles:** 3–4 compact tiles under the header with the value in 14 px semi-bold tabular figures and the label in 11 px below, for example cores/threads, max. clock, L3 cache and frequency driver for the CPU; VRAM with type, max. GPU clock, power limit and PCIe link (with the current link when it is lower) for the GPU; BIOS version, BIOS date and boot mode for the board; capacity, PCIe link and driver for NVMe drives. A value that is just too long shrinks to 12 px before it is cut. In a narrow card the tiles wrap evenly (2 + 2, not 3 + 1).

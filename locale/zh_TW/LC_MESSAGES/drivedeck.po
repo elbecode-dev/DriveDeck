@@ -130,6 +130,9 @@ msgstr "CD/DVD 光碟機"
 msgid "CPU & Board"
 msgstr "CPU 與主機板"
 
+msgid "CPU, RAM and network in the title bar"
+msgstr "標題列中的 CPU、記憶體與網路"
+
 msgid "Cache"
 msgstr "快取"
 
@@ -358,8 +361,14 @@ msgstr "將資料夾拖曳到這裡以釘選"
 msgid "Drive"
 msgstr "磁碟機"
 
+msgid "Drive activity (read/write) on the cards"
+msgstr "卡片上的磁碟機活動(讀/寫)"
+
 msgid "Drive failing: {label}"
 msgstr "磁碟機故障:{label}"
+
+msgid "Drive temperature on the cards"
+msgstr "卡片上的磁碟機溫度"
 
 msgid "DriveDeck runs “fstrim” on all mounted drives that support it. This needs administrator rights and can take a while."
 msgstr "DriveDeck 會在所有支援的已掛載磁碟機上執行「fstrim」。這需要系統管理員權限,可能需要一些時間。"
@@ -556,6 +565,9 @@ msgstr "水冷散熱器"
 msgid "List"
 msgstr "列出"
 
+msgid "Live displays"
+msgstr "即時顯示"
+
 msgid "Load"
 msgstr "負載"
 
@@ -633,6 +645,9 @@ msgstr "型號"
 
 msgid "Module {n}"
 msgstr "模組 {n}"
+
+msgid "Monochrome toolbar icons"
+msgstr "工具列使用單色圖示"
 
 msgid "Mount"
 msgstr "掛載"
@@ -1051,8 +1066,8 @@ msgstr "送紙器"
 msgid "Show"
 msgstr "顯示"
 
-msgid "Show and options"
-msgstr "顯示與選項"
+msgid "Shown while neither the inspector nor the toolbar panel shows the live values."
+msgstr "當檢查器與工具列面板都未顯示即時數值時顯示。"
 
 msgid "Signs of wear – see Properties"
 msgstr "有磨損跡象 – 請查看內容"

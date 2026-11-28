@@ -130,6 +130,9 @@ msgstr "Cd/dvd-station"
 msgid "CPU & Board"
 msgstr "Processor en moederbord"
 
+msgid "CPU, RAM and network in the title bar"
+msgstr "CPU, RAM en netwerk in de titelbalk"
+
 msgid "Cache"
 msgstr "Cache"
 
@@ -358,8 +361,14 @@ msgstr "Sleep mappen hierheen om ze vast te pinnen"
 msgid "Drive"
 msgstr "Station"
 
+msgid "Drive activity (read/write) on the cards"
+msgstr "Schijfactiviteit (lezen/schrijven) op de kaarten"
+
 msgid "Drive failing: {label}"
 msgstr "Station faalt: {label}"
+
+msgid "Drive temperature on the cards"
+msgstr "Schijftemperatuur op de kaarten"
 
 msgid "DriveDeck runs “fstrim” on all mounted drives that support it. This needs administrator rights and can take a while."
 msgstr "DriveDeck voert ‘fstrim’ uit op alle gekoppelde stations die dit ondersteunen. Hiervoor zijn beheerdersrechten nodig en het kan even duren."
@@ -556,6 +565,9 @@ msgstr "Waterkoeling"
 msgid "List"
 msgstr "Weergeven"
 
+msgid "Live displays"
+msgstr "Live-weergaven"
+
 msgid "Load"
 msgstr "Belasting"
 
@@ -633,6 +645,9 @@ msgstr "Model"
 
 msgid "Module {n}"
 msgstr "Module {n}"
+
+msgid "Monochrome toolbar icons"
+msgstr "Monochrome pictogrammen in de werkbalk"
 
 msgid "Mount"
 msgstr "Koppelen"
@@ -1051,8 +1066,8 @@ msgstr "Velleninvoer"
 msgid "Show"
 msgstr "Weergeven"
 
-msgid "Show and options"
-msgstr "Weergave en opties"
+msgid "Shown while neither the inspector nor the toolbar panel shows the live values."
+msgstr "Zichtbaar zolang noch de inspector noch het werkbalkpaneel de live-waarden toont."
 
 msgid "Signs of wear – see Properties"
 msgstr "Tekenen van slijtage – zie Eigenschappen"

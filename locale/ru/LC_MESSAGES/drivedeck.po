@@ -130,6 +130,9 @@ msgstr "CD/DVD-дисковод"
 msgid "CPU & Board"
 msgstr "Процессор и плата"
 
+msgid "CPU, RAM and network in the title bar"
+msgstr "ЦП, ОЗУ и сеть в заголовке окна"
+
 msgid "Cache"
 msgstr "Кэш"
 
@@ -358,8 +361,14 @@ msgstr "Перетащите сюда папки, чтобы закрепить 
 msgid "Drive"
 msgstr "Диск"
 
+msgid "Drive activity (read/write) on the cards"
+msgstr "Активность дисков (чтение/запись) на карточках"
+
 msgid "Drive failing: {label}"
 msgstr "Диск выходит из строя: {label}"
+
+msgid "Drive temperature on the cards"
+msgstr "Температура дисков на карточках"
 
 msgid "DriveDeck runs “fstrim” on all mounted drives that support it. This needs administrator rights and can take a while."
 msgstr "DriveDeck выполняет «fstrim» на всех смонтированных дисках, которые это поддерживают. Нужны права администратора, это может занять некоторое время."
@@ -556,6 +565,9 @@ msgstr "Жидкостное охлаждение"
 msgid "List"
 msgstr "Показать"
 
+msgid "Live displays"
+msgstr "Живые показатели"
+
 msgid "Load"
 msgstr "Нагрузка"
 
@@ -633,6 +645,9 @@ msgstr "Модель"
 
 msgid "Module {n}"
 msgstr "Модуль {n}"
+
+msgid "Monochrome toolbar icons"
+msgstr "Монохромные значки на панели инструментов"
 
 msgid "Mount"
 msgstr "Смонтировать"
@@ -1051,8 +1066,8 @@ msgstr "Податчик листов"
 msgid "Show"
 msgstr "Показать"
 
-msgid "Show and options"
-msgstr "Вид и параметры"
+msgid "Shown while neither the inspector nor the toolbar panel shows the live values."
+msgstr "Показывается, пока ни инспектор, ни панель инструментов не показывают живые значения."
 
 msgid "Signs of wear – see Properties"
 msgstr "Признаки износа – см. Свойства"

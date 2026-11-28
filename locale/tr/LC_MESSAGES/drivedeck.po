@@ -130,6 +130,9 @@ msgstr "CD/DVD sürücüsü"
 msgid "CPU & Board"
 msgstr "İşlemci ve anakart"
 
+msgid "CPU, RAM and network in the title bar"
+msgstr "Başlık çubuğunda CPU, RAM ve ağ"
+
 msgid "Cache"
 msgstr "Önbellek"
 
@@ -358,8 +361,14 @@ msgstr "Sabitlemek için klasörleri buraya sürükleyin"
 msgid "Drive"
 msgstr "Sürücü"
 
+msgid "Drive activity (read/write) on the cards"
+msgstr "Kartlarda sürücü etkinliği (okuma/yazma)"
+
 msgid "Drive failing: {label}"
 msgstr "Sürücü arızalanıyor: {label}"
+
+msgid "Drive temperature on the cards"
+msgstr "Kartlarda sürücü sıcaklığı"
 
 msgid "DriveDeck runs “fstrim” on all mounted drives that support it. This needs administrator rights and can take a while."
 msgstr "DriveDeck, destekleyen tüm bağlı sürücülerde “fstrim” çalıştırır. Bu, yönetici hakları gerektirir ve biraz sürebilir."
@@ -556,6 +565,9 @@ msgstr "Sıvı soğutucu"
 msgid "List"
 msgstr "Listele"
 
+msgid "Live displays"
+msgstr "Canlı göstergeler"
+
 msgid "Load"
 msgstr "Yük"
 
@@ -633,6 +645,9 @@ msgstr "Model"
 
 msgid "Module {n}"
 msgstr "Modül {n}"
+
+msgid "Monochrome toolbar icons"
+msgstr "Araç çubuğunda tek renkli simgeler"
 
 msgid "Mount"
 msgstr "Bağla"
@@ -1051,8 +1066,8 @@ msgstr "Yaprak besleyici"
 msgid "Show"
 msgstr "Göster"
 
-msgid "Show and options"
-msgstr "Görünüm ve seçenekler"
+msgid "Shown while neither the inspector nor the toolbar panel shows the live values."
+msgstr "Ne denetçi ne de araç çubuğu paneli canlı değerleri gösterdiği sürece görünür."
 
 msgid "Signs of wear – see Properties"
 msgstr "Yıpranma belirtileri – Özellikler'e bakın"

@@ -168,10 +168,12 @@ small **live graph** of their read and write speed, and warn you when they are a
 - **Adjustable "almost full" warning.** In the ribbon group *Show*, **Warning threshold…** opens the settings at a
   slider (1 to 50 % free space, default 20 %) with a live preview of the red bar and the warning badge. The bars and ⚠
   badges change at once and the value is remembered. *(Idea by Sadi58.)*
-- **Settings in one place.** The gear next to the inspector toggle, "…" in the compact toolbar or `Ctrl+,` open one
+- **Settings in one place.** The gear next to the inspector toggle, `Ctrl+,` or a right-click on the toolbar open one
   small dialog with everything that used to be spread over the ribbon, the "…" menu and the *About* window: the
-  application name, "Always use the compact toolbar", which sections are shown, the warning threshold and desktop
-  notifications. `Esc` closes it; every control is reachable with Tab and has a screen-reader name.
+  application name, "Always use the compact toolbar", monochrome (symbolic) toolbar icons, which sections are shown,
+  the live displays (CPU, RAM and network in the title bar, drive temperature and drive activity on the cards – each can
+  be switched off), the warning threshold and desktop notifications. `Esc` closes it; every control is reachable with
+  Tab and has a screen-reader name.
 - **Desktop notifications (optional).** When switched on in the settings, DriveDeck notifies you once per drive and
   session when a drive or mounted share falls below the warning threshold, or when a drive reports a SMART warning or
   failure (`notify-send`, or the desktop notification service over D-Bus). *Send test notification* checks that they

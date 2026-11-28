@@ -130,6 +130,9 @@ msgstr "Napęd CD/DVD"
 msgid "CPU & Board"
 msgstr "Procesor i płyta główna"
 
+msgid "CPU, RAM and network in the title bar"
+msgstr "CPU, RAM i sieć na pasku tytułu"
+
 msgid "Cache"
 msgstr "Pamięć podręczna"
 
@@ -358,8 +361,14 @@ msgstr "Przeciągnij tutaj foldery, aby je przypiąć"
 msgid "Drive"
 msgstr "Dysk"
 
+msgid "Drive activity (read/write) on the cards"
+msgstr "Aktywność dysków (odczyt/zapis) na kartach"
+
 msgid "Drive failing: {label}"
 msgstr "Awaria dysku: {label}"
+
+msgid "Drive temperature on the cards"
+msgstr "Temperatura dysków na kartach"
 
 msgid "DriveDeck runs “fstrim” on all mounted drives that support it. This needs administrator rights and can take a while."
 msgstr "DriveDeck uruchamia „fstrim” na wszystkich zamontowanych dyskach, które to obsługują. Wymaga to uprawnień administratora i może chwilę potrwać."
@@ -556,6 +565,9 @@ msgstr "Chłodzenie cieczą"
 msgid "List"
 msgstr "Wyświetl"
 
+msgid "Live displays"
+msgstr "Wskaźniki na żywo"
+
 msgid "Load"
 msgstr "Obciążenie"
 
@@ -633,6 +645,9 @@ msgstr "Model"
 
 msgid "Module {n}"
 msgstr "Moduł {n}"
+
+msgid "Monochrome toolbar icons"
+msgstr "Monochromatyczne ikony na pasku narzędzi"
 
 msgid "Mount"
 msgstr "Zamontuj"
@@ -1051,8 +1066,8 @@ msgstr "Podajnik arkuszy"
 msgid "Show"
 msgstr "Pokaż"
 
-msgid "Show and options"
-msgstr "Widok i opcje"
+msgid "Shown while neither the inspector nor the toolbar panel shows the live values."
+msgstr "Widoczne, dopóki ani inspektor, ani panel paska narzędzi nie pokazują wartości na żywo."
 
 msgid "Signs of wear – see Properties"
 msgstr "Oznaki zużycia – zobacz Właściwości"

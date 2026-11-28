@@ -130,6 +130,9 @@ msgstr "CD/DVD ドライブ"
 msgid "CPU & Board"
 msgstr "CPU とマザーボード"
 
+msgid "CPU, RAM and network in the title bar"
+msgstr "タイトルバーに CPU・RAM・ネットワーク"
+
 msgid "Cache"
 msgstr "キャッシュ"
 
@@ -358,8 +361,14 @@ msgstr "ここにフォルダーをドラッグしてピン留め"
 msgid "Drive"
 msgstr "ドライブ"
 
+msgid "Drive activity (read/write) on the cards"
+msgstr "カードにドライブの読み書き状況"
+
 msgid "Drive failing: {label}"
 msgstr "ドライブの故障: {label}"
+
+msgid "Drive temperature on the cards"
+msgstr "カードにドライブの温度"
 
 msgid "DriveDeck runs “fstrim” on all mounted drives that support it. This needs administrator rights and can take a while."
 msgstr "DriveDeck は対応するすべてのマウント済みドライブで「fstrim」を実行します。管理者権限が必要で、しばらく時間がかかることがあります。"
@@ -556,6 +565,9 @@ msgstr "水冷クーラー"
 msgid "List"
 msgstr "一覧表示"
 
+msgid "Live displays"
+msgstr "ライブ表示"
+
 msgid "Load"
 msgstr "負荷"
 
@@ -633,6 +645,9 @@ msgstr "モデル"
 
 msgid "Module {n}"
 msgstr "モジュール {n}"
+
+msgid "Monochrome toolbar icons"
+msgstr "ツールバーのアイコンをモノクロにする"
 
 msgid "Mount"
 msgstr "マウント"
@@ -1051,8 +1066,8 @@ msgstr "シートフィーダー"
 msgid "Show"
 msgstr "表示"
 
-msgid "Show and options"
-msgstr "表示とオプション"
+msgid "Shown while neither the inspector nor the toolbar panel shows the live values."
+msgstr "インスペクターとツールバーのパネルのどちらもライブ値を表示していない間に表示されます。"
 
 msgid "Signs of wear – see Properties"
 msgstr "劣化の兆候 – プロパティを確認"

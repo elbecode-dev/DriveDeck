@@ -130,6 +130,9 @@ msgstr "CD/DVD-Laufwerk"
 msgid "CPU & Board"
 msgstr "CPU & Mainboard"
 
+msgid "CPU, RAM and network in the title bar"
+msgstr "CPU, RAM und Netzwerk im Titelbalken"
+
 msgid "Cache"
 msgstr "Cache"
 
@@ -358,8 +361,14 @@ msgstr "Ordner hierher ziehen, um sie anzuheften"
 msgid "Drive"
 msgstr "Laufwerk"
 
+msgid "Drive activity (read/write) on the cards"
+msgstr "Laufwerksaktivität (Lesen/Schreiben) auf den Karten"
+
 msgid "Drive failing: {label}"
 msgstr "Laufwerk fällt aus: {label}"
+
+msgid "Drive temperature on the cards"
+msgstr "Laufwerkstemperatur auf den Karten"
 
 msgid "DriveDeck runs “fstrim” on all mounted drives that support it. This needs administrator rights and can take a while."
 msgstr "DriveDeck führt „fstrim“ auf allen eingebundenen Laufwerken aus, die es unterstützen. Das braucht Administratorrechte und kann etwas dauern."
@@ -556,6 +565,9 @@ msgstr "Wasserkühlung"
 msgid "List"
 msgstr "Auflisten"
 
+msgid "Live displays"
+msgstr "Live-Anzeigen"
+
 msgid "Load"
 msgstr "Auslastung"
 
@@ -633,6 +645,9 @@ msgstr "Modell"
 
 msgid "Module {n}"
 msgstr "Modul {n}"
+
+msgid "Monochrome toolbar icons"
+msgstr "Einfarbige Symbole in der Symbolleiste"
 
 msgid "Mount"
 msgstr "Einbinden"
@@ -1051,8 +1066,8 @@ msgstr "Einzug"
 msgid "Show"
 msgstr "Anzeigen"
 
-msgid "Show and options"
-msgstr "Anzeigen und Optionen"
+msgid "Shown while neither the inspector nor the toolbar panel shows the live values."
+msgstr "Erscheint, solange weder der Inspector noch das Panel der Symbolleiste die Live-Werte zeigt."
 
 msgid "Signs of wear – see Properties"
 msgstr "Verschleißanzeichen – siehe Eigenschaften"
